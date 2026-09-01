@@ -15,7 +15,7 @@ UseCase IR ……… single source of behavior (states/events/transitions/races/
    +
 bindings ……… locator / literal contract (single source of UI vocabulary)
    ↓ generation
-test code / implementation code / test plans & checklists (all quality concentrates in the upstream contract)
+test code / implementation code (all quality concentrates in the upstream contract)
 ```
 
 Design principles:

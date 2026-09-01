@@ -66,7 +66,7 @@ export interface RuleDef {
 export interface InputDef {
   id: string;
   kind: "field" | "option";
-  /** Optional metadata (not used by the checks; for downstream consumers such as test plans) */
+  /** Optional metadata (not used by the checks; for downstream consumers) */
   required?: boolean;
   /** Overrides the condition set. When omitted, the kind-specific defaults apply (checks.ts INPUT_DEFAULT_CONDITIONS) */
   conditions?: string[];
