@@ -1,0 +1,24 @@
+{
+  "name": "esdd",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ESDD (Executable Spec-Driven Development) — a machine-checkable UseCase IR and contract checker for spec-to-test/code generation",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "check": "node src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  }
+}

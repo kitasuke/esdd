@@ -1,0 +1,51 @@
+# ESDD UseCase IR の例 (states なし = フォームモード): 連絡先メールアドレスの変更
+# inputs 軸マトリクス (field/option × 条件) の網羅を checker が強制する。
+# 検査: pnpm check examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
+usecase: UC-PROFILE-EMAIL-001
+name: 連絡先メールアドレスの変更
+source:
+  spec: "https://example.com/specs/contact-email"
+  version: "v1"
+
+inputs:
+  - id: メールアドレス
+    kind: field
+    required: true
+  - id: お知らせメールを受け取る
+    kind: option
+
+scenarios:
+  - id: SC-001
+    name: メールアドレスを変更できる
+    critical: true
+    covers: ["お知らせメールを受け取る×既定"]
+    given: ["ログイン済みの利用者が設定画面を開いている"]
+    when: ["新しいメールアドレスを入力して保存する"]
+    then:
+      - "「メールアドレスを変更しました」と表示される"
+      - "UpdateContactEmail が入力値で呼ばれる"
+  - id: SC-002
+    name: お知らせメールの設定を変えて保存できる
+    covers: ["お知らせメールを受け取る×設定時"]
+    given: ["ログイン済みの利用者が設定画面を開いている"]
+    when: ["お知らせメールを受け取るを切り替えて保存する"]
+    then: ["UpdateContactEmail が切り替え後の値で呼ばれる"]
+
+rules:
+  - id: RULE-001
+    name: 入力バリデーション
+    cases:
+      - input: "メールアドレスが未入力"
+        expected: "「メールアドレスを入力してください」を表示し、保存しない"
+        covers: "メールアドレス×未入力"
+      - input: "メールアドレスが 255 文字 (上限ちょうど)"
+        expected: "保存できる"
+        covers: "メールアドレス×境界値"
+      - input: "メールアドレスが 256 文字 (上限超過)"
+        expected: "「メールアドレスは 255 文字以内で入力してください」を表示し、保存しない"
+        covers: "メールアドレス×境界値"
+  - id: RULE-002
+    name: 保存結果の通知
+    cases:
+      - { input: "保存成功", expected: "「メールアドレスを変更しました」をトーストで表示する" }
+      - { input: "保存失敗 (サーバーエラー)", expected: "「変更に失敗しました。時間をおいて再度お試しください」を表示する" }

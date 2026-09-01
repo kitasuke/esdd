@@ -1,0 +1,108 @@
+# ESDD UseCase IR の例 (states モード): オンライン注文のキャンセル
+# 検査: pnpm check examples/order-cancel.usecase.yaml --suggest-paths
+usecase: UC-ORDER-CANCEL-001
+name: 注文のキャンセル
+source:
+  spec: "https://example.com/specs/order-cancel" # 仕様 (PRD 等) へのリンク
+  version: "v1"
+
+initial: PLACED
+
+states:
+  - { id: PLACED, label: 注文受付済み }
+  - { id: PACKED, label: 梱包済み }
+  - { id: HANDED_OVER, label: 配送業者引き渡し済み }
+  - { id: COMPLETED, label: 配達完了, terminal: true }
+  - { id: CANCELED, label: キャンセル済み, terminal: true }
+
+events:
+  - { id: pack, label: 梱包する, actor: staff }
+  - { id: hand_over, label: 配送業者に引き渡す, actor: staff }
+  - { id: complete, label: 配達を完了する, actor: system }
+  - { id: cancel, label: キャンセルする, actor: customer }
+
+transitions:
+  - from: PLACED
+    on: pack
+    to: PACKED
+    outcome: ["注文ステータスが「梱包済み」と表示される"]
+  - from: PLACED
+    on: cancel
+    to: CANCELED
+    outcome:
+      - "注文ステータスが「キャンセル済み」と表示される"
+      - "キャンセル料は発生しない (RULE-001)"
+  - from: PLACED
+    on: [hand_over, complete]
+    impossible: true
+    reason: "梱包前の注文は引き渡し・配達完了に到達しない (作業順序の制約)"
+  - from: PACKED
+    on: hand_over
+    to: HANDED_OVER
+    outcome: ["注文ステータスが「発送済み」と表示される"]
+  - from: PACKED
+    on: cancel
+    to: CANCELED
+    outcome:
+      - "注文ステータスが「キャンセル済み」と表示される"
+      - "キャンセル料の案内が表示される (RULE-001)"
+  - from: PACKED
+    on: [pack, complete]
+    impossible: true
+    reason: "二重梱包は UI に導線がなく、引き渡し前の配達完了は起きない"
+  - from: HANDED_OVER
+    on: complete
+    to: COMPLETED
+    outcome: ["注文ステータスが「配達完了」と表示される"]
+  - from: HANDED_OVER
+    on: [pack, hand_over]
+    impossible: true
+    reason: "引き渡し後の再作業は本 usecase の範囲外 (返品は別 usecase)"
+  - from: HANDED_OVER
+    on: cancel
+    impossible: true
+    reason: "引き渡し後のキャンセルは不可 — 返品フロー (別 usecase) に誘導する"
+
+# 同一 state で異なる actor のイベントが競合し得る場合は勝者と結果を宣言する
+races:
+  - state: PLACED
+    between: [pack, cancel]
+    winner: cancel
+    outcome: ["先に確定した操作が勝つ。梱包画面には「キャンセル済み」の注意が表示される"]
+  - state: PACKED
+    between: [hand_over, cancel]
+    winner: hand_over
+    outcome: ["引き渡し確定後のキャンセル要求は拒否され、返品フローが案内される"]
+
+scenarios:
+  - id: SC-001
+    name: 注文が配達完了まで進む
+    critical: true
+    path: [pack, hand_over, complete]
+    given: ["支払い済みの注文が1件ある"]
+    when: ["スタッフが梱包し、配送業者に引き渡し、配達が完了する"]
+    then: ["注文ステータスが「配達完了」と表示される"]
+  - id: SC-002
+    name: 梱包前のキャンセルは無料で完了する
+    critical: true
+    path: [cancel]
+    given: ["支払い済みの注文が1件ある"]
+    when: ["顧客がキャンセルする"]
+    then:
+      - "注文ステータスが「キャンセル済み」と表示される"
+      - "キャンセル料は発生しない"
+  - id: SC-003
+    name: 梱包後のキャンセルはキャンセル料の案内つきで完了する
+    path: [pack, cancel]
+    given: ["梱包済みの注文が1件ある"]
+    when: ["顧客がキャンセルする"]
+    then:
+      - "注文ステータスが「キャンセル済み」と表示される"
+      - "キャンセル料の案内が表示される"
+
+rules:
+  - id: RULE-001
+    name: キャンセル料
+    cases:
+      - { input: "梱包前 (PLACED) のキャンセル", expected: "キャンセル料 0 円" }
+      - { input: "梱包後 (PACKED) のキャンセル", expected: "キャンセル料の案内「梱包後のキャンセルには手数料がかかります」を表示する" }
