@@ -17,11 +17,14 @@ design-tool and component layers.
 
 ```
 Spec (PRD, …)
-   ↓ conversion + checks (this repository's checker)
+   ↓ transform
 UseCase IR ……… single source of behavior (states/events/transitions/races/inputs/scenarios/rules)
-   +
-bindings ……… locator / literal contract (single source of UI vocabulary)
-   ↓ generation
+   + bindings … locator / literal contract (single source of UI vocabulary)
+   ↓ machine checks (this repository's checker)
+check results = the question list for the spec owner
+   ↓ answers are folded back in; approval once every check passes  ← the single human approval point
+approved contract
+   ↓ generation (decisions only, recorded in thin target IRs)
 test code / implementation code (all quality concentrates in the upstream contract)
 ```
 
