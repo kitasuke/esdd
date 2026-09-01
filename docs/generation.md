@@ -1,88 +1,104 @@
-# 生成側の原則 — 承認済み契約からテストと実装を生成する
+# Generation principles — generating tests and implementation from the approved contract
 
-このリポジトリの checker は契約 (UseCase IR + bindings) の品質を担保する。
-このドキュメントは、その契約から**テストと実装を生成する側**の原則をまとめる。
-生成器の実装そのものは含まない — 原則と、実運用 (2026 年、社内の複数機能で
-first-shot Green を実証済み) から得た構造だけを置く。
+The checker in this repository guards the quality of the contract (UseCase IR +
+bindings). This document collects the principles for the **side that generates tests
+and implementation** from that contract. It does not include a generator
+implementation — only the principles and the structure learned from real use (2026,
+first-shot Green demonstrated on several internal features).
 
-## 受け入れ駆動 (acceptance-first)
+## Acceptance-first
 
-新規機能なら、実装ゼロの時点で Integration テストを「機能」させられる:
+For a new feature, integration tests can be made to "work" with zero implementation:
 
-1. **bindings を IR 承認と同時にレビューする**。label・ボタン文言・エラー文言は
-   契約として先に確定する (仕様に無ければ質問リスト行き)
-2. **IR からセマンティックドライバとテストを生成する**。テスト本体は実装語彙を
-   一切持たず、Red の初期状態で積まれる
-3. **実装者 (人間 or 生成器) はこのテストを Green にすることが完了定義**。
-   契約と食い違う実装は Red のまま = 契約が機械的に守られる
+1. **Review the bindings at the same time the IR is approved.** Labels, button copy,
+   and error copy are fixed up front as contract (anything missing from the spec goes
+   on the question list)
+2. **Generate the semantic driver and the tests from the IR.** The test bodies carry
+   no implementation vocabulary at all, and are landed in an initially Red state
+3. **The implementer (human or generator) is done when these tests are Green.**
+   An implementation that disagrees with the contract stays Red = the contract is
+   enforced mechanically
 
-実測: 未実装仕様に対して受け入れテスト 7 本を先行生成 → 契約に向けて実装 →
-**テスト本体の変更ゼロで全 Green**。さらに別セッションのエージェントに契約と
-ドキュメントだけを渡した再現実験でも typecheck・テストとも first-shot Green
-(反復ゼロ) を確認した。
+Measured: 7 acceptance tests generated ahead of an unimplemented spec → implemented
+toward the contract → **all Green with zero changes to the test bodies**. A
+replication run — handing only the contract and the documentation to an agent in a
+separate session — also reached first-shot Green (zero iterations) on both typecheck
+and tests.
 
-## セマンティックドライバ (語彙の隔離)
+## Semantic driver (vocabulary isolation)
 
-生成テストは画面を直接触らず、IR の入力軸から機械導出できる**ドライバ**を介す:
+Generated tests never touch the screen directly; they go through a **driver** that is
+mechanically derivable from the IR's input axes:
 
 ```ts
-await form.set("メールアドレス", "a@example.com");
+await form.set("email", "a@example.com");
 await form.submit();
 await form.expectSaved();
 ```
 
-- テスト本体は IR 語彙のみ。実装語彙 (実 locator・widget 操作の癖) は
-  **adapter 1 ファイル**に隔離する
-- 実装の語彙変更の影響は adapter に閉じ、テスト本体は不変
-- 新規機能 (受け入れ駆動) では bindings が実装を拘束するため adapter は恒等写像になる
+- The test body uses IR vocabulary only. Implementation vocabulary (real locators,
+  widget-interaction quirks) is isolated into **a single adapter file**
+- The impact of an implementation vocabulary change is confined to the adapter; the
+  test body is invariant
+- For new features (acceptance-first) the bindings constrain the implementation, so
+  the adapter becomes an identity mapping
 
-## パターンレジストリ (select → instantiate)
+## Pattern registry (select → instantiate)
 
-component は自由生成しない。**select(パターン) → instantiate(bindings 語彙)** の 2 段:
+Components are not free-generated. Two stages: **select(pattern) →
+instantiate(bindings vocabulary)**:
 
-1. IR の scenario / event / outcome の**形**からパターンを選ぶ (レジストリの
-   `selects_on` が唯一の選択根拠)
-2. パターンの **exemplar (実在ファイル)** を読み、構造・エラー処理・配置を踏襲する
-3. bindings / IR literal で語彙を実体化する (発明の禁止)
-4. 対応するパターンが無い形に出会ったら**先にレジストリへ追記**してから生成する
+1. Choose a pattern from the **shape** of the IR's scenario / event / outcome (the
+   registry's `selects_on` is the only basis for selection)
+2. Read the pattern's **exemplar (a real file)** and follow its structure, error
+   handling, and placement
+3. Materialize the vocabulary from the bindings / IR literals (the no-invention rule)
+4. When you meet a shape with no matching pattern, **extend the registry first**,
+   then generate
 
-レジストリはプロジェクト固有の資産 (このリポジトリには含まれない)。作り方:
-既存コードベースを census し、再帰するアーキタイプを「選択条件 + exemplar +
-構造メモ」で採録する。競合する実装流儀があれば**勝者を裁定**として書き、
-実体の無いパターンは「登録しない」と明示する (未調査と区別するため)。
+The registry is a project-specific asset (not included in this repository). How to
+build one: census the existing codebase and record the recurring archetypes as
+"selection criteria + exemplar + structural notes". Where competing implementation
+styles exist, write the winner down as a **ruling**, and explicitly mark patterns
+with no real exemplar as "not registered" (to distinguish them from the unexamined).
 
-根拠となった由来監査: 手書き実装 (約 1,000 行) の全決定が
-**A) 契約由来 / B) ハウスパターン由来 / C) 自由裁量 (見た目)** の 3 クラスに
-分類でき、未分類がゼロだった。つまり生成に必要な入力は契約 (A) とレジストリ (B)
-で閉じ、C は exemplar 踏襲でよい。
+The provenance audit that grounds this: every decision in a hand-written
+implementation (~1,000 lines) could be classified into **A) contract-derived /
+B) house-pattern-derived / C) free discretion (cosmetic)** — with zero left
+unclassified. So the inputs needed for generation close over the contract (A) and
+the registry (B), and C can follow the exemplar.
 
-## 生成決定レコード
+## Generation decision records
 
-生成上の決定を、コードより先に書く **決定レコード**として残す:
+Record generation-level decisions as a **decision record**, written before the code:
 
 ```yaml
 record: FE-GEN-<usecase-id>
 source: { usecase: …, bindings: …, registry: … }
-selections:            # どの形にどのパターンを選んだか (参照のみ)
-  - { target: "SC-001 の保存フォーム", pattern: mutation_form, exemplar: …, output: … }
+selections:            # which pattern was chosen for which shape (references only)
+  - { target: "the save form of SC-001", pattern: mutation_form, exemplar: …, output: … }
 file_plan: { new: […], modified: […] }
-unprescribed:          # どの入力も規定しなかった決定の全件列挙 (空なら [] と明記)
-  - { decision: "警告の表示位置", disposition: レジストリ追記 } # or 質問リスト / 容認
+unprescribed:          # every decision no input prescribed (write [] explicitly if empty)
+  - { decision: "placement of the warning", disposition: registry-addition } # or question-list / accepted
 literal_sweep: { unmatched_rules: [] }
 ```
 
-- 振る舞いの再記述・コード断片は持たない (決定と参照のみ)
-- `unprescribed` の disposition: `レジストリ追記` (次から機械が答える) /
-  `質問リスト` (仕様の穴) / `容認` (見た目の自由裁量のみに使える)
-- 目的: 「誰も決めていなかった決定」を生成後の自己申告ではなく
-  **生成前のレビュー可能な成果物**にする
+- Carries no re-description of behavior and no code fragments (decisions and
+  references only)
+- `unprescribed` dispositions: `registry-addition` (the machine answers next time) /
+  `question-list` (a hole in the spec) / `accepted` (usable only for cosmetic free
+  discretion)
+- Purpose: turn "decisions nobody made" into a **reviewable artifact before
+  generation**, not a self-report after it
 
-## Red の扱い
+## Handling Red
 
-- **既存実装に対する生成テストの Red = spec と実装の drift の検出**。どちらが正かは
-  人間が裁定する。テストを黙って Green に直すのは検出器の破壊
-- 生成直後の unit テストは Green が期待値 (関数とテストが同一のケース表から出るため)。
-  Red なら生成器のバグ
-- co-generation (実装とテストを同じ契約から生成) では両者が構成的に一致するため、
-  安全網は契約レビュー (bindings + 生成決定レコード) に移る。契約レビューを
-  省略した co-generation は自己整合的に間違う
+- **A generated test going Red against an existing implementation = detection of
+  drift between spec and implementation.** A human adjudicates which side is right.
+  Quietly fixing the test to Green destroys the detector
+- Unit tests immediately after generation are expected Green (the function and the
+  test come from the same case table). Red there means a generator bug
+- Under co-generation (implementation and tests generated from the same contract)
+  the two agree constructively, so the safety net moves to contract review
+  (bindings + generation decision records). co-generation without contract review is
+  self-consistently wrong

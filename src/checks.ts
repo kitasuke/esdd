@@ -1,6 +1,6 @@
-// UseCase IR の意味検査群。
-// すべて単純なグラフ走査で、モデル検査器は使わない。
-// 検査の失敗は「仕様への質問」として読めるメッセージにする。
+// Semantic checks for the UseCase IR.
+// All of them are simple graph traversals — no model checker involved.
+// Check failures are worded so they read as questions back to the spec.
 
 import {
   cellKey,
@@ -22,7 +22,7 @@ function transitionCells(model: Model): Cell[] {
   return [...model.cells.values()].flat().filter((c) => !c.impossible);
 }
 
-/** 網羅性: 非終端の全state × 全event が transition か impossible で宣言されているか */
+/** Exhaustiveness: is every non-terminal state × event declared as a transition or impossible? */
 export function checkExhaustiveness(model: Model): Finding[] {
   const findings: Finding[] = [];
   for (const state of nonTerminalStates(model)) {
@@ -33,8 +33,8 @@ export function checkExhaustiveness(model: Model): Finding[] {
           level: "error",
           check: "exhaustiveness",
           message:
-            `${state} × ${event}: 未定義です。「${state}のときに${label}が起きたら?」に答えてください` +
-            `(遷移を定義するか、impossible: true と reason を宣言する)`,
+            `${state} × ${event}: undeclared. Answer "what happens when ${label} occurs in ${state}?" ` +
+            `(define a transition, or declare impossible: true with a reason)`,
         });
       }
     }
@@ -42,7 +42,7 @@ export function checkExhaustiveness(model: Model): Finding[] {
   return findings;
 }
 
-/** 決定性: 同じ (from, on) に複数の宣言がないか */
+/** Determinism: does any (from, on) pair have more than one declaration? */
 export function checkDeterminism(model: Model): Finding[] {
   const findings: Finding[] = [];
   for (const [key, list] of model.cells) {
@@ -50,16 +50,16 @@ export function checkDeterminism(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "determinism",
-        message: `${key.replace(" ", " × ")}: 宣言が${list.length}件あります(transitions[${list
+        message: `${key.replace(" ", " × ")}: has ${list.length} declarations (transitions[${list
           .map((c) => c.entryIndex)
-          .join("], transitions[")}])。1セルにつき宣言は1つです`,
+          .join("], transitions[")}]). Each cell must have exactly one declaration`,
       });
     }
   }
   return findings;
 }
 
-/** 終端状態から出る遷移がないか */
+/** No transitions may leave a terminal state */
 export function checkTerminals(model: Model): Finding[] {
   const findings: Finding[] = [];
   for (const c of transitionCells(model)) {
@@ -67,14 +67,14 @@ export function checkTerminals(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "terminals",
-        message: `${c.from} は terminal ですが遷移 (on: ${c.on}) が定義されています`,
+        message: `${c.from} is terminal but has an outgoing transition (on: ${c.on})`,
       });
     }
   }
   return findings;
 }
 
-/** 到達性: initial から全stateに到達できるか */
+/** Reachability: can every state be reached from initial? */
 export function checkReachability(model: Model): Finding[] {
   const findings: Finding[] = [];
   if (!model.initial) return findings;
@@ -94,14 +94,14 @@ export function checkReachability(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "reachability",
-        message: `${s}: initial (${model.initial}) からどのイベント列でも到達できません`,
+        message: `${s}: cannot be reached from initial (${model.initial}) by any event sequence`,
       });
     }
   }
   return findings;
 }
 
-/** 脱出可能性: 全ての非終端stateから終端に到達できるか(ユーザーが詰まないか) */
+/** Escapability: can every non-terminal state reach a terminal state? (no dead ends for the user) */
 export function checkEscapability(model: Model): Finding[] {
   const findings: Finding[] = [];
   const terminals = [...model.states.values()].filter((s) => s.terminal).map((s) => s.id);
@@ -109,7 +109,7 @@ export function checkEscapability(model: Model): Finding[] {
     findings.push({
       level: "error",
       check: "escapability",
-      message: "terminal な state がありません。少なくとも1つの終端状態が必要です",
+      message: "there is no terminal state. At least one terminal state is required",
     });
     return findings;
   }
@@ -129,7 +129,7 @@ export function checkEscapability(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "escapability",
-        message: `${s}: どの終端状態にも到達できません(この状態に入るとユーザーが詰みます)`,
+        message: `${s}: cannot reach any terminal state (a user who enters this state is stuck)`,
       });
     }
   }
@@ -137,30 +137,30 @@ export function checkEscapability(model: Model): Finding[] {
 }
 
 /**
- * 競合宣言の義務: 同一stateに異なるactorのイベントによる遷移が複数ある場合、
- * そのペアの競合時の振る舞いが races に宣言されているか。
+ * Race declaration obligation: when a state has transitions triggered by events of
+ * different actors, the behavior of that racing pair must be declared under races.
  */
 export function checkRaces(model: Model): Finding[] {
   const findings: Finding[] = [];
   const races = model.ir.races ?? [];
 
-  // 宣言自体の妥当性
+  // Validity of the declarations themselves
   races.forEach((r, i) => {
     const at = `races[${i}]`;
     if (!model.states.has(r.state)) {
-      findings.push({ level: "error", check: "races", message: `${at}: state が未定義です: ${r.state}` });
+      findings.push({ level: "error", check: "races", message: `${at}: undefined state: ${r.state}` });
       return;
     }
     for (const e of r.between) {
       if (!model.events.has(e)) {
-        findings.push({ level: "error", check: "races", message: `${at}: event が未定義です: ${e}` });
+        findings.push({ level: "error", check: "races", message: `${at}: undefined event: ${e}` });
       } else {
         const cell = one(model, r.state, e);
         if (!cell || cell.impossible) {
           findings.push({
             level: "warn",
             check: "races",
-            message: `${at}: ${r.state} で ${e} は遷移として定義されていません(競合は発生しません)`,
+            message: `${at}: ${e} is not defined as a transition from ${r.state} (no race can occur)`,
           });
         }
       }
@@ -169,12 +169,12 @@ export function checkRaces(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "races",
-        message: `${at}: winner (${r.winner}) は between のどちらかである必要があります`,
+        message: `${at}: winner (${r.winner}) must be one of the between events`,
       });
     }
   });
 
-  // 義務: 異actorペアの検出
+  // Obligation: detect pairs with different actors
   for (const state of nonTerminalStates(model)) {
     const active = [...model.events.values()].filter((e) => {
       const cell = one(model, state, e.id);
@@ -196,8 +196,8 @@ export function checkRaces(model: Model): Finding[] {
             level: "error",
             check: "races",
             message:
-              `${state}: ${a.actor} の ${a.id} と ${b.actor} の ${b.id} が競合し得ます。` +
-              `「ほぼ同時に起きたらどちらが勝ち、ユーザーには何が見えるか?」を races に宣言してください`,
+              `${state}: ${a.actor}'s ${a.id} and ${b.actor}'s ${b.id} can race. ` +
+              `Declare in races "if they happen almost simultaneously, which one wins, and what does the user see?"`,
           });
         }
       }
@@ -206,7 +206,7 @@ export function checkRaces(model: Model): Finding[] {
   return findings;
 }
 
-/** パス妥当性: 各シナリオのイベント列を initial からリプレイできるか */
+/** Path validity: can each scenario's event sequence be replayed from initial? */
 export function checkPaths(model: Model): Finding[] {
   const findings: Finding[] = [];
   if (!model.initial) return findings;
@@ -218,7 +218,7 @@ export function checkPaths(model: Model): Finding[] {
         findings.push({
           level: "error",
           check: "paths",
-          message: `${sc.id}: path[${i}] のevent が未定義です: ${event}`,
+          message: `${sc.id}: path[${i}] references an undefined event: ${event}`,
         });
         break;
       }
@@ -228,8 +228,8 @@ export function checkPaths(model: Model): Finding[] {
           level: "error",
           check: "paths",
           message:
-            `${sc.id}: path[${i}] ${event} は ${current} から実行できません` +
-            (cell?.impossible ? `(impossible: ${cell.reason})` : "(遷移が未定義)"),
+            `${sc.id}: path[${i}] ${event} cannot be executed from ${current} ` +
+            (cell?.impossible ? `(impossible: ${cell.reason})` : "(no transition declared)"),
         });
         break;
       }
@@ -239,7 +239,7 @@ export function checkPaths(model: Model): Finding[] {
   return findings;
 }
 
-/** 遷移カバレッジ: 全遷移がいずれかのシナリオに踏まれているか */
+/** Transition coverage: is every transition exercised by at least one scenario? */
 export function checkCoverage(model: Model): Finding[] {
   const findings: Finding[] = [];
   if (!model.initial) return findings;
@@ -250,15 +250,15 @@ export function checkCoverage(model: Model): Finding[] {
         level: "warn",
         check: "coverage",
         message:
-          `${c.from} × ${c.on} → ${c.to}: どのシナリオにも踏まれていません` +
-          `(--suggest-paths でパス案を提案できます)`,
+          `${c.from} × ${c.on} → ${c.to}: not exercised by any scenario ` +
+          `(--suggest-paths can propose candidate paths)`,
       });
     }
   }
   return findings;
 }
 
-/** シナリオが実際に踏むセルの集合(リプレイ結果) */
+/** The set of cells that the scenarios actually exercise (replay result) */
 export function coveredCells(model: Model): Set<string> {
   const covered = new Set<string>();
   if (!model.initial) return covered;
@@ -275,7 +275,7 @@ export function coveredCells(model: Model): Set<string> {
   return covered;
 }
 
-/** 語彙: outcome の observation 参照が definitions レジストリに存在するか */
+/** Vocabulary: does every observation referenced by an outcome exist in the definitions registry? */
 export function checkVocabulary(
   model: Model,
   observationNames: Set<string>,
@@ -288,7 +288,7 @@ export function checkVocabulary(
           findings.push({
             level: "error",
             check: "vocabulary",
-            message: `${at}: observation "${item.observation}" は e2e-definitions.yaml の observations レジストリに存在しません`,
+            message: `${at}: observation "${item.observation}" does not exist in the observations registry (--definitions)`,
           });
         }
       }
@@ -303,10 +303,11 @@ export interface CheckOptions {
   observationNames?: Set<string>;
 }
 
-/** 全検査の実行 */
-// 未回答の仕様質問マーカー。ASSUMPTION 仮置き時に outcome / reason / rules.expected へ
-// 「要確認」等を残す規約(usecase-ir.md)を機械可視にする。warn = 承認前に人間が回収する印。
-const PENDING_MARKERS = ["要確認", "TODO", "TBD", "FIXME"];
+/** Run all checks */
+// Markers for unanswered spec questions. The convention (usecase-ir.md) of leaving
+// "TBD" etc. in outcome / reason / rules.expected when placing an ASSUMPTION makes
+// them machine-visible. warn = a human must resolve them before approval.
+const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
 
 function findPendingMarker(text: string): string | undefined {
   return PENDING_MARKERS.find((m) => text.includes(m));
@@ -323,14 +324,14 @@ function pendingInOutcome(outcome: OutcomeItem[] | undefined): string | undefine
   return undefined;
 }
 
-/** pending: 未回答の仕様質問マーカー(要確認/TODO/TBD/FIXME)が残っていないか */
+/** pending: are any unanswered spec-question markers (TBD/TODO/FIXME/UNRESOLVED) left? */
 export function checkPending(model: Model): Finding[] {
   const findings: Finding[] = [];
   const push = (at: string, marker: string) => {
     findings.push({
       level: "warn",
       check: "pending",
-      message: `${at}: 未回答の仕様質問マーカー(${marker})が残っています。PRDオーナーの回答を反映してから承認してください`,
+      message: `${at}: an unanswered spec-question marker (${marker}) remains. Incorporate the spec owner's answer before approving`,
     });
   };
   (model.ir.transitions ?? []).forEach((t, i) => {
@@ -359,14 +360,14 @@ export function checkPending(model: Model): Finding[] {
   return findings;
 }
 
-// 入力軸の kind 別の既定条件セット。ハッピーパス(有効値)は scenarios が担うため、
-// 軸が問うのはエッジ条件のみ。conditions で上書き可能。
+// Default condition sets per input kind. The happy path (valid value) is owned by
+// the scenarios, so the axis asks only about edge conditions. Overridable via conditions.
 export const INPUT_DEFAULT_CONDITIONS: Record<string, string[]> = {
-  field: ["未入力", "境界値"],
-  option: ["既定", "設定時"],
+  field: ["empty", "boundary"],
+  option: ["default", "set"],
 };
 
-/** input ごとの実効条件セット (conditions ?? kind別既定) */
+/** Effective condition set per input (conditions ?? kind-specific defaults) */
 export function inputConditions(model: Model): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const inp of model.ir.inputs ?? []) {
@@ -381,8 +382,9 @@ function toCoversArray(v: string | string[] | undefined): string[] {
 }
 
 /**
- * inputs: 宣言された入力 × 条件の全セルが covers か na で態度表明されているか。
- * statesなしモードの exhaustiveness 相当 — 未カバーのセルは仕様への質問として報告する。
+ * inputs: has every declared input × condition cell taken an explicit stance via covers or na?
+ * The stateless-mode counterpart of exhaustiveness — uncovered cells are reported
+ * as questions back to the spec.
  */
 export function checkInputs(model: Model): Finding[] {
   const inputs = model.ir.inputs ?? [];
@@ -390,20 +392,20 @@ export function checkInputs(model: Model): Finding[] {
   const findings: Finding[] = [];
   const conds = inputConditions(model);
 
-  // na の条件が宣言済みか
+  // Are the na conditions declared?
   for (const inp of inputs) {
     for (const cond of Object.keys(inp.na ?? {})) {
       if (!(conds.get(inp.id) ?? []).includes(cond)) {
         findings.push({
           level: "error",
           check: "inputs",
-          message: `inputs (${inp.id}): na の条件「${cond}」がこの入力の条件セットに存在しません (条件: ${(conds.get(inp.id) ?? []).join(", ")})`,
+          message: `inputs (${inp.id}): na condition "${cond}" does not exist in this input's condition set (conditions: ${(conds.get(inp.id) ?? []).join(", ")})`,
         });
       }
     }
   }
 
-  // covers の収集と照合 (typo は宣言との不一致としてエラーになる)
+  // Collect and verify covers (a typo shows up as a mismatch against the declarations)
   const covered = new Set<string>();
   const claim = (ref: string, at: string) => {
     const parts = ref.split("×").map((s) => s.trim());
@@ -411,7 +413,7 @@ export function checkInputs(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "inputs",
-        message: `${at}: covers は「入力ID×条件」形式で指定してください: ${JSON.stringify(ref)}`,
+        message: `${at}: covers must use the "<inputId>×<condition>" cell syntax: ${JSON.stringify(ref)}`,
       });
       return;
     }
@@ -420,7 +422,7 @@ export function checkInputs(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "inputs",
-        message: `${at}: covers の入力IDが inputs に宣言されていません: ${id}`,
+        message: `${at}: covers references an input id that is not declared in inputs: ${id}`,
       });
       return;
     }
@@ -428,7 +430,7 @@ export function checkInputs(model: Model): Finding[] {
       findings.push({
         level: "error",
         check: "inputs",
-        message: `${at}: covers の条件「${cond}」が入力「${id}」の条件セットに存在しません (条件: ${conds.get(id)!.join(", ")})`,
+        message: `${at}: covers condition "${cond}" does not exist in the condition set of input "${id}" (conditions: ${conds.get(id)!.join(", ")})`,
       });
       return;
     }
@@ -443,7 +445,7 @@ export function checkInputs(model: Model): Finding[] {
     });
   }
 
-  // 義務: 全セルが covers か na のどちらかで態度表明されていること
+  // Obligation: every cell must take a stance — either covers or na
   for (const inp of inputs) {
     for (const cond of conds.get(inp.id) ?? []) {
       const key = `${inp.id}×${cond}`;
@@ -453,14 +455,14 @@ export function checkInputs(model: Model): Finding[] {
         findings.push({
           level: "warn",
           check: "inputs",
-          message: `${key}: na 宣言と covers の両方があります (na の理由が古い可能性 — どちらかに揃えてください)`,
+          message: `${key}: has both an na declaration and covers (the na reason may be stale — keep exactly one)`,
         });
       }
       if (!isNa && !isCovered) {
         findings.push({
           level: "error",
           check: "inputs",
-          message: `${inp.id} × ${cond}: 未カバーです。「${inp.id}が${cond}のとき何が起きるか?」に答えてください(rules のケース / scenario に covers で紐づけるか、inputs の na で理由を宣言する)`,
+          message: `${inp.id} × ${cond}: uncovered. Answer "what happens when ${inp.id} is ${cond}?" (link it via covers from a rule case / scenario, or declare a reason under the input's na)`,
         });
       }
     }

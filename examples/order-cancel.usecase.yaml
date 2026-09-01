@@ -1,108 +1,108 @@
-# ESDD UseCase IR の例 (states モード): オンライン注文のキャンセル
-# 検査: pnpm check examples/order-cancel.usecase.yaml --suggest-paths
+# Example ESDD UseCase IR (states mode): canceling an online order
+# Check it: pnpm check examples/order-cancel.usecase.yaml --suggest-paths
 usecase: UC-ORDER-CANCEL-001
-name: 注文のキャンセル
+name: Order cancellation
 source:
-  spec: "https://example.com/specs/order-cancel" # 仕様 (PRD 等) へのリンク
+  spec: "https://example.com/specs/order-cancel" # link to the spec (PRD etc.)
   version: "v1"
 
 initial: PLACED
 
 states:
-  - { id: PLACED, label: 注文受付済み }
-  - { id: PACKED, label: 梱包済み }
-  - { id: HANDED_OVER, label: 配送業者引き渡し済み }
-  - { id: COMPLETED, label: 配達完了, terminal: true }
-  - { id: CANCELED, label: キャンセル済み, terminal: true }
+  - { id: PLACED, label: Order placed }
+  - { id: PACKED, label: Packed }
+  - { id: HANDED_OVER, label: Handed to the carrier }
+  - { id: COMPLETED, label: Delivered, terminal: true }
+  - { id: CANCELED, label: Canceled, terminal: true }
 
 events:
-  - { id: pack, label: 梱包する, actor: staff }
-  - { id: hand_over, label: 配送業者に引き渡す, actor: staff }
-  - { id: complete, label: 配達を完了する, actor: system }
-  - { id: cancel, label: キャンセルする, actor: customer }
+  - { id: pack, label: pack the order, actor: staff }
+  - { id: hand_over, label: hand the order to the carrier, actor: staff }
+  - { id: complete, label: complete the delivery, actor: system }
+  - { id: cancel, label: cancel the order, actor: customer }
 
 transitions:
   - from: PLACED
     on: pack
     to: PACKED
-    outcome: ["注文ステータスが「梱包済み」と表示される"]
+    outcome: ['the order status shows "Packed"']
   - from: PLACED
     on: cancel
     to: CANCELED
     outcome:
-      - "注文ステータスが「キャンセル済み」と表示される"
-      - "キャンセル料は発生しない (RULE-001)"
+      - 'the order status shows "Canceled"'
+      - "no cancellation fee is charged (RULE-001)"
   - from: PLACED
     on: [hand_over, complete]
     impossible: true
-    reason: "梱包前の注文は引き渡し・配達完了に到達しない (作業順序の制約)"
+    reason: "an unpacked order never reaches hand-over or delivery completion (work-order constraint)"
   - from: PACKED
     on: hand_over
     to: HANDED_OVER
-    outcome: ["注文ステータスが「発送済み」と表示される"]
+    outcome: ['the order status shows "Shipped"']
   - from: PACKED
     on: cancel
     to: CANCELED
     outcome:
-      - "注文ステータスが「キャンセル済み」と表示される"
-      - "キャンセル料の案内が表示される (RULE-001)"
+      - 'the order status shows "Canceled"'
+      - "the cancellation fee notice is shown (RULE-001)"
   - from: PACKED
     on: [pack, complete]
     impossible: true
-    reason: "二重梱包は UI に導線がなく、引き渡し前の配達完了は起きない"
+    reason: "the UI has no path to double-packing, and delivery cannot complete before hand-over"
   - from: HANDED_OVER
     on: complete
     to: COMPLETED
-    outcome: ["注文ステータスが「配達完了」と表示される"]
+    outcome: ['the order status shows "Delivered"']
   - from: HANDED_OVER
     on: [pack, hand_over]
     impossible: true
-    reason: "引き渡し後の再作業は本 usecase の範囲外 (返品は別 usecase)"
+    reason: "rework after hand-over is out of scope for this usecase (returns are a separate usecase)"
   - from: HANDED_OVER
     on: cancel
     impossible: true
-    reason: "引き渡し後のキャンセルは不可 — 返品フロー (別 usecase) に誘導する"
+    reason: "cancellation after hand-over is not allowed — the user is directed to the returns flow (separate usecase)"
 
-# 同一 state で異なる actor のイベントが競合し得る場合は勝者と結果を宣言する
+# When events of different actors can race in the same state, declare the winner and the outcome
 races:
   - state: PLACED
     between: [pack, cancel]
     winner: cancel
-    outcome: ["先に確定した操作が勝つ。梱包画面には「キャンセル済み」の注意が表示される"]
+    outcome: ['the operation that commits first wins. The packing screen shows a "Canceled" notice']
   - state: PACKED
     between: [hand_over, cancel]
     winner: hand_over
-    outcome: ["引き渡し確定後のキャンセル要求は拒否され、返品フローが案内される"]
+    outcome: ["a cancellation request after hand-over is committed is rejected, and the returns flow is offered"]
 
 scenarios:
   - id: SC-001
-    name: 注文が配達完了まで進む
+    name: an order progresses to delivered
     critical: true
     path: [pack, hand_over, complete]
-    given: ["支払い済みの注文が1件ある"]
-    when: ["スタッフが梱包し、配送業者に引き渡し、配達が完了する"]
-    then: ["注文ステータスが「配達完了」と表示される"]
+    given: ["one paid order exists"]
+    when: ["staff packs it, hands it to the carrier, and the delivery completes"]
+    then: ['the order status shows "Delivered"']
   - id: SC-002
-    name: 梱包前のキャンセルは無料で完了する
+    name: cancellation before packing completes free of charge
     critical: true
     path: [cancel]
-    given: ["支払い済みの注文が1件ある"]
-    when: ["顧客がキャンセルする"]
+    given: ["one paid order exists"]
+    when: ["the customer cancels"]
     then:
-      - "注文ステータスが「キャンセル済み」と表示される"
-      - "キャンセル料は発生しない"
+      - 'the order status shows "Canceled"'
+      - "no cancellation fee is charged"
   - id: SC-003
-    name: 梱包後のキャンセルはキャンセル料の案内つきで完了する
+    name: cancellation after packing completes with a fee notice
     path: [pack, cancel]
-    given: ["梱包済みの注文が1件ある"]
-    when: ["顧客がキャンセルする"]
+    given: ["one packed order exists"]
+    when: ["the customer cancels"]
     then:
-      - "注文ステータスが「キャンセル済み」と表示される"
-      - "キャンセル料の案内が表示される"
+      - 'the order status shows "Canceled"'
+      - "the cancellation fee notice is shown"
 
 rules:
   - id: RULE-001
-    name: キャンセル料
+    name: cancellation fee
     cases:
-      - { input: "梱包前 (PLACED) のキャンセル", expected: "キャンセル料 0 円" }
-      - { input: "梱包後 (PACKED) のキャンセル", expected: "キャンセル料の案内「梱包後のキャンセルには手数料がかかります」を表示する" }
+      - { input: "cancellation before packing (PLACED)", expected: "cancellation fee is $0" }
+      - { input: "cancellation after packing (PACKED)", expected: 'show the fee notice "Cancellations after packing incur a handling fee"' }

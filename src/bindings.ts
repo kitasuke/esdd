@@ -1,23 +1,24 @@
-// ESDD bindings (locator/literal 契約) のパースと検査。
-// フォーマット仕様: docs/qa/esdd/bindings.md
+// Parsing and checking of ESDD bindings (the locator/literal contract).
+// Format specification: docs/bindings.md
 //
-// bindings は「生成される component と生成されるテストの両方が読む単一のソース」
-// (frontend-generation.md「Locator 契約」)。co-generation は自己整合的
-// (誤った binding は誤った実装と誤ったテストを同時に産み、両者は一致して通る) なので、
-// この検査が契約レビューの機械側の安全網になる。
+// bindings is "the single source that both the generated component and the
+// generated tests read" (docs/generation.md). co-generation is self-consistent
+// (a wrong binding produces a wrong implementation and a wrong test at the same
+// time, and the two agree and pass), so this check is the machine half of the
+// contract-review safety net.
 
 import { parse as parseYaml } from "yaml";
 import type { Finding, Model } from "./types.ts";
 
-/** 要素の指し方。ちょうど1つの addressing form を持つ (playwright-ir.md の locator 優先度) */
+/** How to address an element. Has exactly one addressing form (locator priority order) */
 export interface ElementBinding {
   role?: string;
   name?: string;
   label?: string;
   testid?: string;
-  /** 最終手段の可視テキスト */
+  /** Visible text — the last resort */
   text?: string;
-  /** 任意の補足 (検査対象外) */
+  /** Optional note (not checked) */
   note?: string;
 }
 
@@ -27,7 +28,7 @@ export interface EventBinding {
   called_api?: string;
 }
 
-/** rule id ごとの literal 態度表明。literal_coverage の値 */
+/** Literal stance per rule id. The value type of literal_coverage */
 export type LiteralCoverageEntry =
   | { literal: string; ui_text?: undefined; reason?: string }
   | { ui_text: "none"; literal?: undefined; reason?: string };
@@ -42,11 +43,11 @@ export interface BindingsDoc {
   literal_coverage?: Record<string, LiteralCoverageEntry>;
 }
 
-// platform プロファイルは拡張点 — v0.1 は web (Playwright/ARIA) のみ
+// platform profiles are an extension point — v0.1 ships only web (Playwright/ARIA)
 const PLATFORMS = new Set(["web"]);
 
-// 実 UI で使う ARIA ロールの許容集合。プロジェクトのロール対応表と同期して育てる。
-// ここに無いロールは typo か許容集合の未登録 — どちらも先に直す。
+// Allowed set of ARIA roles used in real UIs. Grow it in sync with your project's role table.
+// A role missing here is either a typo or an unregistered role — fix that first, either way.
 const ALLOWED_ROLES = new Set([
   "button",
   "link",
@@ -84,7 +85,7 @@ const ELEMENT_KEYS_BY_PLATFORM: Record<string, Set<string>> = {
   web: new Set(["role", "name", "label", "testid", "text", "note"]),
 };
 const CALLED_API_PATTERN = /^called[A-Z][A-Za-z0-9]*(Query|Mutation)$/;
-const PENDING_MARKERS = ["要確認", "TODO", "TBD", "FIXME"];
+const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -94,7 +95,7 @@ function findPendingMarker(text: string): string | undefined {
   return PENDING_MARKERS.find((m) => text.includes(m));
 }
 
-/** YAML を BindingsDoc に整形する。構造エラーは findings に積み、doc は best-effort で返す */
+/** Shape the YAML into a BindingsDoc. Structural errors accumulate as findings; the doc is returned best-effort */
 export function parseBindings(source: string): {
   doc: BindingsDoc | undefined;
   findings: Finding[];
@@ -110,7 +111,7 @@ export function parseBindings(source: string): {
         {
           level: "error",
           check: "bindings-schema",
-          message: `YAML をパースできません: ${(e as Error).message}`,
+          message: `cannot parse YAML: ${(e as Error).message}`,
         },
       ],
     };
@@ -122,7 +123,7 @@ export function parseBindings(source: string): {
         {
           level: "error",
           check: "bindings-schema",
-          message: "トップレベルはマップである必要があります",
+          message: "the top level must be a map",
         },
       ],
     };
@@ -132,7 +133,7 @@ export function parseBindings(source: string): {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `必須キー ${key} がありません`,
+        message: `required key ${key} is missing`,
       });
     }
   }
@@ -144,35 +145,35 @@ export function parseBindings(source: string): {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "bindings は対象 usecase id の文字列である必要があります",
+      message: "bindings must be a string holding the target usecase id",
     });
   }
   if (!PLATFORMS.has(doc.platform)) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: `platform は ${[...PLATFORMS].join(" | ")} のいずれかです: ${String(doc.platform)}`,
+      message: `platform must be one of ${[...PLATFORMS].join(" | ")}: ${String(doc.platform)}`,
     });
   }
   if (doc.platform === "web" && !doc.graph) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "platform: web では graph が必須です",
+      message: "graph is required when platform: web",
     });
   }
   if (!isRecord(doc.elements)) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "elements はマップである必要があります",
+      message: "elements must be a map",
     });
     return { doc: undefined, findings };
   }
   return { doc, findings };
 }
 
-/** 要素エントリの addressing form 検査 (platform ごとに許容 form が異なる) */
+/** Addressing-form check for element entries (allowed forms differ per platform) */
 function checkElements(doc: BindingsDoc, findings: Finding[]): void {
   const allowedKeys =
     ELEMENT_KEYS_BY_PLATFORM[doc.platform] ?? ELEMENT_KEYS_BY_PLATFORM["web"]!;
@@ -183,7 +184,7 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `elements.${id}: マップである必要があります`,
+        message: `elements.${id}: must be a map`,
       });
       continue;
     }
@@ -192,7 +193,7 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `elements.${id}: 不明なキー ${unknown.join(", ")} (platform: ${doc.platform} の許容: ${[...allowedKeys].join(", ")})`,
+        message: `elements.${id}: unknown keys ${unknown.join(", ")} (allowed for platform ${doc.platform}: ${[...allowedKeys].join(", ")})`,
       });
     }
     const e = entry as ElementBinding;
@@ -203,7 +204,7 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `elements.${id}: addressing form (${formKeys.join("/")}) はちょうど1つ必要です (現在: ${forms.length === 0 ? "なし" : forms.join("+")})`,
+        message: `elements.${id}: exactly one addressing form (${formKeys.join("/")}) is required (currently: ${forms.length === 0 ? "none" : forms.join("+")})`,
       });
       continue;
     }
@@ -211,7 +212,7 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `elements.${id}: name は role とセットでのみ使えます`,
+        message: `elements.${id}: name can only be used together with role`,
       });
     }
     if (e.role !== undefined) {
@@ -219,14 +220,14 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
         findings.push({
           level: "error",
           check: "bindings-schema",
-          message: `elements.${id}: 未知のロール ${e.role} (playwright-ir.md のロール対応表を確認)`,
+          message: `elements.${id}: unknown role ${e.role} (check the allowed role set in src/bindings.ts)`,
         });
       }
       if (e.name === undefined) {
         findings.push({
           level: "warn",
           check: "bindings-schema",
-          message: `elements.${id}: role に name がありません (無名ロールは strict mode で壊れやすい)`,
+          message: `elements.${id}: role has no name (unnamed roles are fragile under strict mode)`,
         });
       }
     }
@@ -234,10 +235,10 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `elements.${id}: testid は静的な kebab-case 英語です: ${e.testid}`,
+        message: `elements.${id}: testid must be static kebab-case: ${e.testid}`,
       });
     }
-    // アクセシブルな同一性の重複 = strict mode violation の予告
+    // Duplicate accessible identity = a strict mode violation waiting to happen
     const formKey = forms[0]!;
     const identity =
       formKey === "role"
@@ -248,7 +249,7 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "warn",
         check: "bindings-unique",
-        message: `elements.${id} と elements.${prev} が同じ指し方 (${identity}) — strict mode violation の予告`,
+        message: `elements.${id} and elements.${prev} share the same addressing (${identity}) — a strict mode violation waiting to happen`,
       });
     } else {
       seenIdentity.set(identity, id);
@@ -256,14 +257,14 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
   }
 }
 
-/** events の operation / called_api 命名検査 (fake-client 命名パターン) */
+/** Naming check for events' operation / called_api (fake-client naming pattern) */
 function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
   if (!doc.events) return;
   if (!isRecord(doc.events)) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "events はマップである必要があります",
+      message: "events must be a map",
     });
     return;
   }
@@ -272,7 +273,7 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `events.${id}: マップである必要があります`,
+        message: `events.${id}: must be a map`,
       });
       continue;
     }
@@ -281,7 +282,7 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-events",
-        message: `events.${id}: operation は PascalCase の操作名です: ${String(e.operation)}`,
+        message: `events.${id}: operation must be a PascalCase operation name: ${String(e.operation)}`,
       });
       continue;
     }
@@ -289,7 +290,7 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-events",
-        message: `events.${id}: kind は mutation | query です: ${String(e.kind)}`,
+        message: `events.${id}: kind must be mutation | query: ${String(e.kind)}`,
       });
       continue;
     }
@@ -297,7 +298,7 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-events",
-        message: `events.${id}: called_api は called<Operation><Query|Mutation> 形式です: ${String(e.called_api)}`,
+        message: `events.${id}: called_api must follow the called<Operation><Query|Mutation> form: ${String(e.called_api)}`,
       });
       continue;
     }
@@ -306,20 +307,20 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-events",
-        message: `events.${id}: called_api は ${expected} であるべきです (operation/kind から機械導出): ${e.called_api}`,
+        message: `events.${id}: called_api should be ${expected} (mechanically derived from operation/kind): ${e.called_api}`,
       });
     }
   }
 }
 
-/** literals の pending マーカー検査 */
+/** Pending-marker check for literals */
 function checkLiterals(doc: BindingsDoc, findings: Finding[]): void {
   if (!doc.literals) return;
   if (!isRecord(doc.literals)) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "literals はマップ (key → 文言) である必要があります",
+      message: "literals must be a map (key → text)",
     });
     return;
   }
@@ -328,7 +329,7 @@ function checkLiterals(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "error",
         check: "bindings-schema",
-        message: `literals.${key}: 文字列である必要があります`,
+        message: `literals.${key}: must be a string`,
       });
       continue;
     }
@@ -337,16 +338,16 @@ function checkLiterals(doc: BindingsDoc, findings: Finding[]): void {
       findings.push({
         level: "warn",
         check: "pending",
-        message: `literals.${key}: 「${m}」が残っています (承認前に回収)`,
+        message: `literals.${key}: a "${m}" marker remains (resolve before approval)`,
       });
     }
   }
 }
 
 /**
- * literal_coverage の全数検査 (IR とのクロスチェック)。
- * 宇宙 = IR の rule id 全件 (機械既知)。閉包 = 人間の態度表明
- * (literal 指定 | ui_text: none | literal: 要確認)。states×events の網羅性と同じ哲学。
+ * Full-population check of literal_coverage (cross-check against the IR).
+ * Universe = all rule ids in the IR (machine-known). Closure = the human stance
+ * (a literal | ui_text: none | literal: TBD). Same philosophy as states×events exhaustiveness.
  */
 function checkLiteralCoverage(
   doc: BindingsDoc,
@@ -361,7 +362,7 @@ function checkLiteralCoverage(
       findings.push({
         level: "error",
         check: "literal-coverage",
-        message: `rule ${id} の literal 態度表明がありません (literal: <key> | literal: 要確認 | ui_text: none)`,
+        message: `rule ${id} has no literal stance (literal: <key> | literal: TBD | ui_text: none)`,
       });
     }
   }
@@ -370,7 +371,7 @@ function checkLiteralCoverage(
       findings.push({
         level: "error",
         check: "literal-coverage",
-        message: `literal_coverage.${id}: IR に存在しない rule id です (typo か IR 側の削除漏れ)`,
+        message: `literal_coverage.${id}: rule id does not exist in the IR (a typo, or the rule was removed from the IR)`,
       });
       continue;
     }
@@ -378,7 +379,7 @@ function checkLiteralCoverage(
       findings.push({
         level: "error",
         check: "literal-coverage",
-        message: `literal_coverage.${id}: マップである必要があります`,
+        message: `literal_coverage.${id}: must be a map`,
       });
       continue;
     }
@@ -388,23 +389,23 @@ function checkLiteralCoverage(
       findings.push({
         level: "error",
         check: "literal-coverage",
-        message: `literal_coverage.${id}: literal: <key> か ui_text: none のちょうど一方を書きます`,
+        message: `literal_coverage.${id}: write exactly one of literal: <key> or ui_text: none`,
       });
       continue;
     }
     if (hasLiteral) {
       const key = entry.literal as string;
-      if (key === "要確認") {
+      if (key === "TBD") {
         findings.push({
           level: "warn",
           check: "pending",
-          message: `literal_coverage.${id}: literal 未決 (要確認) — 質問リストで回収`,
+          message: `literal_coverage.${id}: literal undecided (TBD) — resolve via the question list`,
         });
       } else if (!(doc.literals && key in doc.literals)) {
         findings.push({
           level: "error",
           check: "literal-coverage",
-          message: `literal_coverage.${id}: literals.${key} が存在しません`,
+          message: `literal_coverage.${id}: literals.${key} does not exist`,
         });
       }
     }
@@ -412,7 +413,7 @@ function checkLiteralCoverage(
 }
 
 export interface BindingsCheckOptions {
-  /** クロスチェック対象の IR モデル (省略時は bindings 単体の検査のみ) */
+  /** The IR model to cross-check against (when omitted, only standalone bindings checks run) */
   model?: Model;
 }
 
@@ -424,14 +425,15 @@ export function runBindingsChecks(
   checkElements(doc, findings);
   checkEvents(doc, findings);
   checkLiterals(doc, findings);
-  // literal_coverage の型はモデル有無に関わらず検査する (IR なしの単体検査でも壊れ方を隠さない)
+  // Check the shape of literal_coverage regardless of whether a model is present
+  // (standalone checks without an IR must not hide this kind of breakage either)
   const coverageShapeOk =
     doc.literal_coverage === undefined || isRecord(doc.literal_coverage);
   if (!coverageShapeOk) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "literal_coverage はマップ (rule id → 態度表明) である必要があります",
+      message: "literal_coverage must be a map (rule id → stance)",
     });
   }
   if (options.model) {
@@ -439,7 +441,7 @@ export function runBindingsChecks(
       findings.push({
         level: "error",
         check: "bindings-usecase",
-        message: `bindings の対象 (${doc.bindings}) と IR の usecase (${options.model.ir.usecase}) が一致しません`,
+        message: `the bindings target (${doc.bindings}) does not match the IR usecase (${options.model.ir.usecase})`,
       });
     } else if (coverageShapeOk) {
       checkLiteralCoverage(doc, options.model, findings);

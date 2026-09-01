@@ -25,7 +25,7 @@ function errorsOf(findings: Finding[], checkName?: string): Finding[] {
 
 const MINIMAL = `
 usecase: UC-TEST-001
-name: テスト
+name: Test
 source: { spec: "https://example.com" }
 initial: A
 states:
@@ -37,47 +37,47 @@ transitions:
   - from: A
     on: go
     to: B
-    outcome: ["Bになる"]
+    outcome: ["reaches B"]
 scenarios:
-  - { id: SC-001, name: 正常, path: [go] }
+  - { id: SC-001, name: happy path, path: [go] }
 `;
 
 describe("parse + checks", () => {
-  it("最小の正しいIRが全検査を通過する", () => {
+  it("a minimal valid IR passes all checks", () => {
     expect(check(MINIMAL)).toEqual([]);
   });
 
-  it("実例 (注文キャンセル) が全検査を通過する", () => {
+  it("the example (order cancellation) passes all checks", () => {
     const findings = check(readFileSync(PILOT, "utf8"));
     expect(errorsOf(findings)).toEqual([]);
     expect(findings.filter((f) => f.level === "warn")).toEqual([]);
   });
 
-  it("網羅性: 未定義セルをエラーにする", () => {
+  it("exhaustiveness: reports undeclared cells as errors", () => {
     const src = MINIMAL.replace(
       "events:",
       `events:
   - { id: stop, actor: staff }`,
     );
     const findings = check(src);
-    // A × stop が未定義
+    // A × stop is undeclared
     expect(errorsOf(findings, "exhaustiveness").length).toBe(1);
     expect(errorsOf(findings, "exhaustiveness")[0]!.message).toContain("A × stop");
   });
 
-  it("決定性: 同一セルへの重複宣言をエラーにする", () => {
+  it("determinism: reports duplicate declarations for the same cell as errors", () => {
     const src = MINIMAL.replace(
       "scenarios:",
       `  - from: A
     on: go
     impossible: true
-    reason: 重複テスト
+    reason: duplicate for the test
 scenarios:`,
     );
     expect(errorsOf(check(src), "determinism").length).toBe(1);
   });
 
-  it("到達性: 到達できないstateをエラーにする", () => {
+  it("reachability: reports unreachable states as errors", () => {
     const src = MINIMAL.replace(
       "events:",
       `  - { id: ORPHAN }
@@ -89,10 +89,10 @@ events:`,
     );
   });
 
-  it("脱出可能性: 終端に到達できないstateをエラーにする", () => {
+  it("escapability: reports states that cannot reach a terminal as errors", () => {
     const src = `
 usecase: UC-TEST-002
-name: 詰みテスト
+name: Dead-end test
 source: { spec: "https://example.com" }
 initial: A
 states:
@@ -103,11 +103,11 @@ events:
   - { id: go, actor: operator }
   - { id: fall, actor: operator }
 transitions:
-  - { from: A, on: go, to: B, outcome: ["Bになる"] }
-  - { from: A, on: fall, to: TRAP, outcome: ["TRAPになる"] }
-  - { from: TRAP, on: [go, fall], impossible: true, reason: 出口なし }
+  - { from: A, on: go, to: B, outcome: ["reaches B"] }
+  - { from: A, on: fall, to: TRAP, outcome: ["reaches TRAP"] }
+  - { from: TRAP, on: [go, fall], impossible: true, reason: no way out }
 scenarios:
-  - { id: SC-001, name: 正常, path: [go] }
+  - { id: SC-001, name: happy path, path: [go] }
 `;
     const findings = check(src);
     expect(errorsOf(findings, "escapability").some((f) => f.message.includes("TRAP"))).toBe(
@@ -115,10 +115,10 @@ scenarios:
     );
   });
 
-  it("競合宣言: 異なるactorのイベントペアに races 宣言を要求する", () => {
+  it("race obligation: requires a races declaration for event pairs of different actors", () => {
     const src = `
 usecase: UC-TEST-003
-name: 競合テスト
+name: Race test
 source: { spec: "https://example.com" }
 initial: A
 states:
@@ -129,34 +129,34 @@ events:
   - { id: accept, actor: staff }
   - { id: cancel, actor: operator }
 transitions:
-  - { from: A, on: accept, to: B, outcome: ["Bになる"] }
-  - { from: A, on: cancel, to: C, outcome: ["Cになる"] }
+  - { from: A, on: accept, to: B, outcome: ["reaches B"] }
+  - { from: A, on: cancel, to: C, outcome: ["reaches C"] }
 scenarios:
-  - { id: SC-001, name: 受注, path: [accept] }
-  - { id: SC-002, name: キャンセル, path: [cancel] }
+  - { id: SC-001, name: accepted, path: [accept] }
+  - { id: SC-002, name: canceled, path: [cancel] }
 `;
     const findings = check(src);
     expect(errorsOf(findings, "races").length).toBe(1);
-    // races を宣言すれば通る
+    // declaring the race makes it pass
     const declared = src.replace(
       "scenarios:",
       `races:
-  - { state: A, between: [accept, cancel], winner: cancel, outcome: ["Cになる"] }
+  - { state: A, between: [accept, cancel], winner: cancel, outcome: ["reaches C"] }
 scenarios:`,
     );
     expect(errorsOf(check(declared), "races")).toEqual([]);
   });
 
-  it("パス妥当性: 実行できないパスをエラーにする", () => {
+  it("path validity: reports unexecutable paths as errors", () => {
     const src = MINIMAL.replace("path: [go]", "path: [go, go]");
     const findings = check(src);
     expect(errorsOf(findings, "paths").length).toBe(1);
   });
 
-  it("カバレッジ: 踏まれていない遷移をwarnにする", () => {
+  it("coverage: reports unexercised transitions as warns", () => {
     const src = `
 usecase: UC-TEST-004
-name: カバレッジテスト
+name: Coverage test
 source: { spec: "https://example.com" }
 initial: A
 states:
@@ -167,10 +167,10 @@ events:
   - { id: go, actor: operator }
   - { id: alt, actor: operator }
 transitions:
-  - { from: A, on: go, to: B, outcome: ["Bになる"] }
-  - { from: A, on: alt, to: C, outcome: ["Cになる"] }
+  - { from: A, on: go, to: B, outcome: ["reaches B"] }
+  - { from: A, on: alt, to: C, outcome: ["reaches C"] }
 scenarios:
-  - { id: SC-001, name: 正常, path: [go] }
+  - { id: SC-001, name: happy path, path: [go] }
 `;
     const findings = check(src);
     const warns = findings.filter((f) => f.level === "warn" && f.check === "coverage");
@@ -178,10 +178,10 @@ scenarios:
     expect(warns[0]!.message).toContain("A × alt");
   });
 
-  it("パス提案: 未カバー遷移を踏むパスを提案する", () => {
+  it("path suggestion: proposes paths that exercise uncovered transitions", () => {
     const { model } = parseIR(`
 usecase: UC-TEST-005
-name: 提案テスト
+name: Suggestion test
 source: { spec: "https://example.com" }
 initial: A
 states:
@@ -192,35 +192,35 @@ events:
   - { id: next, actor: operator }
   - { id: finish, actor: operator }
 transitions:
-  - { from: A, on: next, to: B, outcome: ["Bになる"] }
-  - { from: A, on: finish, impossible: true, reason: Bを経由する必要がある }
-  - { from: B, on: next, impossible: true, reason: 一度きり }
-  - { from: B, on: finish, to: DONE, outcome: ["完了"] }
+  - { from: A, on: next, to: B, outcome: ["reaches B"] }
+  - { from: A, on: finish, impossible: true, reason: must go through B }
+  - { from: B, on: next, impossible: true, reason: one-shot }
+  - { from: B, on: finish, to: DONE, outcome: ["done"] }
 scenarios:
-  - { id: SC-001, name: 途中まで, path: [next] }
+  - { id: SC-001, name: partway, path: [next] }
 `);
     const paths = suggestPaths(model!);
-    // B → finish が未カバー。提案は initial から実行可能な列になっている
+    // B → finish is uncovered. The suggestion is an executable sequence from initial
     expect(paths.length).toBe(1);
     expect(paths[0]).toEqual(["next", "finish"]);
   });
 
-  it("要確認/TODO マーカーが残っていると pending の warn になる", () => {
+  it("leftover TBD/TODO markers produce a pending warn", () => {
     const src = `
 usecase: UC-TEST-007
-name: 未回答質問テスト
+name: Unanswered question test
 source: { spec: "https://example.com" }
 scenarios:
   - id: SC-001
-    name: フォーム送信
-    given: [フォームを開いている]
-    when: [送信する]
-    then: [完了画面が表示される]
+    name: form submission
+    given: [the form is open]
+    when: [submit]
+    then: [the completion screen is shown]
 rules:
   - id: RULE-001
-    name: オプションの挙動
+    name: option behavior
     cases:
-      - { input: { 通知: true }, expected: "要確認: 通知先が仕様に未記載" }
+      - { input: { notify: true }, expected: "TBD: notification target not specified in the spec" }
 `;
     const findings = check(src);
     const pending = findings.filter((f) => f.check === "pending");
@@ -229,102 +229,102 @@ rules:
     expect(pending[0]!.message).toContain("rules[RULE-001].cases[0]");
   });
 
-  it("マーカーが無ければ pending は出ない", () => {
+  it("no markers means no pending findings", () => {
     const findings = check(readFileSync(PILOT, "utf8"));
     expect(findings.filter((f) => f.check === "pending")).toEqual([]);
   });
 
-  it("inputs: 未カバーのセルは仕様への質問としてエラーになる", () => {
+  it("inputs: uncovered cells become errors, worded as questions to the spec", () => {
     const src = `
 usecase: UC-TEST-008
-name: 入力軸テスト
+name: Input axis test
 source: { spec: "https://example.com" }
 inputs:
-  - { id: 顧客, kind: field }
-  - { id: 到着通知, kind: option }
+  - { id: customer, kind: field }
+  - { id: arrival_notice, kind: option }
 scenarios:
   - id: SC-001
-    name: 正常系
-    given: [フォームを開いている]
-    when: [送信する]
-    then: [完了する]
+    name: happy path
+    given: [the form is open]
+    when: [submit]
+    then: [completes]
 rules:
   - id: RULE-001
-    name: バリデーション
+    name: validation
     cases:
-      - { input: { field: 顧客, value: 未入力 }, expected: エラー表示, covers: 顧客×未入力 }
+      - { input: { field: customer, value: empty }, expected: shows an error, covers: customer×empty }
 `;
     const findings = check(src);
     const errors = errorsOf(findings, "inputs").map((f) => f.message);
-    // 顧客×境界値 / 到着通知×既定 / 到着通知×設定時 の3セルが未カバー
+    // three cells are uncovered: customer×boundary / arrival_notice×default / arrival_notice×set
     expect(errors.length).toBe(3);
-    expect(errors.some((m) => m.includes("顧客 × 境界値"))).toBe(true);
-    expect(errors.some((m) => m.includes("到着通知 × 既定"))).toBe(true);
-    expect(errors.some((m) => m.includes("到着通知 × 設定時"))).toBe(true);
+    expect(errors.some((m) => m.includes("customer × boundary"))).toBe(true);
+    expect(errors.some((m) => m.includes("arrival_notice × default"))).toBe(true);
+    expect(errors.some((m) => m.includes("arrival_notice × set"))).toBe(true);
   });
 
-  it("inputs: na 宣言と covers で全セルに態度表明すれば通過する", () => {
+  it("inputs: passes when every cell takes a stance via na and covers", () => {
     const src = `
 usecase: UC-TEST-009
-name: 入力軸テスト
+name: Input axis test
 source: { spec: "https://example.com" }
 inputs:
-  - id: 顧客
+  - id: customer
     kind: field
     na:
-      境界値: 選択式のため境界値が存在しない
-  - id: 到着通知
+      boundary: selected from a list, so no boundary exists
+  - id: arrival_notice
     kind: option
 scenarios:
   - id: SC-001
-    name: 正常系
-    given: [フォームを開いている]
-    when: [送信する]
-    then: [完了する]
-    covers: [到着通知×既定]
+    name: happy path
+    given: [the form is open]
+    when: [submit]
+    then: [completes]
+    covers: [arrival_notice×default]
 rules:
   - id: RULE-001
-    name: バリデーション
+    name: validation
     cases:
-      - { input: { field: 顧客, value: 未入力 }, expected: エラー表示, covers: 顧客×未入力 }
-      - { input: { option: 到着通知, value: true }, expected: 通知される, covers: 到着通知×設定時 }
+      - { input: { field: customer, value: empty }, expected: shows an error, covers: customer×empty }
+      - { input: { option: arrival_notice, value: true }, expected: notice is sent, covers: arrival_notice×set }
 `;
     const findings = check(src);
     expect(errorsOf(findings, "inputs")).toEqual([]);
   });
 
-  it("inputs: covers の入力ID・条件の typo はエラーになる", () => {
+  it("inputs: typos in covers input ids and conditions become errors", () => {
     const src = `
 usecase: UC-TEST-010
-name: 入力軸テスト
+name: Input axis test
 source: { spec: "https://example.com" }
 inputs:
-  - { id: 顧客, kind: field }
+  - { id: customer, kind: field }
 scenarios:
   - id: SC-001
-    name: 正常系
-    given: [フォームを開いている]
-    when: [送信する]
-    then: [完了する]
+    name: happy path
+    given: [the form is open]
+    when: [submit]
+    then: [completes]
 rules:
   - id: RULE-001
-    name: バリデーション
+    name: validation
     cases:
-      - { input: {}, expected: エラー表示, covers: 顧客×末入力 }
-      - { input: {}, expected: エラー表示, covers: 客×未入力 }
+      - { input: {}, expected: shows an error, covers: customer×emtpy }
+      - { input: {}, expected: shows an error, covers: custmer×empty }
 `;
     const errors = errorsOf(check(src), "inputs").map((f) => f.message);
-    expect(errors.some((m) => m.includes("条件「末入力」"))).toBe(true);
-    expect(errors.some((m) => m.includes("入力IDが inputs に宣言されていません: 客"))).toBe(true);
+    expect(errors.some((m) => m.includes('condition "emtpy"'))).toBe(true);
+    expect(errors.some((m) => m.includes("not declared in inputs: custmer"))).toBe(true);
   });
 
-  it("状態機械なしのユースケースは given/when/then を要求する", () => {
+  it("use cases without a state machine require given/when/then", () => {
     const src = `
 usecase: UC-TEST-006
-name: フォームテスト
+name: Form test
 source: { spec: "https://example.com" }
 scenarios:
-  - { id: SC-001, name: 成功 }
+  - { id: SC-001, name: success }
 `;
     const findings = check(src);
     expect(errorsOf(findings, "structure").some((f) => f.message.includes("given"))).toBe(

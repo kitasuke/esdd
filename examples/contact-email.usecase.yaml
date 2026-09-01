@@ -1,51 +1,51 @@
-# ESDD UseCase IR の例 (states なし = フォームモード): 連絡先メールアドレスの変更
-# inputs 軸マトリクス (field/option × 条件) の網羅を checker が強制する。
-# 検査: pnpm check examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
+# Example ESDD UseCase IR (no states = form mode): changing the contact email address
+# The checker enforces coverage of the inputs axis matrix (field/option × condition).
+# Check it: pnpm check examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
 usecase: UC-PROFILE-EMAIL-001
-name: 連絡先メールアドレスの変更
+name: Changing the contact email address
 source:
   spec: "https://example.com/specs/contact-email"
   version: "v1"
 
 inputs:
-  - id: メールアドレス
+  - id: email
     kind: field
     required: true
-  - id: お知らせメールを受け取る
+  - id: newsletter_opt_in
     kind: option
 
 scenarios:
   - id: SC-001
-    name: メールアドレスを変更できる
+    name: the email address can be changed
     critical: true
-    covers: ["お知らせメールを受け取る×既定"]
-    given: ["ログイン済みの利用者が設定画面を開いている"]
-    when: ["新しいメールアドレスを入力して保存する"]
+    covers: ["newsletter_opt_in×default"]
+    given: ["a signed-in user has the settings screen open"]
+    when: ["they enter a new email address and save"]
     then:
-      - "「メールアドレスを変更しました」と表示される"
-      - "UpdateContactEmail が入力値で呼ばれる"
+      - '"Your email address has been updated" is shown'
+      - "UpdateContactEmail is called with the entered value"
   - id: SC-002
-    name: お知らせメールの設定を変えて保存できる
-    covers: ["お知らせメールを受け取る×設定時"]
-    given: ["ログイン済みの利用者が設定画面を開いている"]
-    when: ["お知らせメールを受け取るを切り替えて保存する"]
-    then: ["UpdateContactEmail が切り替え後の値で呼ばれる"]
+    name: the newsletter setting can be toggled and saved
+    covers: ["newsletter_opt_in×set"]
+    given: ["a signed-in user has the settings screen open"]
+    when: ["they toggle the newsletter opt-in and save"]
+    then: ["UpdateContactEmail is called with the toggled value"]
 
 rules:
   - id: RULE-001
-    name: 入力バリデーション
+    name: input validation
     cases:
-      - input: "メールアドレスが未入力"
-        expected: "「メールアドレスを入力してください」を表示し、保存しない"
-        covers: "メールアドレス×未入力"
-      - input: "メールアドレスが 255 文字 (上限ちょうど)"
-        expected: "保存できる"
-        covers: "メールアドレス×境界値"
-      - input: "メールアドレスが 256 文字 (上限超過)"
-        expected: "「メールアドレスは 255 文字以内で入力してください」を表示し、保存しない"
-        covers: "メールアドレス×境界値"
+      - input: "the email address is empty"
+        expected: 'show "Please enter your email address" and do not save'
+        covers: "email×empty"
+      - input: "the email address is 255 characters (exactly at the limit)"
+        expected: "saves successfully"
+        covers: "email×boundary"
+      - input: "the email address is 256 characters (over the limit)"
+        expected: 'show "Email address must be 255 characters or fewer" and do not save'
+        covers: "email×boundary"
   - id: RULE-002
-    name: 保存結果の通知
+    name: save result notification
     cases:
-      - { input: "保存成功", expected: "「メールアドレスを変更しました」をトーストで表示する" }
-      - { input: "保存失敗 (サーバーエラー)", expected: "「変更に失敗しました。時間をおいて再度お試しください」を表示する" }
+      - { input: "save succeeded", expected: 'show "Your email address has been updated" as a toast' }
+      - { input: "save failed (server error)", expected: 'show "Failed to save your changes. Please try again later"' }

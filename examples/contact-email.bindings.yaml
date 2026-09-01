@@ -1,25 +1,25 @@
-# ESDD bindings の例: UC-PROFILE-EMAIL-001 の locator / literal 契約
-# 生成される component と生成されるテストの両方がこのファイルだけから語彙を取る。
-# 検査: pnpm check examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
+# Example ESDD bindings: the locator / literal contract of UC-PROFILE-EMAIL-001
+# Both the generated component and the generated tests take their vocabulary from this file alone.
+# Check it: pnpm check examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
 bindings: UC-PROFILE-EMAIL-001
 platform: web
 graph: account
 
-events: # IR のイベント語彙 → GraphQL 操作 (called_api は operation/kind から機械導出)
-  保存する: { operation: UpdateContactEmail, kind: mutation, called_api: calledUpdateContactEmailMutation }
+events: # IR event vocabulary → GraphQL operations (called_api is mechanically derived from operation/kind)
+  save: { operation: UpdateContactEmail, kind: mutation, called_api: calledUpdateContactEmailMutation }
 
-elements: # 日本語 id → locator。addressing form (role+name / label / testid / text) はちょうど1つ
-  設定見出し: { role: heading, name: "連絡先設定" }
-  メールアドレス入力: { label: "メールアドレス" }
-  お知らせメールトグル: { role: checkbox, name: "お知らせメールを受け取る" }
-  保存ボタン: { role: button, name: "保存する" }
+elements: # spec-vocabulary id → locator. Exactly one addressing form (role+name / label / testid / text)
+  settings_heading: { role: heading, name: "Contact settings" }
+  email_input: { label: "Email address" }
+  newsletter_toggle: { role: checkbox, name: "Receive the newsletter" }
+  save_button: { role: button, name: "Save" }
 
 literals:
-  必須エラー: "メールアドレスを入力してください"
-  上限エラー: "メールアドレスは 255 文字以内で入力してください"
-  保存成功トースト: "メールアドレスを変更しました"
-  保存失敗メッセージ: "変更に失敗しました。時間をおいて再度お試しください"
+  required_error: "Please enter your email address"
+  max_length_error: "Email address must be 255 characters or fewer"
+  save_success_toast: "Your email address has been updated"
+  save_failure_message: "Failed to save your changes. Please try again later"
 
-literal_coverage: # IR の rule 全件の態度表明 (checker が全数突合する)
-  RULE-001: { literal: 必須エラー } # 上限エラーは同 rule の第2ケース (literals に併記)
-  RULE-002: { literal: 保存成功トースト }
+literal_coverage: # a stance for every rule in the IR (the checker cross-checks the full population)
+  RULE-001: { literal: required_error } # the max-length error is the same rule's second case (also listed in literals)
+  RULE-002: { literal: save_success_toast }

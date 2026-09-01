@@ -1,82 +1,88 @@
-# bindings — locator / literal 契約のフォーマット
+# bindings — the locator / literal contract format
 
-bindings は UseCase IR の語彙 (日本語 id) を locator・API 操作・UI 文言に対応させる
-**usecase 単位の契約ファイル**。生成される component と生成されるテストの両方が
-このファイルだけから語彙を取る。
+bindings maps the UseCase IR's vocabulary — spec-vocabulary ids (in the spec's
+language; the format allows non-ASCII ids) — to locators, API operations, and UI
+literals. It is a **per-usecase contract file**: both the generated component and the
+generated tests take their vocabulary from this file alone.
 
-co-generation は自己整合的 — 誤った binding は誤った実装と誤ったテストを同時に産み、
-両者は一致して通ってしまう。だから bindings のレビューが安全網であり、このフォーマットは
-checker で機械検査できることを最優先に設計している。
+co-generation is self-consistent — a wrong binding produces a wrong implementation and
+a wrong test at the same time, and the two agree and pass. That is why reviewing the
+bindings is the safety net, and why this format is designed above all to be machine-
+checkable by the checker.
 
-## 検査
+## Checking
 
 ```bash
 npm run check -- <usecase.yaml> --bindings <bindings.yaml>
 ```
 
-IR を同時に渡すと literal_coverage の全数突合まで行う (下記)。検査の正は
-`src/bindings.ts` (このドキュメントは説明、checker が規範)。
+Passing the IR alongside also runs the full-population cross-check of
+literal_coverage (below). The source of truth for the checks is `src/bindings.ts`
+(this document is the explanation; the checker is normative).
 
-## フォーマット
+## Format
 
 ```yaml
-bindings: UC-PROFILE-EMAIL-001 # 対象 usecase id (IR と一致必須)
-platform: web                  # v0.1 は web (Playwright/ARIA) プロファイルのみ
-graph: account                 # API グラフ名 (platform: web では必須)
+bindings: UC-PROFILE-EMAIL-001 # target usecase id (must match the IR)
+platform: web                  # v0.1 ships only the web (Playwright/ARIA) profile
+graph: account                 # API graph name (required for platform: web)
 
-events: # IR のイベント語彙 → API 操作 (called_api は operation/kind から機械導出)
-  保存する: { operation: UpdateContactEmail, kind: mutation, called_api: calledUpdateContactEmailMutation }
+events: # IR event vocabulary → API operations (called_api is mechanically derived from operation/kind)
+  save: { operation: UpdateContactEmail, kind: mutation, called_api: calledUpdateContactEmailMutation }
 
-elements: # 日本語 id → locator。addressing form はちょうど1つ
-  保存ボタン: { role: button, name: "保存する" } # role は name とセット
-  メールアドレス入力: { label: "メールアドレス" }
-  一覧コンテナ: { testid: "contact-list" }        # 静的 kebab-case のみ
-  補足テキスト: { text: "変更は即時に反映されます" } # role で取れない要素の最終手段
+elements: # spec-vocabulary id → locator. Exactly one addressing form
+  save_button: { role: button, name: "Save" } # role comes paired with name
+  email_input: { label: "Email address" }
+  contact_list: { testid: "contact-list" }        # static kebab-case only
+  helper_text: { text: "Changes take effect immediately" } # last resort for elements a role cannot reach
 
-literals: # 承認済み or 提案中の UI 文言。key → text
-  保存成功トースト: "メールアドレスを変更しました"
+literals: # approved or proposed UI copy. key → text
+  save_success_toast: "Your email address has been updated"
 
-literal_coverage: # IR の rule 全件の態度表明 (全数突合される。literal は literals のキーを指す)
-  RULE-001: { literal: 保存成功トースト }
-  RULE-002: { ui_text: none, reason: "並び規則 — 文言なし" }
-  RULE-003: { literal: 要確認 } # 未決 → pending warn (質問リストで回収)
+literal_coverage: # a stance for every rule in the IR (fully cross-checked; literal points to a key in literals)
+  RULE-001: { literal: save_success_toast }
+  RULE-002: { ui_text: none, reason: "ordering rule — no UI text" }
+  RULE-003: { literal: TBD } # undecided → pending warn (resolved via the question list)
 ```
 
-## 検査規則
+## Check rules
 
-| check | level | 内容 |
+| check | level | what it enforces |
 | --- | --- | --- |
-| bindings-schema | error | 必須キー (bindings/platform/elements、web は graph)。element は role(+name)/label/testid/text のちょうど1つ。role は許容集合内。testid は静的 kebab-case。未知キーは typo として error |
-| bindings-unique | warn | 同じ指し方 (同一 role+name / label / testid / text) の要素が2つ — strict mode violation の予告 |
-| bindings-events | error | operation は PascalCase、kind は mutation/query、called_api は `called<Operation><Query\|Mutation>` に機械導出一致 |
-| bindings-usecase | error | `bindings:` の id が渡された IR の usecase と一致しない / 対応する IR が入力に無い |
-| literal-coverage | error | IR の rule 全件に態度表明 (`literal: <key>` / `ui_text: none`) があること。IR に無い rule id、存在しない literal キーも error |
-| pending | warn | literal 値や `literal: 要確認` に 要確認/TODO/TBD/FIXME — 承認前に回収する印 |
+| bindings-schema | error | required keys (bindings/platform/elements; graph for web). Each element has exactly one of role(+name)/label/testid/text. role is within the allowed set. testid is static kebab-case. Unknown keys are errors, treated as typos |
+| bindings-unique | warn | two elements with the same addressing (identical role+name / label / testid / text) — a strict mode violation waiting to happen |
+| bindings-events | error | operation is PascalCase, kind is mutation/query, called_api matches the mechanically derived `called<Operation><Query\|Mutation>` |
+| bindings-usecase | error | the `bindings:` id does not match the usecase of the IR passed in / the corresponding IR is missing from the inputs |
+| literal-coverage | error | every rule in the IR has a stance (`literal: <key>` / `ui_text: none`). Rule ids absent from the IR and nonexistent literal keys are also errors |
+| pending | warn | TBD/TODO/FIXME/UNRESOLVED in a literal value or `literal: TBD` — a mark to resolve before approval |
 
-## literal_coverage の考え方
+## The idea behind literal_coverage
 
-states×events の網羅性・inputs の軸マトリクスと同じ哲学:
-**宇宙は機械が知っている (IR の rule id 全件)、閉包は人間が表明する、
-全数性は checker が強制する**。
+The same philosophy as states×events exhaustiveness and the inputs axis matrix:
+**the machine knows the universe (all rule ids in the IR), humans declare the closure,
+and the checker enforces the full population**.
 
-- UI 文言を伴う rule → `literal: <key>` (literals に実在すること)
-- 文言を伴わない rule (並び規則・サーバー側責務など) → `ui_text: none` + reason
-- 文言が未決 → `literal: 要確認` (pending warn = 質問リスト行き)
+- A rule with UI copy → `literal: <key>` (the key must exist in literals)
+- A rule without UI copy (ordering rules, server-side responsibilities, …) → `ui_text: none` + reason
+- Copy not yet decided → `literal: TBD` (pending warn = a question-list line)
 
-これにより「rule は文言を要求しているのに bindings に literal が無い」クラスの
-契約不整合が、生成時の発見ではなく契約レビュー時の機械指摘になる。
+This turns the "the rule demands UI copy but the contract has no literal" class of
+contract inconsistency into a machine finding at contract-review time instead of a
+discovery after generation.
 
-## ライフサイクル
+## Lifecycle
 
-1. IR 承認と同時に bindings をレビューする (受け入れ駆動 — generation.md)
-2. `literal: 要確認` の行は質問リストとして仕様オーナーに送る
-3. 回答された literal は IR の rules expected に昇格し、bindings は対応表として残る
-4. 生成 (component / テスト / セマンティックドライバ) は bindings の語彙だけを使う
-   — bindings に無い要素の参照は発明の禁止違反
+1. Review the bindings at the same time the IR is approved (acceptance-first — generation.md)
+2. Send the `literal: TBD` lines to the spec owner as the question list
+3. Answered literals are promoted into the IR's rules expected, and the bindings
+   remain as the mapping table
+4. Generation (component / tests / semantic driver) uses only the bindings
+   vocabulary — referencing an element that is not in the bindings violates the
+   no-invention rule
 
-## platform プロファイルの拡張
+## Extending platform profiles
 
-addressing form の語彙は platform ごとに差し替えられる設計 (checker の
-`ELEMENT_KEYS_BY_PLATFORM`)。モバイルネイティブ等に拡張する場合は、その UI 基盤の
-locator 語彙 (例: テストタグ / アクセシビリティ記述 / 宣言的な画面状態) で
-プロファイルを追加する。
+The addressing-form vocabulary is designed to be swappable per platform (the
+checker's `ELEMENT_KEYS_BY_PLATFORM`). To extend to mobile native and the like, add a
+profile with that UI stack's locator vocabulary (e.g. test tags / accessibility
+descriptions / declared screen states).

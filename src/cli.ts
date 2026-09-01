@@ -1,13 +1,14 @@
 // ESDD UseCase IR checker CLI
 //
-// 使い方:
-//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] [--definitions <e2e-definitions.yaml>]
+// Usage:
+//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] [--definitions <definitions.yaml>]
 //                   [--bindings <bindings.yaml>] [--suggest-paths] [--json] [--strict]
 //
-// --bindings は locator/literal 契約 (docs/qa/esdd/bindings.md) を検査する。
-// 対象 usecase の IR を同時に渡すと literal_coverage の全数突合まで行う。
+// --bindings checks a locator/literal contract (docs/bindings.md).
+// When the target usecase's IR is passed alongside, the full-population
+// cross-check of literal_coverage also runs.
 //
-// 終了コード: 0 = エラーなし / 1 = エラーあり(--strict時はwarnも) / 2 = 入力不正
+// Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
 import { readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
@@ -28,8 +29,8 @@ interface Args {
   strict: boolean;
 }
 
-// pnpm --filter 経由の実行では cwd がパッケージディレクトリになるため、
-// 相対パスは呼び出し元 (INIT_CWD = リポジトリルート想定) を基準に解決する
+// When run via `pnpm --filter`, cwd is the package directory, so resolve
+// relative paths against the caller (INIT_CWD, assumed to be the repo root)
 function resolveInput(p: string): string {
   if (isAbsolute(p)) return p;
   return resolve(process.env["INIT_CWD"] ?? process.cwd(), p);
@@ -46,7 +47,7 @@ function parseArgs(argv: string[]): Args {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === "--") {
-      // pnpm run 経由では `--` がそのまま渡ってくるので区切りとして無視する
+      // `pnpm run` passes `--` through verbatim, so skip it as a separator
       continue;
     }
     if (a === "--definitions") {
@@ -61,7 +62,7 @@ function parseArgs(argv: string[]): Args {
     } else if (a === "--strict") {
       args.strict = true;
     } else if (a.startsWith("--")) {
-      console.error(`不明なオプション: ${a}`);
+      console.error(`unknown option: ${a}`);
       process.exit(2);
     } else {
       args.files.push(a);
@@ -103,7 +104,7 @@ function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.files.length === 0 && args.bindings.length === 0) {
     console.error(
-      "使い方: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict]",
     );
     process.exit(2);
   }
@@ -113,7 +114,7 @@ function main(): void {
     try {
       observationNames = loadObservationNames(resolveInput(args.definitions));
     } catch (e) {
-      console.error(`definitions を読み込めません: ${(e as Error).message}`);
+      console.error(`cannot load definitions: ${(e as Error).message}`);
       process.exit(2);
     }
   }
@@ -121,7 +122,7 @@ function main(): void {
   let hasError = false;
   let hasWarn = false;
   const jsonOut: Record<string, unknown>[] = [];
-  // --bindings のクロスチェック用に、パース済み IR を usecase id で引けるようにしておく
+  // Index parsed IRs by usecase id for the --bindings cross-check
   const models = new Map<string, Model>();
 
   for (const file of args.files) {
@@ -129,7 +130,7 @@ function main(): void {
     try {
       source = readFileSync(resolveInput(file), "utf8");
     } catch (e) {
-      console.error(`読み込めません: ${file}: ${(e as Error).message}`);
+      console.error(`cannot read ${file}: ${(e as Error).message}`);
       process.exit(2);
     }
     const { model, findings: parseFindings } = parseIR(source);
@@ -161,11 +162,11 @@ function main(): void {
       const m = matrixStats(model);
       const cov = coverageStats(model);
       console.log(
-        `状態機械: states=${model.states.size} events=${model.events.size} ` +
-          `セル ${m.transitions + m.impossible}/${m.total} 宣言済み ` +
-          `(遷移${m.transitions} / impossible ${m.impossible})`,
+        `state machine: states=${model.states.size} events=${model.events.size} ` +
+          `cells ${m.transitions + m.impossible}/${m.total} declared ` +
+          `(transitions ${m.transitions} / impossible ${m.impossible})`,
       );
-      console.log(`遷移カバレッジ: ${cov.covered}/${cov.total} がシナリオに踏まれている`);
+      console.log(`transition coverage: ${cov.covered}/${cov.total} exercised by scenarios`);
     }
     if (model && (model.ir.inputs?.length ?? 0) > 0) {
       const conds = inputConditions(model);
@@ -177,19 +178,19 @@ function main(): void {
         naCells += Object.keys(inp.na ?? {}).filter((k) => c.includes(k)).length;
       }
       console.log(
-        `入力軸: ${model.ir.inputs!.length}入力 セル${totalCells} (うち na 宣言 ${naCells})`,
+        `inputs: ${model.ir.inputs!.length} inputs, ${totalCells} cells (${naCells} declared na)`,
       );
     }
     for (const f of errors) console.log(`  ERROR [${f.check}] ${f.message}`);
     for (const f of warns) console.log(`  WARN  [${f.check}] ${f.message}`);
     if (errors.length === 0 && warns.length === 0) {
-      console.log("  ✓ すべての検査を通過しました");
+      console.log("  ✓ all checks passed");
     } else {
       console.log(`  → ERROR ${errors.length} / WARN ${warns.length}`);
     }
     if (suggestions.length > 0) {
-      console.log("  未カバー遷移を踏むパス案:");
-      suggestions.forEach((p, i) => console.log(`    案${i + 1}: [${p.join(", ")}]`));
+      console.log("  suggested paths for uncovered transitions:");
+      suggestions.forEach((p, i) => console.log(`    path ${i + 1}: [${p.join(", ")}]`));
     }
   }
 
@@ -198,7 +199,7 @@ function main(): void {
     try {
       source = readFileSync(resolveInput(file), "utf8");
     } catch (e) {
-      console.error(`読み込めません: ${file}: ${(e as Error).message}`);
+      console.error(`cannot read ${file}: ${(e as Error).message}`);
       process.exit(2);
     }
     const { doc, findings: parseFindings } = parseBindings(source);
@@ -212,7 +213,7 @@ function main(): void {
         findings.push({
           level: "error",
           check: "bindings-usecase",
-          message: `対象 usecase ${doc.bindings} の IR が入力にありません (対応する IR を一緒に渡してください)`,
+          message: `the IR of the target usecase ${doc.bindings} is not among the inputs (pass the corresponding IR alongside)`,
         });
       }
       findings.push(...runBindingsChecks(doc, { model }));
@@ -231,17 +232,17 @@ function main(): void {
     console.log(`\n=== ${file} (bindings) ===`);
     if (doc) {
       const stats = [
-        `要素 ${Object.keys(doc.elements).length}`,
-        doc.events ? `イベント ${Object.keys(doc.events).length}` : undefined,
-        doc.literals ? `literal ${Object.keys(doc.literals).length}` : undefined,
-        matched ? `IR 突合: ${matched}` : "IR 突合: なし",
+        `elements ${Object.keys(doc.elements).length}`,
+        doc.events ? `events ${Object.keys(doc.events).length}` : undefined,
+        doc.literals ? `literals ${Object.keys(doc.literals).length}` : undefined,
+        matched ? `IR cross-check: ${matched}` : "IR cross-check: none",
       ].filter((s) => s !== undefined);
       console.log(`bindings: ${stats.join(" / ")}`);
     }
     for (const f of errors) console.log(`  ERROR [${f.check}] ${f.message}`);
     for (const f of warns) console.log(`  WARN  [${f.check}] ${f.message}`);
     if (errors.length === 0 && warns.length === 0) {
-      console.log("  ✓ すべての検査を通過しました");
+      console.log("  ✓ all checks passed");
     } else {
       console.log(`  → ERROR ${errors.length} / WARN ${warns.length}`);
     }

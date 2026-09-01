@@ -1,5 +1,6 @@
-// 遷移カバレッジを満たすためのパス提案。
-// 既存シナリオが踏んでいない遷移を、initial からの実行可能なイベント列として提案する。
+// Path suggestions for satisfying transition coverage.
+// Proposes event sequences, executable from initial, that exercise transitions
+// no existing scenario has stepped on yet.
 
 import { coveredCells } from "./checks.ts";
 import { cellKey, type Cell, type Model } from "./types.ts";
@@ -14,7 +15,7 @@ function transitionCellsFrom(model: Model, state: string): Cell[] {
   return out;
 }
 
-/** current から「未カバー遷移を持つ状態」までの最短イベント列 (カバー済み遷移のみ通る) */
+/** Shortest event sequence from current to a state with an uncovered transition (walking covered transitions only) */
 function routeToUncovered(
   model: Model,
   current: string,
@@ -39,8 +40,8 @@ function routeToUncovered(
 }
 
 /**
- * 未カバー遷移をすべて踏むパス群を貪欲に構築する。
- * 戻り値の各要素がシナリオ候補 (イベント列)。
+ * Greedily builds a set of paths that together exercise every uncovered transition.
+ * Each element of the return value is a scenario candidate (an event sequence).
  */
 export function suggestPaths(model: Model): string[][] {
   if (!model.initial) return [];
@@ -61,7 +62,7 @@ export function suggestPaths(model: Model): string[][] {
     const path: string[] = [];
     let current: string = model.initial;
     let progressed = false;
-    // 1本のパスを、未カバー遷移を優先しながら伸ばす
+    // Grow one path, preferring uncovered transitions
     for (let steps = 0; steps < 200; steps++) {
       const outgoing = transitionCellsFrom(model, current);
       if (outgoing.length === 0) break; // terminal
@@ -73,7 +74,7 @@ export function suggestPaths(model: Model): string[][] {
         progressed = true;
         continue;
       }
-      // ここに未カバーはない → 未カバーを持つ状態へ移動できるなら移動
+      // No uncovered transition here → move toward a state that has one, if reachable
       const route = routeToUncovered(model, current, covered);
       if (!route || route.length === 0) break;
       for (const event of route) {
@@ -83,7 +84,7 @@ export function suggestPaths(model: Model): string[][] {
         current = cell.to!;
       }
     }
-    if (!progressed) break; // これ以上到達できない未カバー遷移が残っている
+    if (!progressed) break; // the remaining uncovered transitions are unreachable
     if (path.length > 0) suggestions.push(path);
   }
   return suggestions;

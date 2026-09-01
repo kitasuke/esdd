@@ -1,13 +1,13 @@
-// observation レジストリ (YAML) から observation 名を読み取る。
-// レジストリ構造: observations.<name>.keys.<key> — name と key の両方を語彙として扱う
-// (outcomeの observation: には name(例: viewObservation)でも
-//  key(例: cancelDuringAcceptDialog)でも参照できる)。
+// Reads observation names from an observation registry (YAML).
+// Registry structure: observations.<name>.keys.<key> — both names and keys are
+// treated as vocabulary (an outcome's observation: may reference either the
+// name, e.g. viewObservation, or a key, e.g. cancelDuringAcceptDialog).
 
 import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 
 export function loadObservationNames(definitionsPath: string): Set<string> {
-  // レジストリ YAML は重複キーを含むことがあるため、uniqueKeys は強制しない
+  // Registry YAML files may contain duplicate keys, so do not enforce uniqueKeys
   const raw = parseYaml(readFileSync(definitionsPath, "utf8"), {
     uniqueKeys: false,
   }) as {
