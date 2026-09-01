@@ -54,6 +54,33 @@ Checker checks: exhaustiveness (every cell declared) / determinism (no duplicate
 reachability / escapability / race declaration obligation / path validity / transition
 coverage. `--suggest-paths` proposes scenario paths that exercise uncovered transitions.
 
+### Outcome items — plain or structured
+
+An outcome item is either a plain string or a structured object:
+
+```yaml
+outcome:
+  - '"Canceled" is shown'                       # plain string
+  - surface: WEB                                # structured: which surface observes it
+    ui: 'the order status changes to "Canceled"'
+  - observation: orderStateObservation          # a named observation (checked against
+    keys: { state: CANCELED }                   #  the registry when --definitions is given)
+```
+
+`surface` is free-form (WEB / MOBILE / API / …) — use it when one behavior is
+observed differently per surface. Either form is fine; structured items become
+useful once downstream generators route assertions by surface or observation name.
+
+### Two authoring principles
+
+1. **Tests know nothing about the implementation.** Transition outcomes are written
+   only in terms of what a user can observe — displayed text and states. Never
+   internal function names, endpoints, or storage details.
+2. **Semantic checking happens exactly once, on the UseCase IR.** Downstream
+   artifacts (target IRs, generated tests, generated code) never restate behavior;
+   they hold only references to which upstream behavior they target
+   (see [pipeline.md](pipeline.md)).
+
 ## inputs (input axis matrix — usable in both modes)
 
 The mechanism that gives a universe of exhaustiveness to subjects without states

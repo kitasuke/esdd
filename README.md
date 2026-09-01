@@ -4,6 +4,13 @@
 
 A spec written in prose can silently omit half its own decision space. ESDD makes the omissions mechanical: declare the state machine (or the input axes) of a feature, and the checker enforces exhaustiveness — every state × event cell, every input × condition cell, every race between actors, every rule's UI literal — must be either specified, declared impossible (with a reason), or explicitly flagged as an open question. What survives the check is a contract that both tests and implementation can be generated from, so that when they disagree, the disagreement is a detected spec drift rather than a silent bug.
 
+The method decomposes specification verification into **test execution by machines
+and approval by humans**: the check results *are* the question list for the spec
+owner, and there is exactly **one human approval point** — an IR that passes every
+check. Scope: the UI behavior of web and mobile apps (states, transitions, displayed
+text, input validation) — not layout or visual design, which belong to the
+design-tool and component layers.
+
 ---
 
 ## Pipeline
@@ -89,6 +96,8 @@ discovery after generation.
 
 ## Documentation
 
+- [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
+  two phases (drift detection vs co-generation), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side principles (acceptance-first,
