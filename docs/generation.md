@@ -6,6 +6,27 @@ and implementation** from that contract. It does not include a generator
 implementation — only the principles and the structure learned from real use (2026,
 first-shot Green demonstrated on several internal features).
 
+## Test layers — route each scenario to the cheapest layer that can catch it
+
+One IR feeds three test layers. The routing is part of the method, not a per-project
+choice:
+
+| Layer | Source in the IR | Scope | Backend | Role |
+| --- | --- | --- | --- | --- |
+| **Unit** | `rules` case tables | every rule case | none (pure functions) | rules are extracted into pure functions; the function and its tests come from the same case table, so unit tests are **Green from birth** (a Red here is a generator bug) |
+| **Integration** | **all** `scenarios` | full scenario set | **fake server** (deterministic) | the main body of coverage and the acceptance-first layer below. Givens are registered on the fake; side effects are verified by asserting the recorded API calls (and their absence, as a negative oracle) |
+| **E2E** | only scenarios marked `critical: true` | the few must-not-break paths | real environment | **drift detector**: it runs against the real system, so a Red means the spec and reality diverged — a human adjudicates which side is right |
+
+Two consequences worth stating explicitly:
+
+- **Coverage lives in Integration, not E2E.** E2E stays small (critical paths only)
+  because its job is detection against reality, not breadth. Breadth belongs to the
+  deterministic layer where flakiness cannot blur the verdict
+- **E2E must stay independent of co-generation.** When implementation and Integration
+  tests are generated from the same contract they agree constructively (see
+  "Handling Red"); E2E is kept as an oracle that does not share that construction,
+  so the pipeline always retains one detector the contract cannot fool
+
 ## Acceptance-first
 
 For a new feature, integration tests can be made to "work" with zero implementation:

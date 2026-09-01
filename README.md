@@ -18,6 +18,12 @@ bindings ……… locator / literal contract (single source of UI vocabulary)
 test code / implementation code (all quality concentrates in the upstream contract)
 ```
 
+One IR feeds three test layers (see [docs/generation.md](docs/generation.md)):
+`rules` become pure functions + unit tests, **all** `scenarios` become integration
+tests against a fake backend (the main body of coverage), and only scenarios marked
+`critical: true` become E2E tests against the real environment — kept small and
+independent, as the drift detector between spec and reality.
+
 Design principles:
 
 - **Exhaustiveness is machine-enforced** — the machine knows the universe
