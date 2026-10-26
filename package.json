@@ -1,6 +1,6 @@
 {
   "name": "esdd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "ESDD (Executable Spec-Driven Development) — a machine-checkable UseCase IR and contract checker for spec-to-test/code generation",
