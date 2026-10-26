@@ -35,6 +35,9 @@ Human review does not disappear — it changes character: from exhaustively read
 artifacts end to end, to answering machine-generated questions and deciding, when a
 test fails, whether to fix the spec or the implementation.
 
+What an approved IR records about its approval, and how it is committed, checked and
+updated, is in [approval.md](approval.md).
+
 ## Scope
 
 The pipeline covers the **UI behavior** of web and mobile apps: states, transitions,
@@ -61,16 +64,62 @@ against a fake server have no environment-induced flakiness, and because fronten
 tests are generated together, the mapping to screen elements is closed inside the
 generation step (see [bindings.md](bindings.md) and [generation.md](generation.md)).
 
-## Who answers the questions
+## Input modes — who answers the questions
 
 **The spec owner answers the question list — never the implementation.** Filling
 holes by reading the code silently promotes whatever the code currently does into the
 spec, destroying the ability to detect drift.
 
-The one exception is onboarding an existing feature for the first time: there, the
-implementation and its tests may serve as a source — but every code-derived fact is
-recorded as an explicit delta and surfaced as material for updating the spec, not
-silently merged.
+Declare one of two input modes when you start converting a spec:
+
+| | Mode A: spec only | Mode B: spec + implementation |
+| --- | --- | --- |
+| Sources | the spec and the owner's answers | the spec, the implementation, its existing tests |
+| Use for | features with no implementation yet; reviewing the spec itself; deliberate blind runs | features that already exist (the default when an implementation exists) |
+| Holes in the spec | become questions | may be filled from the code, but only as recorded deltas |
+
+Mode B carries one obligation that keeps it from becoming circular: **no code-derived
+fact enters the IR silently.** Each one is recorded twice — as a delta (version n →
+n+1) and as a reverse question to the owner ("the implementation does X, the spec says
+Y or nothing — which is right?"). Record the mode and the implementation reference
+(commit, date) in `source.version`. Read the implementation only where an IR slot
+points: branches and visible text for transitions and outcomes, validation and
+fallbacks for rules, concurrent handlers for races, form validation for inputs, flags
+that change behavior. Existing tests are secondary evidence — they show contracts that
+used to hold.
+
+## Running a review round
+
+A review round turns check results into questions, collects answers, and repeats until
+the IR can be approved. Four rules keep the rounds short:
+
+- **Every finding becomes a question in the first round.** Map each error and each
+  pending marker to some question (aggregating is fine — one question per decision),
+  and state the mapping in the report as counts (e.g. "16 errors → Q1–Q6, W1–W3;
+  16 pending → W4–W12, R1"). Anything the approval check would reject must be asked in
+  round one, or it surfaces only when someone tries to approve
+- **Each question carries one proposed answer.** Give a concrete answer the owner can
+  accept as-is, with a short reason (the closest statement in the spec, the existing
+  feature the spec says to treat this "the same as", the usual behavior of similar
+  features). For questions about displayed text, propose the literal text — and when
+  the same situation already has text in the product, propose that text rather than
+  inventing new wording. **A proposal is not an answer**: it stays out of the IR, and
+  the question counts as open, until a person accepts or rewrites it
+- **Accept in bulk.** Let the owner reply with ranges — `OK: W1–W8` accepts the
+  proposals, `W4: "…"` replaces one. A reply that matches neither form is not counted;
+  ask again. In an interactive session, a form with the proposals pre-selected does
+  the same job
+- **Keep an answer ledger.** Record every question, its proposal, the answer, who
+  answered and when, and which IR cells or rules it changed. Chat and comments are
+  only how answers arrive; the ledger is the source of truth. Answers normally have to
+  be written back into the spec before they count. A run may instead declare the
+  ledger an addendum to the spec (for example when the spec document cannot be edited)
+  — then tag each IR entry it produced with the answer id, and list the answers in the
+  change that commits the approved IR, so reviewers can see where spec text that is
+  not in the spec document came from
+
+Answers often open new questions — an answer that adds a state brings that state's
+undefined cells with it. Re-run the checks after every batch of answers.
 
 ## Editable by diff
 
