@@ -103,12 +103,12 @@ the IR can be approved. Four rules keep the rounds short:
   feature the spec says to treat this "the same as", the usual behavior of similar
   features). For questions about displayed text, propose the literal text — and when
   the same situation already has text in the product, propose that text rather than
-  inventing new wording. **A proposal is not an answer**: it stays out of the IR, and
-  the question counts as open, until a person accepts or rewrites it
-- **Accept in bulk.** Let the owner reply with ranges — `OK: W1–W8` accepts the
-  proposals, `W4: "…"` replaces one. A reply that matches neither form is not counted;
-  ask again. In an interactive session, a form with the proposals pre-selected does
-  the same job
+  inventing new wording
+- **Accept by default; ask only what must be asked** (below). Owners should spend their
+  time on the decisions that need them, not on confirming the obvious one by one
+- **Override in bulk.** Let the owner reply with ranges — `OK: W1–W8` confirms, `W4: "…"`
+  replaces one. A reply that matches neither form is not counted; ask again. In an
+  interactive session, a form with the proposals pre-selected does the same job
 - **Keep an answer ledger.** Record every question, its proposal, the answer, who
   answered and when, and which IR cells or rules it changed. Chat and comments are
   only how answers arrive; the ledger is the source of truth. Answers normally have to
@@ -120,6 +120,29 @@ the IR can be approved. Four rules keep the rounds short:
 
 Answers often open new questions — an answer that adds a state brings that state's
 undefined cells with it. Re-run the checks after every batch of answers.
+
+### Accept by default
+
+Each question is put in one of three tiers when it is raised. **The tier comes from
+rules, not from how confident the proposer feels:**
+
+| Tier | Which questions | Handling |
+| --- | --- | --- |
+| **Must ask** | contradictions in the spec; anything touching money, legal or compliance, personal data, or safety; a critical gap (undefined combination, dead end) whose proposal has no basis in the spec or in an existing feature | marked `TBD`; asked explicitly; blocks approval until answered |
+| **Assume** | everything else with a basis: displayed text that reuses existing text, behavior "the same as" a feature the spec names, races with an obvious winner, gaps the spec's own nearby rules settle | the proposal is applied to the IR as a declared assumption (`ASSUMED(<id>)`, [usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list)); listed for review |
+| **Note** | suggestions (candidate events the spec does not mention, scope questions) | in the report only |
+
+At approval the owner sees two things: the answers to the must-ask questions, and the
+list of assumptions — question, applied answer, basis. Approving the IR accepts every
+assumption on that list, and the approval record names them (`assumptions_accepted`,
+[approval.md](approval.md#the-approval-record)), so "approved with these assumptions"
+is explicit in the file and in its history. The owner only writes something for the
+assumptions they disagree with.
+
+In one trial, this would have cut 24 answers to about 8, plus one list to scan. The risk
+is that defaults get rubber-stamped; two things keep that in check: must-ask is decided
+by rule, and every assumption stays marked in the IR and listed in the change that
+commits it, so a test that later fails on an assumption traces straight back to it.
 
 ## Editable by diff
 

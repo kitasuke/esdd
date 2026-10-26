@@ -44,11 +44,13 @@ source:
     approved_by: <approver> # the spec owner; not the person who produced the IR
     approved_at: "2026-10-21"
     record: https://example.com/issues/123#comment-456 # where the approval itself lives
+    assumptions_accepted: [W1, W4, W7] # the assumptions this approval accepts (if any)
 ```
 
 Approval requires the same conditions as a passing review — no errors, no pending
-markers, every critical and warning question answered and reflected in the spec —
-plus an explicit approval by the spec owner.
+markers (every must-ask question answered) — plus an explicit approval by the spec owner.
+Assumptions may remain: approving the IR accepts them, and `assumptions_accepted` must name
+exactly the assumptions the IR declares ([pipeline.md](pipeline.md#accept-by-default)).
 
 ## Checking an approved IR
 
@@ -63,6 +65,8 @@ On top of the regular checks, `--approved`:
   `record` an `https` URL
 - requires the file name to equal `<usecase-id>.usecase.yaml`
 - turns `pending` findings (unanswered question markers) from warnings into errors
+- requires `source.approval.assumptions_accepted` to list exactly the declared
+  assumptions: one applied but not accepted, or accepted but not declared, is an error
 
 Run it in CI over every approved IR, so a broken or half-answered IR cannot be merged.
 

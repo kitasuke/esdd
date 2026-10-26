@@ -101,7 +101,7 @@ discovery after generation.
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
   two phases (drift detection vs co-generation), input modes, running review rounds
-  (proposed answers, bulk acceptance, the answer ledger), diff-editability, and target IRs
+  (proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side principles (test layers incl.
@@ -115,7 +115,8 @@ discovery after generation.
 ## Status
 
 v0.2 — includes the IR checker, the bindings checker (web/Playwright profile), the
-approved-IR check (`--approved`) and the behavior trace (`--results`).
+approved-IR check (`--approved`, including accepted assumptions), declared assumptions
+(`ASSUMED(<id>)`) and the behavior trace (`--results`).
 Platform profiles are designed as an extension point (for mobile and the like, each
 project swaps in its own locator vocabulary). The generator itself is not included —
 generation is run per project, following the principles in `docs/generation.md`,

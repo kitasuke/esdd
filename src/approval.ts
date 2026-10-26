@@ -4,6 +4,7 @@
 // itself, and is rejected when its file name drifts or when unanswered questions remain.
 
 import { basename } from "node:path";
+import { declaredAssumptionIds } from "./assumptions.ts";
 import type { Finding, Model } from "./types.ts";
 
 const DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
@@ -40,6 +41,24 @@ export function checkApproved(model: Model, file: string): Finding[] {
   }
   if (!nonEmptyString(approval.record) || !/^https:\/\//.test(approval.record)) {
     err("source.approval.record (an https URL where the approval itself lives) is required");
+  }
+
+  // The approval must name every assumption it accepts, so "approved with these assumptions" is
+  // explicit in the file (and in git), not implied
+  const declared = new Set(declaredAssumptionIds(model));
+  const raw = approval.assumptions_accepted;
+  if (raw !== undefined && (!Array.isArray(raw) || !raw.every(nonEmptyString))) {
+    err("source.approval.assumptions_accepted must be a list of assumption ids");
+    return findings;
+  }
+  const accepted = new Set(raw ?? []);
+  for (const id of declared) {
+    if (!accepted.has(id)) {
+      err(`assumption ${id} is applied but not accepted: add it to source.approval.assumptions_accepted, or replace it with the owner's answer`);
+    }
+  }
+  for (const id of accepted) {
+    if (!declared.has(id)) err(`source.approval.assumptions_accepted names ${id}, which is not declared in assumptions`);
   }
   return findings;
 }
