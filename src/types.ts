@@ -74,10 +74,18 @@ export interface InputDef {
   na?: Record<string, string>;
 }
 
+/** The approval record an approved IR carries (docs/approval.md). Checked by approval.ts */
+export interface ApprovalRecord {
+  approved_by?: string;
+  approved_at?: string;
+  /** URL of the place where the approval itself lives (an issue comment, a review, …) */
+  record?: string;
+}
+
 export interface UseCaseIR {
   usecase: string;
   name: string;
-  source: { spec: string; version?: string };
+  source: { spec: string; version?: string; approval?: ApprovalRecord };
   initial?: string;
   states?: StateDef[];
   events?: EventDef[];
