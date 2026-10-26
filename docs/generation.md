@@ -27,6 +27,24 @@ Two consequences worth stating explicitly:
   "Handling Red"); E2E is kept as an oracle that does not share that construction,
   so the pipeline always retains one detector the contract cannot fool
 
+### Integration on mobile apps — name the layer
+
+On the web, integration means one thing (the page against a fake server). A mobile app
+with an on-device state machine splits it into layers, and a case belongs to the one
+that can actually observe its outcome. Decide the layer in the test plan, not while
+generating:
+
+| Layer | Drives | Fits |
+| --- | --- | --- |
+| `state_machine` | the app's state machine with a fake API | transitions, which dialog appears, whether an API is called, showing a server-supplied message |
+| `screenshot` | the real UI components rendered in a test | display format (name suffixes, ordering), elements that must be absent (an input that is not offered, an unsupported attachment), masked values |
+| `backend` | server-side tests | race winners and first-to-arrive decisions — anything the server adjudicates |
+
+A case that spans layers (the server picks the winner, the app shows the loser's
+message) is split into one case per layer. Routing every mobile case to "integration"
+without a layer leaves cases that no layer can run: in one trial, 5 of 11 such cases
+could not be written at the state-machine level.
+
 ## Acceptance-first
 
 For a new feature, integration tests can be made to "work" with zero implementation:
@@ -39,6 +57,16 @@ For a new feature, integration tests can be made to "work" with zero implementat
 3. **The implementer (human or generator) is done when these tests are Green.**
    An implementation that disagrees with the contract stays Red = the contract is
    enforced mechanically
+
+When the contract introduces names the codebase does not have yet (a new enum value, a
+new event, a new screen state), the tests cannot compile. Add **declaration-only
+stubs** — the names with no behavior — so the suite compiles and its Reds point at
+missing behavior, not missing symbols. Keep the stubs out of the commit: provide them as a
+separate patch next to the suite, so implementers can apply them to see the Reds before
+they start. Adding a value to an enum that is matched exhaustively will also break
+every exhaustive match on it; route the new value to the "unknown" branch in the stubs,
+and hand the list of those places to the implementers — each one is a decision the
+spec has to make.
 
 Measured: 7 acceptance tests generated ahead of an unimplemented spec → implemented
 toward the contract → **all Green with zero changes to the test bodies**. A
@@ -111,6 +139,39 @@ literal_sweep: { unmatched_rules: [] }
   discretion)
 - Purpose: turn "decisions nobody made" into a **reviewable artifact before
   generation**, not a self-report after it
+
+## Bug tickets — mechanism scenarios
+
+When the input is a bug report instead of a spec, read the report, its discussion, the
+fix's description and the incident timeline as the spec — they describe **how the
+failure happens**. Write that mechanism ("while the region is not yet decided, a
+notification arrives") as **its own scenario**, separate from the scenarios for the
+general rule. Tests of the general rule alone can be Green on the unfixed code and
+never catch the bug again. Then route the mechanism scenario to the layer that can
+reach its state: an E2E test that waits for a terminal state cannot observe a window
+that closes in milliseconds, so such mechanisms usually belong in a backend test that
+builds the state directly. Confirm the generated test **fails on the code before the
+fix** — that is the evidence it detects the bug. If nothing describes the mechanism,
+put that on the question list.
+
+## No false greens
+
+A generated test can pass because nothing changed, not because the right thing
+happened. Guard against it while writing and after running:
+
+- **Assert the state before the action too.** A test that asserts an outcome first
+  asserts that the outcome does **not** hold yet ("before the assignment arrives, the
+  order is not confirmed" → "after, it is"). Otherwise a test passes on an
+  implementation that was already in the end state. Outcomes that cannot have a "before"
+  (something is not shown) need a contrast instead: show that the same path does
+  display other data
+- **Put fake values where the implementation reads them.** Before injecting an error
+  message or a displayed value into a fake, check which field the implementation
+  actually displays. A value in the wrong field fails a correct implementation, or
+  passes a wrong one
+- **Count a Green only after a negative control.** Break the expectation or change the
+  fake's response, and confirm the test fails once. Report Greens without one as
+  "Green (no negative control yet)"
 
 ## Handling Red
 
