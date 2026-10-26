@@ -2,6 +2,7 @@
 // All of them are simple graph traversals — no model checker involved.
 // Check failures are worded so they read as questions back to the spec.
 
+import { checkAssumptions } from "./assumptions.ts";
 import {
   cellKey,
   type Cell,
@@ -473,6 +474,7 @@ export function checkInputs(model: Model): Finding[] {
 export function runChecks(model: Model, options: CheckOptions = {}): Finding[] {
   const findings: Finding[] = [];
   findings.push(...checkPending(model));
+  findings.push(...checkAssumptions(model));
   findings.push(...checkInputs(model));
   if (model.hasStateMachine) {
     findings.push(...checkDeterminism(model));

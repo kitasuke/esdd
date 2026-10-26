@@ -35,6 +35,9 @@ Human review does not disappear — it changes character: from exhaustively read
 artifacts end to end, to answering machine-generated questions and deciding, when a
 test fails, whether to fix the spec or the implementation.
 
+What an approved IR records about its approval, and how it is committed, checked and
+updated, is in [approval.md](approval.md).
+
 ## Scope
 
 The pipeline covers the **UI behavior** of web and mobile apps: states, transitions,
@@ -61,16 +64,85 @@ against a fake server have no environment-induced flakiness, and because fronten
 tests are generated together, the mapping to screen elements is closed inside the
 generation step (see [bindings.md](bindings.md) and [generation.md](generation.md)).
 
-## Who answers the questions
+## Input modes — who answers the questions
 
 **The spec owner answers the question list — never the implementation.** Filling
 holes by reading the code silently promotes whatever the code currently does into the
 spec, destroying the ability to detect drift.
 
-The one exception is onboarding an existing feature for the first time: there, the
-implementation and its tests may serve as a source — but every code-derived fact is
-recorded as an explicit delta and surfaced as material for updating the spec, not
-silently merged.
+Declare one of two input modes when you start converting a spec:
+
+| | Mode A: spec only | Mode B: spec + implementation |
+| --- | --- | --- |
+| Sources | the spec and the owner's answers | the spec, the implementation, its existing tests |
+| Use for | features with no implementation yet; reviewing the spec itself; deliberate blind runs | features that already exist (the default when an implementation exists) |
+| Holes in the spec | become questions | may be filled from the code, but only as recorded deltas |
+
+Mode B carries one obligation that keeps it from becoming circular: **no code-derived
+fact enters the IR silently.** Each one is recorded twice — as a delta (version n →
+n+1) and as a reverse question to the owner ("the implementation does X, the spec says
+Y or nothing — which is right?"). Record the mode and the implementation reference
+(commit, date) in `source.version`. Read the implementation only where an IR slot
+points: branches and visible text for transitions and outcomes, validation and
+fallbacks for rules, concurrent handlers for races, form validation for inputs, flags
+that change behavior. Existing tests are secondary evidence — they show contracts that
+used to hold.
+
+## Running a review round
+
+A review round turns check results into questions, collects answers, and repeats until
+the IR can be approved. Four rules keep the rounds short:
+
+- **Every finding becomes a question in the first round.** Map each error and each
+  pending marker to some question (aggregating is fine — one question per decision),
+  and state the mapping in the report as counts (e.g. "16 errors → Q1–Q6, W1–W3;
+  16 pending → W4–W12, R1"). Anything the approval check would reject must be asked in
+  round one, or it surfaces only when someone tries to approve
+- **Each question carries one proposed answer.** Give a concrete answer the owner can
+  accept as-is, with a short reason (the closest statement in the spec, the existing
+  feature the spec says to treat this "the same as", the usual behavior of similar
+  features). For questions about displayed text, propose the literal text — and when
+  the same situation already has text in the product, propose that text rather than
+  inventing new wording
+- **Accept by default; ask only what must be asked** (below). Owners should spend their
+  time on the decisions that need them, not on confirming the obvious one by one
+- **Override in bulk.** Let the owner reply with ranges — `OK: W1–W8` confirms, `W4: "…"`
+  replaces one. A reply that matches neither form is not counted; ask again. In an
+  interactive session, a form with the proposals pre-selected does the same job
+- **Keep an answer ledger.** Record every question, its proposal, the answer, who
+  answered and when, and which IR cells or rules it changed. Chat and comments are
+  only how answers arrive; the ledger is the source of truth. Answers normally have to
+  be written back into the spec before they count. A run may instead declare the
+  ledger an addendum to the spec (for example when the spec document cannot be edited)
+  — then tag each IR entry it produced with the answer id, and list the answers in the
+  change that commits the approved IR, so reviewers can see where spec text that is
+  not in the spec document came from
+
+Answers often open new questions — an answer that adds a state brings that state's
+undefined cells with it. Re-run the checks after every batch of answers.
+
+### Accept by default
+
+Each question is put in one of three tiers when it is raised. **The tier comes from
+rules, not from how confident the proposer feels:**
+
+| Tier | Which questions | Handling |
+| --- | --- | --- |
+| **Must ask** | contradictions in the spec; anything touching money, legal or compliance, personal data, or safety; a critical gap (undefined combination, dead end) whose proposal has no basis in the spec or in an existing feature | marked `TBD`; asked explicitly; blocks approval until answered |
+| **Assume** | everything else with a basis: displayed text that reuses existing text, behavior "the same as" a feature the spec names, races with an obvious winner, gaps the spec's own nearby rules settle | the proposal is applied to the IR as a declared assumption (`ASSUMED(<id>)`, [usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list)); listed for review |
+| **Note** | suggestions (candidate events the spec does not mention, scope questions) | in the report only |
+
+At approval the owner sees two things: the answers to the must-ask questions, and the
+list of assumptions — question, applied answer, basis. Approving the IR accepts every
+assumption on that list, and the approval record names them (`assumptions_accepted`,
+[approval.md](approval.md#the-approval-record)), so "approved with these assumptions"
+is explicit in the file and in its history. The owner only writes something for the
+assumptions they disagree with.
+
+In one trial, this would have cut 24 answers to about 8, plus one list to scan. The risk
+is that defaults get rubber-stamped; two things keep that in check: must-ask is decided
+by rule, and every assumption stays marked in the IR and listed in the change that
+commits it, so a test that later fails on an assumption traces straight back to it.
 
 ## Editable by diff
 

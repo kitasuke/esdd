@@ -74,10 +74,31 @@ export interface InputDef {
   na?: Record<string, string>;
 }
 
+/** The approval record an approved IR carries (docs/approval.md). Checked by approval.ts */
+export interface ApprovalRecord {
+  approved_by?: string;
+  approved_at?: string;
+  /** URL of the place where the approval itself lives (an issue comment, a review, …) */
+  record?: string;
+  /** The ids of the assumptions this approval accepts (must equal the IR's declared assumptions) */
+  assumptions_accepted?: string[];
+}
+
+/** A proposed answer applied to the IR by default (docs/pipeline.md "Accept by default"). Checked by assumptions.ts */
+export interface AssumptionDef {
+  /** The question id from the review (e.g. W4) — referenced as ASSUMED(<id>) in IR texts */
+  id: string;
+  question: string;
+  /** The answer that was applied */
+  proposal: string;
+  /** Why this answer: the spec passage, the existing feature or text it follows */
+  basis: string;
+}
+
 export interface UseCaseIR {
   usecase: string;
   name: string;
-  source: { spec: string; version?: string };
+  source: { spec: string; version?: string; approval?: ApprovalRecord };
   initial?: string;
   states?: StateDef[];
   events?: EventDef[];
@@ -86,6 +107,7 @@ export interface UseCaseIR {
   inputs?: InputDef[];
   scenarios: ScenarioDef[];
   rules?: RuleDef[];
+  assumptions?: AssumptionDef[];
 }
 
 // One cell of the transition matrix, after expanding array-form from/on declarations.

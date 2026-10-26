@@ -3,30 +3,59 @@
 // Usage:
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] [--definitions <definitions.yaml>]
 //                   [--bindings <bindings.yaml>] [--suggest-paths] [--json] [--strict]
+//                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
+//                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
 //
 // --bindings checks a locator/literal contract (docs/bindings.md).
 // When the target usecase's IR is passed alongside, the full-population
 // cross-check of literal_coverage also runs.
+// --results cross-checks that every behavior node of the IR is confirmed by a test that
+// actually ran (the behavior trace — docs/trace.md). --trace holds the untested / owned_by /
+// negative_controls declarations. --scenarios reads negative_control.controls[].nodes from
+// scenario files and checks that every node Green through a direct test has a negative control.
+// --approved checks the IRs as approved IRs (docs/approval.md): the approval record and spec version
+// are required, the file name must match the usecase id, and pending markers become errors.
 //
 // Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
-import { readFileSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { parseBindings, runBindingsChecks } from "./bindings.ts";
 import { coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
+import { checkApproved, escalatePending } from "./approval.ts";
 import { parseIR } from "./parse.ts";
 import { suggestPaths } from "./paths.ts";
+import {
+  collectScenarioControls,
+  formatTraceTable,
+  LAYERS,
+  type Layer,
+  parseGoTestJson,
+  parseJUnit,
+  parseOutcomeMarkers,
+  parseTrace,
+  runTrace,
+  type ScenarioControls,
+  type TestCaseResult,
+  type TraceDoc,
+  type TraceRow,
+  traceSummary,
+} from "./trace.ts";
 import { cellKey, type Finding, type Model } from "./types.ts";
 
 interface Args {
   files: string[];
   bindings: string[];
+  results: { layer: Layer; path: string }[];
+  scenarios?: string;
+  traces: string[];
   definitions?: string;
   suggest: boolean;
   json: boolean;
   strict: boolean;
+  approved: boolean;
 }
 
 // When run via `pnpm --filter`, cwd is the package directory, so resolve
@@ -40,9 +69,12 @@ function parseArgs(argv: string[]): Args {
   const args: Args = {
     files: [],
     bindings: [],
+    results: [],
+    traces: [],
     suggest: false,
     json: false,
     strict: false,
+    approved: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -55,12 +87,28 @@ function parseArgs(argv: string[]): Args {
     } else if (a === "--bindings") {
       const p = argv[++i];
       if (p) args.bindings.push(p);
+    } else if (a === "--results") {
+      const v = argv[++i] ?? "";
+      const eq = v.indexOf("=");
+      const layer = v.slice(0, eq);
+      if (eq < 0 || !(LAYERS as readonly string[]).includes(layer)) {
+        console.error(`--results takes <${LAYERS.join("|")}>=<path>: ${v}`);
+        process.exit(2);
+      }
+      args.results.push({ layer: layer as Layer, path: v.slice(eq + 1) });
+    } else if (a === "--scenarios") {
+      args.scenarios = argv[++i];
+    } else if (a === "--trace") {
+      const p = argv[++i];
+      if (p) args.traces.push(p);
     } else if (a === "--suggest-paths") {
       args.suggest = true;
     } else if (a === "--json") {
       args.json = true;
     } else if (a === "--strict") {
       args.strict = true;
+    } else if (a === "--approved") {
+      args.approved = true;
     } else if (a.startsWith("--")) {
       console.error(`unknown option: ${a}`);
       process.exit(2);
@@ -69,6 +117,54 @@ function parseArgs(argv: string[]): Args {
     }
   }
   return args;
+}
+
+/** A file is returned as is; a directory yields the files under it with the given extensions, recursively */
+function collectFiles(path: string, exts: string[]): string[] {
+  if (!statSync(path).isDirectory()) return [path];
+  return readdirSync(path, { withFileTypes: true }).flatMap((e) => {
+    const child = join(path, e.name);
+    if (e.isDirectory()) return collectFiles(child, exts);
+    return exts.some((x) => e.name.endsWith(x)) ? [child] : [];
+  });
+}
+
+/** Collects, from scenario files, the negative control records that name IR nodes */
+function loadScenarioControls(dir: string): ScenarioControls {
+  let files: string[];
+  try {
+    files = collectFiles(resolveInput(dir), [".yaml", ".yml"]);
+  } catch (e) {
+    console.error(`cannot read --scenarios ${dir}: ${(e as Error).message}`);
+    process.exit(2);
+  }
+  return collectScenarioControls(files.map((f) => ({ path: f, text: readFileSync(f, "utf8") })));
+}
+
+function loadResults(specs: Args["results"]): TestCaseResult[] {
+  const results: TestCaseResult[] = [];
+  for (const { layer, path } of specs) {
+    let files: string[];
+    try {
+      files = collectFiles(resolveInput(path), [".xml"]);
+    } catch (e) {
+      console.error(`cannot read --results ${path}: ${(e as Error).message}`);
+      process.exit(2);
+    }
+    if (files.length === 0) {
+      console.error(`--results contains no JUnit XML: ${path}`);
+      process.exit(2);
+    }
+    for (const f of files) {
+      // .json / .jsonl are read as `go test -json` output; .log / .txt as a log that only carries
+      // outcome markers (e.g. a device log — no test cases). A directory scan picks up .xml only
+      const text = readFileSync(f, "utf8");
+      if (/\.jsonl?$/.test(f)) results.push(...parseGoTestJson(text, layer, f));
+      else if (!/\.(log|txt)$/.test(f)) results.push(...parseJUnit(text, layer, f));
+      results.push(...parseOutcomeMarkers(text, layer, f));
+    }
+  }
+  return results;
 }
 
 function matrixStats(model: Model): { total: number; transitions: number; impossible: number } {
@@ -104,9 +200,30 @@ function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.files.length === 0 && args.bindings.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict] [--approved] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
     );
     process.exit(2);
+  }
+
+  if ((args.traces.length > 0 || args.scenarios) && args.results.length === 0) {
+    console.error("--trace / --scenarios must be passed together with --results (the JUnit XML of the tests that ran)");
+    process.exit(2);
+  }
+  const testResults = args.results.length > 0 ? loadResults(args.results) : undefined;
+  const scenarioControls = args.scenarios ? loadScenarioControls(args.scenarios) : undefined;
+  const traceDocs = new Map<string, TraceDoc>();
+  const traceFindings: Finding[] = [];
+  for (const file of args.traces) {
+    let source: string;
+    try {
+      source = readFileSync(resolveInput(file), "utf8");
+    } catch (e) {
+      console.error(`cannot read ${file}: ${(e as Error).message}`);
+      process.exit(2);
+    }
+    const { doc, findings } = parseTrace(source);
+    traceFindings.push(...findings.map((f) => ({ ...f, message: `${file}: ${f.message}` })));
+    if (doc) traceDocs.set(doc.trace, doc);
   }
 
   let observationNames: Set<string> | undefined;
@@ -134,12 +251,22 @@ function main(): void {
       process.exit(2);
     }
     const { model, findings: parseFindings } = parseIR(source);
-    const findings: Finding[] = [...parseFindings];
+    let findings: Finding[] = [...parseFindings];
     let suggestions: string[][] = [];
+    let traceRows: TraceRow[] | undefined;
     if (model) {
       findings.push(...runChecks(model, { observationNames }));
       if (args.suggest) suggestions = suggestPaths(model);
       models.set(model.ir.usecase, model);
+      if (testResults) {
+        const trace = runTrace(model, testResults, traceDocs.get(model.ir.usecase), scenarioControls);
+        findings.push(...trace.findings);
+        traceRows = trace.rows;
+      }
+      if (args.approved) {
+        findings = escalatePending(findings);
+        findings.push(...checkApproved(model, file));
+      }
     }
 
     const errors = findings.filter((f) => f.level === "error");
@@ -153,6 +280,7 @@ function main(): void {
         ok: errors.length === 0,
         findings,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
+        trace: traceRows,
       });
       continue;
     }
@@ -191,6 +319,37 @@ function main(): void {
     if (suggestions.length > 0) {
       console.log("  suggested paths for uncovered transitions:");
       suggestions.forEach((p, i) => console.log(`    path ${i + 1}: [${p.join(", ")}]`));
+    }
+    if (traceRows) {
+      console.log(`\n${traceSummary(traceRows)}\n`);
+      console.log(formatTraceTable(traceRows));
+    }
+  }
+
+  // A trace.yaml whose target IR is not among the inputs would pass without being cross-checked, so fail it
+  for (const id of traceDocs.keys()) {
+    if (!models.has(id)) {
+      traceFindings.push({
+        level: "error",
+        check: "trace-usecase",
+        message: `the IR of the trace target usecase ${id} is not among the inputs`,
+      });
+    }
+  }
+  if (traceFindings.length > 0) {
+    hasError ||= traceFindings.some((f) => f.level === "error");
+    hasWarn ||= traceFindings.some((f) => f.level === "warn");
+    if (args.json) {
+      jsonOut.push({
+        file: "(trace)",
+        ok: !traceFindings.some((f) => f.level === "error"),
+        findings: traceFindings,
+      });
+    } else {
+      console.log("\n=== trace ===");
+      for (const f of traceFindings) {
+        console.log(`  ${f.level === "error" ? "ERROR" : "WARN "} [${f.check}] ${f.message}`);
+      }
     }
   }
 

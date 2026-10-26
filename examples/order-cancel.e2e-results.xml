@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Example E2E results (JUnit XML) for examples/order-cancel.usecase.yaml.
+     Only the critical scenarios run at E2E; each test name carries the tag <usecase>__<node>,
+     and [ESDD-OUTCOME] markers are printed right after each outcome's assert passes.
+     Trace it: npm run check -- examples/order-cancel.usecase.yaml --results e2e=examples/order-cancel.e2e-results.xml -->
+<testsuites name="e2e" tests="2" failures="0" skipped="0">
+  <testsuite name="order-cancel.e2e" tests="2" failures="0" skipped="0">
+    <testcase classname="order-cancel.e2e" name="UC-ORDER-CANCEL-001__SC-001 an order progresses to delivered" time="12.4">
+      <system-out>[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
+[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PACKED-hand_over-o1
+[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-HANDED_OVER-complete-o1
+</system-out>
+    </testcase>
+    <testcase classname="order-cancel.e2e" name="UC-ORDER-CANCEL-001__SC-002 cancellation before packing completes free of charge" time="8.1">
+      <system-out>[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-cancel-o1
+</system-out>
+    </testcase>
+  </testsuite>
+</testsuites>

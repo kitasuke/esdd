@@ -133,17 +133,45 @@ rules:
 - The checker tracks `TBD` / `TODO` / `FIXME` / `UNRESOLVED` as pending warns.
   Zero warns = every question answered, which is the approval condition
 
-## ASSUMPTION and the question list
+## Assumptions and the question list
 
-When the spec is silent on a decision, do not fill it in on your own — two options:
+When the spec is silent on a decision, do not fill it in silently. Each open decision is
+either **asked** or **assumed** (which one is decided by rule —
+[pipeline.md](pipeline.md#accept-by-default)):
 
-1. If you must proceed with a provisional value, carve `ASSUMPTION(Q1: …)` into
-   reason / expected
-2. If you cannot proceed, carve a `TBD` (pending warn)
+1. **Asked** (must-ask): carve a `TBD` (pending warn). It stays open until the owner
+   answers, and blocks approval
+2. **Assumed**: apply the proposed answer and declare it, so the IR is complete and
+   checkable while the owner reviews the list
 
-Either becomes a line on the question list for the spec owner, and disappears once
-the answer is folded back into the IR. Keep the invariant that **the checker's warns
-are the question list itself**.
+```yaml
+assumptions:
+  - id: W4 # the question id from the review
+    question: What does the customer see when a late request is rejected?
+    proposal: '"This request can no longer be accepted" is shown'
+    basis: the existing rejection message for expired requests
+
+transitions:
+  - from: OFFERED
+    on: accept_late
+    to: OFFERED
+    outcome: ['"This request can no longer be accepted" is shown ASSUMED(W4)']
+```
+
+- Every text that came from an assumption carries `ASSUMED(<id>)` — outcome, reason,
+  rules expected, scenario given/when/then, input na reasons. It is how a reviewer finds
+  everything an assumption touched, and what gets replaced when the owner disagrees
+- `question`, `proposal` and `basis` are required. An assumption without a basis is a
+  guess; ask it instead
+- The checker (`assumptions`) rejects a marker that points at an undeclared assumption and
+  warns about a declared assumption nothing uses
+- When the owner answers differently, write their answer, remove the marker and the
+  declaration. When they accept, nothing changes — the approval lists the accepted ids
+  ([approval.md](approval.md))
+
+Keep the invariant that **the checker's warns are the question list itself**: pending
+warns are the questions still open, the `assumptions` list is the answers still awaiting
+review.
 
 ## Check command
 

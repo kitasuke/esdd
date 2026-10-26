@@ -100,15 +100,23 @@ discovery after generation.
 ## Documentation
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
-  two phases (drift detection vs co-generation), diff-editability, and target IRs
+  two phases (drift detection vs co-generation), input modes, running review rounds
+  (proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
-- [docs/generation.md](docs/generation.md) — generation-side principles (acceptance-first,
-  semantic drivers, pattern registries, generation decision records)
+- [docs/generation.md](docs/generation.md) — generation-side principles (test layers incl.
+  mobile, acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
+  generation decision records, mechanism scenarios for bug tickets, no false greens)
+- [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, binding the approval
+  to one exact IR, partial approval, and order-preserving updates
+- [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
+  is confirmed by a test that actually ran (`--results`), with negative-control records
 
 ## Status
 
-v0.1 — includes the IR checker and the bindings checker (web/Playwright profile).
+v0.2 — includes the IR checker, the bindings checker (web/Playwright profile), the
+approved-IR check (`--approved`, including accepted assumptions), declared assumptions
+(`ASSUMED(<id>)`) and the behavior trace (`--results`).
 Platform profiles are designed as an extension point (for mobile and the like, each
 project swaps in its own locator vocabulary). The generator itself is not included —
 generation is run per project, following the principles in `docs/generation.md`,
