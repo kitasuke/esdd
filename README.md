@@ -62,6 +62,9 @@ npm run check -- examples/order-cancel.usecase.yaml --suggest-paths
 # form mode (no states) + cross-check against bindings (the locator/literal contract)
 npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
 
+# the approval digest: the IR as Markdown for the approver (no checks)
+npm run check -- examples/order-cancel.usecase.yaml --digest
+
 npm test
 ```
 
@@ -108,8 +111,9 @@ discovery after generation.
 - [docs/generation.md](docs/generation.md) — generation-side principles (test layers incl.
   mobile, acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
   generation decision records, mechanism scenarios for bug tickets, no false greens)
-- [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, binding the approval
-  to one exact IR, partial approval, and order-preserving updates
+- [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, what the
+  approver reads (`--digest` and the diff from the last approval), binding the approval to one exact IR,
+  sending an approval back, partial approval, and order-preserving updates
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
   is confirmed by a test that actually ran (`--results`), with negative-control records
 
