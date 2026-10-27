@@ -374,6 +374,19 @@ ${thenLine}
     );
   });
 
+  it("also checks races outcome", () => {
+    const src = MINIMAL.concat(`races:
+  - state: A
+    between: [go, go]
+    winner: go
+    outcome: [the total shows 4,000 USD]
+`);
+    const messages = errorsOf(check(src), "structure").map((f) => f.message);
+    expect(messages).toContainEqual(
+      expect.stringContaining("races[0].outcome[0..1]: a comma"),
+    );
+  });
+
   it("reports items with an unclosed bracket pair", () => {
     const errors = errorsOf(
       check(STATELESS("    then: [the Done button (blue, enabled) is shown]")),
