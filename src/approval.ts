@@ -5,15 +5,10 @@
 
 import { basename } from "node:path";
 import { declaredAssumptionIds } from "./assumptions.ts";
+import { nonEmptyString } from "./text.ts";
 import type { Finding, Model } from "./types.ts";
 
 const DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
-
-// YAML does not enforce types (approved_by: 123 or {} still parses), so the audit fields
-// are checked to be strings, not just present
-function nonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0;
-}
 
 export function checkApproved(model: Model, file: string): Finding[] {
   const findings: Finding[] = [];
@@ -24,6 +19,13 @@ export function checkApproved(model: Model, file: string): Finding[] {
   const expected = `${usecase}.usecase.yaml`;
   if (basename(file) !== expected) {
     err(`the file name must match the usecase id: ${expected}`);
+  }
+  // Under a usecases/ directory, exactly one <domain>/ level. A file placed at the top or deeper and moved
+  // later breaks git log as its version history, the same way renaming a usecase id does
+  const parts = file.split(/[\\/]/);
+  const at = parts.lastIndexOf("usecases");
+  if (at >= 0 && parts.length - at !== 3) {
+    err(`approved IRs live at usecases/<domain>/<usecase-id>.usecase.yaml: ${file}`);
   }
   if (!nonEmptyString(source.version)) {
     err("source.version (the approved spec version, e.g. its last-edited timestamp) is required");

@@ -6,15 +6,10 @@
 // Declared in a top-level `assumptions:` list; every IR text that came from one carries an
 // `ASSUMED(<id>)` marker so it can be traced back and replaced when someone disagrees.
 
-import type { Finding, Model, OutcomeItem } from "./types.ts";
+import { nonEmptyString, outcomeTexts } from "./text.ts";
+import type { Finding, Model } from "./types.ts";
 
 const MARKER = /ASSUMED\(([^)\s]+)\)/g;
-
-function outcomeTexts(outcome: OutcomeItem[] | undefined): string[] {
-  return (outcome ?? []).flatMap((item) =>
-    typeof item === "string" ? [item] : [item.ui ?? "", item.observation ?? ""],
-  );
-}
 
 /** Every text an assumption marker may appear in, with where it sits (for messages) */
 function textsOf(model: Model): { at: string; text: string }[] {
@@ -49,11 +44,12 @@ export function referencedAssumptions(model: Model): Map<string, string[]> {
 }
 
 export function declaredAssumptionIds(model: Model): string[] {
-  return (model.ir.assumptions ?? []).map((a) => a?.id).filter((id): id is string => typeof id === "string");
-}
-
-function nonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0;
+  // A non-list assumptions is reported by checkAssumptions; mapping over it here would crash the CLI
+  const list: unknown = model.ir.assumptions;
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((a: { id?: unknown } | null | undefined) => a?.id)
+    .filter((id): id is string => typeof id === "string");
 }
 
 /** assumptions: each declared assumption is well formed and used; every marker points at one */
