@@ -332,3 +332,88 @@ scenarios:
     );
   });
 });
+
+describe("structure: comma splits in flow collections", () => {
+  const STATELESS = (thenLine: string) => `
+usecase: UC-TEST-001
+name: Test
+source: { spec: "https://example.com" }
+scenarios:
+  - id: SC-003
+    name: running total
+    given: [signed in]
+    when: [opens the summary]
+${thenLine}
+`;
+
+  it("reports an amount split by the comma", () => {
+    const errors = errorsOf(
+      check(STATELESS("    then: [the running total (pre-tax) shows $9,000]")),
+      "structure",
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("scenarios[0] (SC-003).then[0..1]");
+    expect(errors[0]?.message).toContain("split a number");
+  });
+
+  it("also checks transitions outcome and rules expected", () => {
+    const src = MINIMAL.replace(
+      'outcome: ["reaches B"]',
+      "outcome: [the total shows 4,000 USD]",
+    ).concat(`rules:
+  - id: RULE-001
+    name: rounding
+    cases:
+      - { input: 1, expected: [shows 1,500 USD] }
+`);
+    const messages = errorsOf(check(src), "structure").map((f) => f.message);
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toContain("transitions[0].outcome[0..1]");
+    expect(messages[1]).toContain(
+      "rules[0] (RULE-001).cases[0].expected[0..1]",
+    );
+  });
+
+  it("reports items with an unclosed bracket pair", () => {
+    const errors = errorsOf(
+      check(STATELESS("    then: [the Done button (blue, enabled) is shown]")),
+      "structure",
+    );
+    expect(errors.map((f) => f.message)).toEqual([
+      expect.stringContaining(
+        'then[0]: item "the Done button (blue" in the flow sequence [...] has an unclosed ()',
+      ),
+      expect.stringContaining("then[1]"),
+    ]);
+  });
+
+  it("reports a value split inside a flow mapping", () => {
+    const src = MINIMAL.replace(
+      'outcome: ["reaches B"]',
+      "outcome: [{ surface: WEB, ui: the total shows $9,000 }]",
+    );
+    const errors = errorsOf(check(src), "structure");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain(
+      "transitions[0].outcome[0]: a comma split a value in the flow mapping",
+    );
+  });
+
+  it("does not report block sequences, quoted strings or number lists", () => {
+    const block = STATELESS(`    then:
+      - the running total (pre-tax) shows $9,000`);
+    const quoted = STATELESS(
+      '    then: ["the running total (pre-tax) shows $9,000"]',
+    );
+    const separate = STATELESS("    then: [A is shown, B is shown]");
+    const numbers = MINIMAL.concat(`rules:
+  - id: RULE-001
+    name: range
+    cases:
+      - { input: 1, expected: [1, 200] }
+`);
+    for (const src of [block, quoted, separate, numbers]) {
+      expect(errorsOf(check(src))).toEqual([]);
+    }
+  });
+});
