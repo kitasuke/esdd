@@ -71,6 +71,7 @@ npm test
 
 | Check | What it enforces |
 | --- | --- |
+| structure | schema shape, ID formats and required fields; also text split by an ASCII comma in a flow sequence `[...]` / flow mapping `{...}` in scenario given/when/then, transitions/races outcome and rules expected (e.g. `[shows $9,000]` parsed as `shows $9` and `000`: a trailing digit followed by a 3-digit item, an unclosed bracket pair, or a key with no value) |
 | exhaustiveness | every non-terminal state × event cell is declared as a transition or `impossible: true` + reason |
 | determinism | no duplicate declarations for the same cell |
 | reachability / escapability | no state unreachable from the initial state, no state that cannot reach a terminal |

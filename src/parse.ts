@@ -1,7 +1,15 @@
 // YAML loading, structural validation, and Model construction (the expanded cell table).
 // Semantic checks live in checks.ts. This file only looks at the "shape".
 
-import { parse as parseYaml } from "yaml";
+import {
+  type Document,
+  Scalar,
+  isMap,
+  isScalar,
+  isSeq,
+  parse as parseYaml,
+  parseDocument,
+} from "yaml";
 import {
   cellKey,
   type Cell,
@@ -44,6 +52,7 @@ export function parseIR(source: string): ParseResult {
     return { findings };
   }
   const ir = raw as UseCaseIR;
+  for (const message of flowSplitFindings(parseDocument(source))) err(message);
 
   if (!ir.usecase || !USECASE_ID.test(ir.usecase)) {
     err(`usecase must be an ID starting with UC- (e.g. UC-ORDER-CANCEL-001)`);
@@ -218,4 +227,136 @@ export function parseIR(source: string): ParseResult {
       cells,
     },
   };
+}
+
+// In a flow sequence [a, b] an ASCII comma separates items, so a comma inside the text splits it.
+// e.g. then: [the total shows "$9,000"] becomes two items, `the total shows "$9` and `000"`,
+// and a formatter rewrites it as [..., 000"...], which reads like "$9, 000" and slips past review.
+// The parsed values cannot tell a split from two real items, so this looks at the YAML AST
+// (whether a collection is flow, how each scalar is written).
+const BRACKET_PAIRS: [string, string][] = [
+  ["(", ")"],
+  ["「", "」"],
+  ["（", "）"],
+];
+
+function unbalancedBracket(text: string): string | undefined {
+  for (const [open, close] of BRACKET_PAIRS) {
+    if (text.split(open).length !== text.split(close).length) {
+      return `${open}${close}`;
+    }
+  }
+  return undefined;
+}
+
+function plainString(node: unknown): string | undefined {
+  if (!isScalar(node) || node.type !== Scalar.PLAIN) return undefined;
+  if (typeof node.value !== "string") return undefined;
+  return node.source ?? node.value;
+}
+
+function plainSource(node: unknown): string | undefined {
+  if (!isScalar(node) || node.type !== Scalar.PLAIN) return undefined;
+  return node.source ?? String(node.value);
+}
+
+function checkFlowSeq(node: unknown, at: string, out: string[]): void {
+  const fix =
+    "use a block sequence (one `- item` per line) or wrap the item in double quotes";
+  if (isMap(node)) {
+    for (const pair of node.items) {
+      const key = isScalar(pair.key) ? String(pair.key.value) : "?";
+      // { ui: shows $9,000 } turns everything after the comma into a key with no value
+      const keySource = plainSource(pair.key);
+      if (node.flow && pair.value === null && keySource !== undefined) {
+        out.push(
+          `${at}: a comma split a value in the flow mapping {...} (key "${keySource}" has no value); ` +
+            "use block style (one `key: value` per line) or wrap the value in double quotes",
+        );
+        continue;
+      }
+      checkFlowSeq(pair.value, `${at}.${key}`, out);
+    }
+    return;
+  }
+  if (!isSeq(node)) return;
+  if (!node.flow) {
+    node.items.forEach((item, j) => checkFlowSeq(item, `${at}[${j}]`, out));
+    return;
+  }
+  // Check number splits first so the same items are not reported again as unbalanced brackets
+  const reported = new Set<number>();
+  node.items.forEach((item, j) => {
+    const text = plainSource(item);
+    const prev = j > 0 ? plainSource(node.items[j - 1]) : undefined;
+    if (text === undefined || prev === undefined) return;
+    // A list of numbers such as [1, 200] is intentional
+    const bothNumbers = [item, node.items[j - 1]].every(
+      (n) => isScalar(n) && typeof n.value === "number",
+    );
+    if (!bothNumbers && /\d$/.test(prev) && /^\d{3}(\D|$)/.test(text)) {
+      reported.add(j - 1).add(j);
+      out.push(
+        `${at}[${j - 1}..${j}]: a comma in the flow sequence [...] split a number ` +
+          `into "${prev}" and "${text}". If you meant "${prev},${text}", ${fix}`,
+      );
+    }
+  });
+  node.items.forEach((item, j) => {
+    if (isMap(item) || isSeq(item)) {
+      checkFlowSeq(item, `${at}[${j}]`, out);
+      return;
+    }
+    const text = plainString(item);
+    if (text === undefined || reported.has(j)) return;
+    const bracket = unbalancedBracket(text);
+    if (bracket !== undefined) {
+      out.push(
+        `${at}[${j}]: item "${text}" in the flow sequence [...] has an unclosed ${bracket} pair ` +
+          `(a comma in the text may have split it); ${fix}`,
+      );
+    }
+  });
+}
+
+function flowSplitFindings(doc: Document): string[] {
+  const out: string[] = [];
+  const seqItems = (key: string): unknown[] => {
+    const node = doc.get(key, true);
+    return isSeq(node) ? node.items : [];
+  };
+  const label = (item: unknown): string => {
+    const id = isMap(item) ? item.get("id") : undefined;
+    return typeof id === "string" ? ` (${id})` : "";
+  };
+  seqItems("scenarios").forEach((sc, i) => {
+    if (!isMap(sc)) return;
+    for (const key of ["given", "when", "then"]) {
+      checkFlowSeq(
+        sc.get(key, true),
+        `scenarios[${i}]${label(sc)}.${key}`,
+        out,
+      );
+    }
+  });
+  for (const section of ["transitions", "races"]) {
+    seqItems(section).forEach((t, i) => {
+      if (!isMap(t)) return;
+      checkFlowSeq(t.get("outcome", true), `${section}[${i}].outcome`, out);
+    });
+  }
+  seqItems("rules").forEach((r, i) => {
+    if (!isMap(r)) return;
+    const cases = r.get("cases", true);
+    if (!isSeq(cases)) return;
+    cases.items.forEach((c, j) => {
+      if (!isMap(c)) return;
+      checkFlowSeq(
+        c.get("expected", true),
+        `rules[${i}]${label(r)}.cases[${j}].expected`,
+        out,
+      );
+    });
+  });
+  return out;
 }
