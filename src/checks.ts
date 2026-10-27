@@ -3,6 +3,7 @@
 // Check failures are worded so they read as questions back to the spec.
 
 import { checkAssumptions } from "./assumptions.ts";
+import { outcomeTexts } from "./text.ts";
 import {
   cellKey,
   type Cell,
@@ -315,12 +316,9 @@ function findPendingMarker(text: string): string | undefined {
 }
 
 function pendingInOutcome(outcome: OutcomeItem[] | undefined): string | undefined {
-  for (const item of outcome ?? []) {
-    const texts = typeof item === "string" ? [item] : [item.ui ?? "", item.observation ?? ""];
-    for (const t of texts) {
-      const marker = findPendingMarker(t);
-      if (marker) return marker;
-    }
+  for (const t of outcomeTexts(outcome)) {
+    const marker = findPendingMarker(t);
+    if (marker) return marker;
   }
   return undefined;
 }

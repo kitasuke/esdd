@@ -64,6 +64,7 @@ On top of the regular checks, `--approved`:
   `record`), each a non-empty string; `approved_at` is a date or ISO 8601 timestamp,
   `record` an `https` URL
 - requires the file name to equal `<usecase-id>.usecase.yaml`
+- when the path contains a `usecases/` directory, requires exactly one `<domain>/` level under it
 - turns `pending` findings (unanswered question markers) from warnings into errors
 - requires `source.approval.assumptions_accepted` to list exactly the declared
   assumptions: one applied but not accepted, or accepted but not declared, is an error
