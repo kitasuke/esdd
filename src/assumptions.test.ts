@@ -84,6 +84,12 @@ describe("checkAssumptions", () => {
 });
 
 describe("checkApproved with assumptions", () => {
+  it("does not throw when assumptions is not a list; reports it as a finding", () => {
+    const src = ir({ approval: approval("[W4]") }) + "\nassumptions: { W4: oops }\n";
+    expect(() => checkApproved(model(src), "UC-TEST-001.usecase.yaml")).not.toThrow();
+    expect(checkAssumptions(model(src)).map((f) => f.message)).toContain("assumptions must be a list");
+  });
+
   const approval = (accepted?: string) => `
   approval:
     approved_by: "spec owner"

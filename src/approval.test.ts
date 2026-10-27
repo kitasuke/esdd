@@ -100,6 +100,20 @@ describe("checkApproved", () => {
   });
 });
 
+describe("checkApproved placement", () => {
+  it("accepts a file one <domain>/ level under usecases/", () => {
+    expect(approvalErrors(irWith(APPROVED_SOURCE), "spec/usecases/orders/UC-TEST-001.usecase.yaml")).toEqual([]);
+  });
+
+  it("rejects a file directly under usecases/ or deeper than one level", () => {
+    for (const file of ["spec/usecases/UC-TEST-001.usecase.yaml", "spec/usecases/orders/v2/UC-TEST-001.usecase.yaml"]) {
+      expect(approvalErrors(irWith(APPROVED_SOURCE), file)).toEqual([
+        `approved IRs live at usecases/<domain>/<usecase-id>.usecase.yaml: ${file}`,
+      ]);
+    }
+  });
+});
+
 describe("escalatePending", () => {
   it("turns unanswered question markers into errors and leaves other warnings alone", () => {
     const m = model(irWith(APPROVED_SOURCE, "TBD: the displayed text"));
