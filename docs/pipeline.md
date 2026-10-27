@@ -104,6 +104,22 @@ the IR can be approved. Four rules keep the rounds short:
   features). For questions about displayed text, propose the literal text — and when
   the same situation already has text in the product, propose that text rather than
   inventing new wording
+- **Check the existing screen before using it as a basis.** When a proposal says "the
+  same as existing X" (the same situation's text, the neighboring column, existing
+  values on the same screen), look up how X appears today — in the client code, its
+  formatter, or existing UI tests and snapshots — and cite that file as the basis.
+  Check three things:
+  - **text**: the wording X uses
+  - **format**: currency symbol (and its width), thousands separators, units, how zero
+    is shown
+  - **empty, failed and no-permission states**: what X shows when a value is missing,
+    fails to load, or is not allowed — blank, filled with zero, or the row hidden
+
+  If what X does today contradicts another rule in the spec (X fills with zero; the
+  spec says "never show zero for a failure"), the question is must-ask, not an
+  assumption. An unchecked "same as existing" is a guess and is not a basis. This is
+  the one place mode A reads the implementation, and only for how the existing thing is
+  displayed; the new feature's behavior still comes from the spec and the answers
 - **Accept by default; ask only what must be asked** (below). Owners should spend their
   time on the decisions that need them, not on confirming the obvious one by one
 - **Override in bulk.** Let the owner reply with ranges — `OK: W1–W8` confirms, `W4: "…"`
@@ -129,7 +145,7 @@ rules, not from how confident the proposer feels:**
 | Tier | Which questions | Handling |
 | --- | --- | --- |
 | **Must ask** | contradictions in the spec; anything touching money, legal or compliance, personal data, or safety; a critical gap (undefined combination, dead end) whose proposal has no basis in the spec or in an existing feature | marked `TBD`; asked explicitly; blocks approval until answered |
-| **Assume** | everything else with a basis: displayed text that reuses existing text, behavior "the same as" a feature the spec names, races with an obvious winner, gaps the spec's own nearby rules settle | the proposal is applied to the IR as a declared assumption (`ASSUMED(<id>)`, [usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list)); listed for review |
+| **Assume** | everything else with a basis: text, format or empty/failed handling checked against the existing screen, behavior "the same as" a feature the spec names, races with an obvious winner, gaps the spec's own nearby rules settle | the proposal is applied to the IR as a declared assumption (`ASSUMED(<id>)`, [usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list)); listed for review |
 | **Note** | suggestions (candidate events the spec does not mention, scope questions) | in the report only |
 
 At approval the owner sees two things: the answers to the must-ask questions, and the
@@ -143,6 +159,13 @@ In one trial, this would have cut 24 answers to about 8, plus one list to scan. 
 is that defaults get rubber-stamped; two things keep that in check: must-ask is decided
 by rule, and every assumption stays marked in the IR and listed in the change that
 commits it, so a test that later fails on an assumption traces straight back to it.
+
+In a later trial, the only problems found after approval were assumptions based on an
+existing screen that nobody had looked at: zero written with a currency symbol next to
+columns that show a plain `0`, "the same as a failed load of column X" when X actually
+fills failures with zero, and a half-width currency symbol where the table uses
+full-width. Each forced the approval to be redone, and each would have been caught in
+round one by the check above.
 
 ## Editable by diff
 
