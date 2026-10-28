@@ -3,6 +3,7 @@
 // Check failures are worded so they read as questions back to the spec.
 
 import { checkAssumptions } from "./assumptions.ts";
+import { config } from "./config.ts";
 import { findPendingMarker, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
 
 export { findPendingMarker };
@@ -378,7 +379,8 @@ export const INPUT_DEFAULT_CONDITIONS: Record<string, string[]> = {
 export function inputConditions(model: Model): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const inp of model.ir.inputs ?? []) {
-    map.set(inp.id, inp.conditions?.length ? inp.conditions : (INPUT_DEFAULT_CONDITIONS[inp.kind] ?? []));
+    const defaults = { ...INPUT_DEFAULT_CONDITIONS, ...config().inputConditions };
+    map.set(inp.id, inp.conditions?.length ? inp.conditions : (defaults[inp.kind] ?? []));
   }
   return map;
 }

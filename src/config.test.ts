@@ -92,6 +92,22 @@ events:
     ]);
   });
 
+  it("uses the configured default input conditions", () => {
+    const form = `
+usecase: UC-TEST-002
+name: Form
+source: { spec: "https://example.com/spec" }
+inputs:
+  - { id: email, kind: field }
+scenarios:
+  - { id: SC-001, name: send, given: [a form], when: [send], then: [sent], covers: "email×blank" }
+`;
+    const errors = () => runChecks(parseIR(form).model!).filter((f) => f.check === "inputs").map((f) => f.message.split(":")[0]);
+    expect(errors()).toEqual(["scenarios[SC-001]", "email × empty", "email × boundary"]);
+    configure({ inputConditions: { field: ["blank"] } });
+    expect(errors()).toEqual([]);
+  });
+
   it("renders the digest with the configured labels", () => {
     configure({ digest: { states: "Lifecycle", initial: "start" } });
     const md = renderDigest(parseIR(IR).model!);

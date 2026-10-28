@@ -8,6 +8,8 @@ import type { DigestLabels } from "./digest.ts";
 export interface EsddConfig {
   /** A closed actor vocabulary. Omitted, actor is an open vocabulary */
   actors?: string[];
+  /** The default condition sets per input kind (field / option), for a team that names conditions in its own words */
+  inputConditions?: Partial<Record<"field" | "option", string[]>>;
   /** Markers that also count as an unanswered question, besides TBD / TODO / FIXME / UNRESOLVED */
   pendingMarkers?: string[];
   /** Bindings platforms besides the built-in web, by platform name */

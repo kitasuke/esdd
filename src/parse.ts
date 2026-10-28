@@ -174,6 +174,21 @@ export function parseIR(source: string): ParseResult {
           err(`${at} (${sc?.id}): given / when / then are all required`);
         }
       }
+      // each given / when / then item is a string of an observable fact (the { surface, ui } form is for
+      // transition outcomes only). Checked in every scenario that writes them, with or without states
+      for (const key of ["given", "when", "then"] as const) {
+        const items: unknown = sc?.[key];
+        if (items === undefined) continue;
+        if (!Array.isArray(items)) {
+          err(`${at} (${sc?.id}): ${key} must be a list of strings`);
+          continue;
+        }
+        items.forEach((item, j) => {
+          if (typeof item !== "string") {
+            err(`${at} (${sc?.id}): ${key}[${j}] must be a string (the { surface, ui } form is for transition outcomes only)`);
+          }
+        });
+      }
     });
   }
 
