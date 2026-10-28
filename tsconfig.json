@@ -11,5 +11,10 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "examples/generator",
+    "examples/order-cancel.generated/cancellation-terms.ts",
+    "examples/order-cancel.generated/cancellation-terms.test.ts"
+  ]
 }

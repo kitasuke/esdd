@@ -1,0 +1,32 @@
+# Example trace stances for UC-ORDER-CANCEL-001 (docs/trace.md)
+# Trace all layers:
+#   npm run check -- examples/order-cancel.usecase.yaml --trace examples/order-cancel.trace.yaml \
+#     --results unit=examples/order-cancel.unit-results.xml \
+#     --results integration=examples/order-cancel.integration-results.xml \
+#     --results e2e=examples/order-cancel.e2e-results.xml
+trace: UC-ORDER-CANCEL-001
+
+untested: # the reasons come from the question list and the layer routing, not from convenience
+  T-PLACED-cancel-o2: "question list: the IR and the bindings name nothing that shows the fee charged"
+  RACE-PACKED-hand_over-cancel-outcome: "question list: the IR names no returns-flow control"
+  RACE-PLACED-pack-cancel: "the winner is decided by the backend; this example has no backend to test"
+  RACE-PACKED-hand_over-cancel: "the winner is decided by the backend; this example has no backend to test"
+
+negative_controls:
+  RULE-001:
+    status: verified
+    controls:
+      - layer: unit
+        oracle: "cancellation before packing is free"
+        breakage: "expect feeCents 100 instead of 0 in the step definitions, regenerate"
+        observed_failure: "RULE-001-c1: expected { kind: 'free', feeCents: +0 } to deeply equal { kind: 'free', feeCents: 100 }"
+        verified: "2026-10-28 local"
+      - layer: unit
+        oracle: "cancellation after packing shows the fee notice"
+        breakage: "expect the canceled_notice literal key instead, regenerate"
+        observed_failure: "RULE-001-c2: expected { kind: 'fee_notice', …(1) } to deeply equal { kind: 'fee_notice', …(1) }"
+        verified: "2026-10-28 local"
+  SC-001: { status: pending, reason: "example results — no application to run the tests against" }
+  SC-002: { status: pending, reason: "example results — no application to run the tests against" }
+  SC-003: { status: pending, reason: "example results — no application to run the tests against" }
+  RACE-PLACED-pack-cancel-outcome: { status: pending, reason: "example results — no application to run the tests against" }
