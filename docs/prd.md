@@ -92,7 +92,8 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   in, not as the checker's location; a long section is shown by its lines that carry the marker.
   The frame's `questions` come next, with their proposals. The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race is worded with
-  the profile's `undeclared` / `unraced` phrase instead; races that share one event against the same
+  the profile's `undeclared` / `unraced` phrase instead, and an input × condition cell with no
+  stance with the `uncovered` phrase; races that share one event against the same
   actor (the operator's cancel against whatever the driver does, in any state) are one question. Coverage is left out: filling it is the
   author's job (`--suggest-paths`), not a decision for the owner. Then come the assumed answers, which become final when the IRs are approved
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
@@ -117,6 +118,7 @@ sections:              # the order and headings; replaces the default list when 
   - { id: notes, heading: Notes, always: true }        # kept as an empty heading when the frame leaves it empty
   - { id: open_questions, heading: Decisions still needed }
 fold: [not_applicable, inputs]   # sub-sections rendered as a folded <details> block (see below)
+actors: { customer: the customer, system: the app }   # names for actors the frame's users do not list (and for --questions)
 phrases:               # sentence patterns; placeholders {state} {event} {actor} {to} {a} {b} {winner} {reason}
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
   assumed: " (assumed: {id})"   # replaces ASSUMED(<id>) in the rendered text
@@ -128,7 +130,7 @@ Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_
 per usecase with its critical scenarios), `use_cases` (each usecase one heading level below the section),
 `open_questions`.
 To follow a template a team already uses, copy its headings, order and levels into the profile and add
-only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`.
+only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `uncovered` (an input × condition cell with no stance), `assumed`.
 `fold` names the usecase sub-sections a reader opens only when checking the machine's work —
 the impossible declarations and the input matrix are the usual ones; `requirements`, `races`,
 `rules` and `acceptance` can be folded too. A folded sub-section is rendered as an HTML

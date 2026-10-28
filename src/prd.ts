@@ -6,7 +6,7 @@
 // checker's findings rather than a list someone remembered to keep.
 
 import { parse as parseYaml } from "yaml";
-import { checkRaceDeclarations, findPendingMarker, runChecks, undeclaredCells, undeclaredRaces } from "./checks.ts";
+import { checkRaceDeclarations, findPendingMarker, runChecks, uncoveredInputCells, undeclaredCells, undeclaredRaces } from "./checks.ts";
 import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
 import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
 
@@ -201,6 +201,11 @@ export interface PrdProfile {
    */
   fold: FoldableSection[];
   /**
+   * Names for actors the IRs' events use, when the frame's users do not name them (an IR reviewed
+   * without a frame, `--questions`): actor id → the name the reader sees
+   */
+  actors: Record<string, string>;
+  /**
    * Sentence patterns (EARS style). Placeholders: {state} {event} {actor} {to} {a} {b} {winner} {reason}.
    * Outcomes are listed under the sentence, one per line
    */
@@ -216,6 +221,8 @@ export interface PrdProfile {
     undeclared: string;
     /** An open question for an undeclared race. Placeholders: {state} {a} {a_actor} {b} {b_actor} */
     unraced: string;
+    /** An open question for an input × condition cell with no stance (form mode). Placeholders: {input} {condition} */
+    uncovered: string;
     /** Replaces an ASSUMED(<id>) marker in IR texts. Placeholder: {id} */
     assumed: string;
   };
@@ -248,6 +255,7 @@ export const BUILT_IN_SECTIONS = ["summary", "problem", "users", "goals", "non_g
 export const DEFAULT_PROFILE: PrdProfile = {
   title: true,
   fold: [],
+  actors: {},
   sections: [
     { id: "summary", heading: "Summary" },
     { id: "problem", heading: "Problem" },
@@ -267,6 +275,7 @@ export const DEFAULT_PROFILE: PrdProfile = {
     undeclared: "While {state}, what happens when {actor} does “{event}”?",
     unraced:
       "While {state}, if {a_actor} does “{a}” and {b_actor} does “{b}” at the same time, which one wins, and what does each side see?",
+    uncovered: "What happens when {input} is {condition}?",
     assumed: " (assumed: {id})",
   },
   labels: {
@@ -299,6 +308,7 @@ export function mergeProfile(override: unknown): PrdProfile {
     title: typeof o.title === "boolean" ? o.title : DEFAULT_PROFILE.title,
     sections: Array.isArray(o.sections) ? o.sections : DEFAULT_PROFILE.sections,
     fold: Array.isArray(o.fold) ? o.fold : DEFAULT_PROFILE.fold,
+    actors: o.actors && typeof o.actors === "object" ? { ...o.actors } : DEFAULT_PROFILE.actors,
     phrases: { ...DEFAULT_PROFILE.phrases, ...(o.phrases ?? {}) },
     labels: { ...DEFAULT_PROFILE.labels, ...(o.labels ?? {}) },
   };
@@ -352,8 +362,9 @@ function outcomeLines(outcome: OutcomeItem[] | undefined): string[] {
 }
 
 /** The names a reader sees: state and event labels, and the users' labels for actors */
-function namer(model: Model, frame: PrdFrame) {
-  const actors = new Map(frame.users.map((u) => [u.id, u.label ?? u.id]));
+function namer(model: Model, frame: PrdFrame, p?: PrdProfile) {
+  // the frame's users name the actors; the profile fills in for actors the frame does not list (or when there is no frame)
+  const actors = new Map([...Object.entries(p?.actors ?? {}), ...frame.users.map((u) => [u.id, u.label ?? u.id] as [string, string])]);
   return {
     state: (id: string) => model.states.get(id)?.label ?? id,
     event: (id: string) => model.events.get(id)?.label ?? id,
@@ -362,7 +373,7 @@ function namer(model: Model, frame: PrdFrame) {
 }
 
 function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level: number): string[] {
-  const name = namer(uc.model, frame);
+  const name = namer(uc.model, frame, p);
   const h = (below: number) => "#".repeat(level + below);
   const { model, file } = uc;
   const { ir } = model;
@@ -513,7 +524,7 @@ function groupRaces(races: { state: string; a: EventDef; b: EventDef }[], eventO
  * by labels. Pending markers are shown by irPending instead
  */
 function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
-  const name = namer(model, frame);
+  const name = namer(model, frame, p);
   const cells = undeclaredCells(model).map(({ state, event }) =>
     fill(p.phrases.undeclared, { state: name.state(state), event: name.event(event), actor: name.actor(model.events.get(event)!.actor) }),
   );
@@ -526,20 +537,23 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
       b_actor: name.actor(g.others[0]!.actor),
     }),
   );
+  const uncovered = uncoveredInputCells(model).map((c) => fill(p.phrases.uncovered, { input: c.input, condition: c.condition }));
   // ids are ASCII words; \b keeps NO_MATCH from matching inside MATCHING and the like
   const ids = [
     ...[...model.states.keys()].map((id) => [id, name.state(id)]),
     ...[...model.events.keys()].map((id) => [id, name.event(id)]),
     ...frame.users.map((u) => [u.id, name.actor(u.id)]),
+    ...Object.keys(p.actors).map((id) => [id, name.actor(id)]),
   ].sort(([a], [b]) => b!.length - a!.length);
   // a function replacement keeps $& or $1 in a label literal
   const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), () => label!), text);
   const others = [
     // coverage is filled by the author (--suggest-paths), not decided by the owner
-    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races", "coverage"].includes(f.check)),
+    // an uncovered input cell is worded above; the other inputs findings (a bad covers reference) stay as the checker words them
+    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races", "coverage"].includes(f.check) && !(f.check === "inputs" && f.message.includes(": uncovered."))),
     ...checkRaceDeclarations(model),
   ].map((f) => labeled(f.message));
-  return [...cells, ...races, ...others];
+  return [...cells, ...races, ...uncovered, ...others];
 }
 
 function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Finding[], p: PrdProfile): string[] {

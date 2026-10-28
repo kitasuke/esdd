@@ -390,6 +390,26 @@ function toCoversArray(v: string | string[] | undefined): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
+/** The input × condition cells with no stance: neither covered by a rule case / scenario nor declared na */
+export function uncoveredInputCells(model: Model): { input: string; condition: string }[] {
+  const conds = inputConditions(model);
+  const covered = new Set<string>();
+  const claim = (ref: string) => {
+    const parts = ref.split("×").map((x) => x.trim());
+    if (parts.length === 2 && conds.get(parts[0]!)?.includes(parts[1]!)) covered.add(`${parts[0]}×${parts[1]}`);
+  };
+  for (const sc of model.ir.scenarios ?? []) for (const ref of toCoversArray(sc.covers)) claim(ref);
+  for (const rule of model.ir.rules ?? []) for (const c of rule.cases) for (const ref of toCoversArray(c.covers)) claim(ref);
+  const out: { input: string; condition: string }[] = [];
+  for (const inp of model.ir.inputs ?? []) {
+    for (const condition of conds.get(inp.id) ?? []) {
+      const isNa = inp.na !== undefined && condition in inp.na;
+      if (!isNa && !covered.has(`${inp.id}×${condition}`)) out.push({ input: inp.id, condition });
+    }
+  }
+  return out;
+}
+
 /**
  * inputs: has every declared input × condition cell taken an explicit stance via covers or na?
  * The stateless-mode counterpart of exhaustiveness — uncovered cells are reported

@@ -131,10 +131,29 @@ assumptions:
     expect(md).toContain("| W1 | Is a mail sent? | No mail | the spec lists no notification |");
     expect(md).not.toContain("exhaustiveness");
   });
+  it("names actors from the profile when there is no frame", () => {
+    const md = renderQuestions([model(OPEN)], mergeProfile({ actors: { customer: "the shopper" } }));
+    expect(md).toContain("what happens when the shopper does “cancel”?");
+  });
   it("uses the profile's phrases", () => {
     const md = renderQuestions([model(OPEN)], mergeProfile({ phrases: { undeclared: "{state}: {event} by {actor}?" } }));
     expect(md).toContain("- **Open**: waiting: cancel by customer?");
   });
+  it("words an uncovered input cell with the profile's phrase", () => {
+    const FORM = `
+usecase: UC-FORM-001
+name: Email
+source: { spec: "https://example.com/spec" }
+inputs:
+  - { id: email, kind: field }
+scenarios:
+  - { id: SC-001, name: save, covers: ["email×empty"], given: [a form], when: [save], then: ['"Saved" is shown'] }
+`;
+    const md = renderQuestions([model(FORM)], mergeProfile({ phrases: { uncovered: "{input} = {condition}: then what?" } }));
+    expect(md).toContain("- **Email**: email = boundary: then what?");
+    expect(md).not.toContain("uncovered.");
+  });
+
   it("says so when nothing is open", () => {
     expect(renderQuestions([model(IR)])).toContain(DEFAULT_PROFILE.labels.open_questions_none);
   });
