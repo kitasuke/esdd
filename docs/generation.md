@@ -45,6 +45,95 @@ message) is split into one case per layer. Routing every mobile case to "integra
 without a layer leaves cases that no layer can run: in one trial, 5 of 11 such cases
 could not be written at the state-machine level.
 
+## Generation rules — from the approved IR to code
+
+The rest of this document explains why; this section is the conversion itself. The
+input is an **approved** IR ([approval.md](approval.md)) and its bindings. Product code
+also reads the project's pattern registry. A worked example generated from
+`examples/order-cancel.usecase.yaml` is in
+[examples/order-cancel.generated/](../examples/order-cancel.generated/).
+
+Each generated artifact comes with a record of the decisions the IR could not make,
+written before the code: a [target IR](pipeline.md#target-irs--decisions-only-never-behavior)
+for tests (layer routing, fixtures, environment) and a
+[generation decision record](#generation-decision-records) for product code.
+
+### What each IR element becomes in tests
+
+| IR element | Unit | Integration (every scenario) | E2E (`critical: true` only) |
+| --- | --- | --- | --- |
+| `rules[].cases` | one table-driven test per rule, one row per case in IR order | — (shows through scenario outcomes) | — |
+| `scenarios[].given` | — | the fake's state, set before the page opens | data created through the real system's seed or API |
+| `scenarios[].path` | — | one driver call per event, in path order, by the event's `actor` | the same, through the same driver |
+| the transition `to` of each step | — | the fake's response for the event's operation | — (the real system decides) |
+| a transition's `outcome` items | — | assert before the event that it does not hold yet, assert after, then print the `[ESDD-OUTCOME]` marker | the same |
+| the event's operation (bindings `events`) | — | assert the fake recorded the call | — |
+| `actor: system` events | — | the fake's state changes; the driver re-reads the screen | the real system's own entry point |
+| `races` | the winner (backend) | the loser's view ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration)) | — |
+| `impossible: true` cells | nothing | nothing | nothing |
+
+The steps of a test are what walking the path produces. When a scenario's `given` or
+`when` disagrees with its path, the path wins and the disagreement goes on the
+question list.
+
+### Test files
+
+- **Name**: every test carries `<usecase>__<node>` ([trace.md](trace.md#tags--put-usecase__node-in-the-test-name)):
+  one test per scenario (`SC-001`), one row per rule case (`RULE-001-c1`). Do not merge
+  scenarios to share setup; share it through fixtures instead
+- **Header**: every generated file starts with the IR path, the `source.version` it was
+  approved at, the nodes it covers, and the no-invention line. A header whose version
+  differs from the approved IR shows in review that the file is stale
+- **Test bodies use IR vocabulary only**: they call the
+  [semantic driver](#semantic-driver-vocabulary-isolation) with event names and bindings
+  literal keys. Locators, copy, routes and widget quirks live in the adapter, which reads
+  the bindings file instead of retyping it
+- **Fixture values are not oracles**: values the `given` does not name (an item, a price)
+  are fixture choices recorded in the target IR, and no assertion may read them
+
+### What the generator may add, and what it may not
+
+| May add (plumbing) | May not add (behavior) |
+| --- | --- |
+| waits on a state the IR names, navigation, sign-in, fixture creation and cleanup, adapter mechanics | steps, assertions, copy, locators or data values that no IR or bindings entry derives; retries that hide a Red; dropping an outcome the path implies |
+
+When a test needs something from the right-hand column, it does not get it. A gap in the
+spec goes on the question list; a gap in generation decisions goes in `unprescribed`.
+Until the spec answers, the outcome stays unasserted, and the trace reports its node as
+uncovered.
+
+### Product code
+
+- **Select, then instantiate**: choose a pattern from the registry by the IR's shape,
+  follow its exemplar, and record the choice in the decision record
+  ([pattern registry](#pattern-registry-select--instantiate))
+- **Vocabulary from the bindings only**: element names, copy and API operations
+- **A rule is implemented once**: as the pure function its unit tests import. The
+  component calls that function and does not reimplement the rule
+- **No behavior the IR lacks**: no handler for an `impossible` cell, no user-visible state
+  the IR does not name. A value the IR leaves open, such as an amount, goes on the
+  question list rather than into a constant
+- **Layers stay separate**: product code never imports test code, and tests reach product
+  code only through the driver and the rule functions
+
+### Done
+
+| Artifact | Done when |
+| --- | --- |
+| unit test | Green on the first run (a Red is a generator bug), with a negative control |
+| integration test | Green with a negative control, or Red until the implementation lands under acceptance-first |
+| E2E test | ran against the real environment; any Red has been adjudicated by a person, not edited to Green |
+| product code | the integration suite is Green with no change to test bodies, and the decision record is reviewed with every `unprescribed` entry dispositioned |
+| all layers | `--results` for every layer leaves no trace errors |
+
+### When the IR changes
+
+Approved IR updates keep IDs and order ([approval.md](approval.md#updating-an-approved-ir)),
+so regenerate per node. Tests for unchanged nodes keep their code, changed nodes are
+regenerated, and tests for removed nodes are deleted. A leftover tag fails `trace-tag`.
+Do not hand-edit a generated test body; change the IR, or the adapter for implementation
+vocabulary.
+
 ## Acceptance-first
 
 For a new feature, integration tests can be made to "work" with zero implementation:

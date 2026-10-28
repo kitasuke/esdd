@@ -1,0 +1,27 @@
+# Generation decision record for the product code of UC-ORDER-CANCEL-001 (docs/generation.md#generation-decision-records).
+# Written before the code. Only cancellation-terms.ts is included here: components follow a
+# project's pattern registry, which this repository does not ship.
+record: FE-GEN-UC-ORDER-CANCEL-001
+source:
+  usecase: examples/order-cancel.usecase.yaml # approved at source.version "v1"
+  bindings: examples/order-cancel.bindings.yaml
+  registry: <the project's pattern registry>
+
+selections:
+  - { target: "RULE-001", pattern: pure_rule_function, exemplar: <registry exemplar>, output: cancellation-terms.ts }
+  - target: "the order screen of SC-001..SC-003 (staff: pack, hand_over; customer: cancel)"
+    pattern: entity_status_with_actions
+    exemplar: <registry exemplar>
+    output: <the project's order screen component>
+
+file_plan:
+  new: [cancellation-terms.ts, <the project's order screen component>]
+  modified: []
+
+unprescribed:
+  - decision: "the fee amount after packing — RULE-001-c2 states only the notice"
+    disposition: question-list
+  - decision: "how the screen learns of complete (actor: system): polling or push"
+    disposition: registry-addition # the registry's status pattern answers it next time
+
+literal_sweep: { unmatched_rules: [] }
