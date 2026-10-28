@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Integration results (JUnit XML) from a real run: npm run example:integration — the generated tests against the generated product code in Chromium -->
-<testsuites id="" name="" tests="4" failures="0" skipped="0" errors="0" time="1.4602330000000001">
-<testsuite name="order-cancel.integration.ts" timestamp="2026-10-28T03:47:20.993Z" hostname="localhost" tests="4" failures="0" skipped="0" time="0.724" errors="0">
-<testcase name="UC-ORDER-CANCEL-001__SC-001 an order progresses to delivered" classname="order-cancel.integration.ts" time="0.281">
+<testsuites id="" name="" tests="4" failures="0" skipped="0" errors="0" time="1.3900259999999998">
+<testsuite name="order-cancel.integration.ts" timestamp="2026-10-28T03:50:01.376Z" hostname="" tests="4" failures="0" skipped="0" time="0.709" errors="0">
+<testcase name="UC-ORDER-CANCEL-001__SC-001 an order progresses to delivered" classname="order-cancel.integration.ts" time="0.272">
 <system-out>
 <![CDATA[[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
 [ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PACKED-hand_over-o1
@@ -10,13 +8,13 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="UC-ORDER-CANCEL-001__SC-002 cancellation before packing completes free of charge" classname="order-cancel.integration.ts" time="0.121">
+<testcase name="UC-ORDER-CANCEL-001__SC-002 cancellation before packing completes free of charge" classname="order-cancel.integration.ts" time="0.116">
 <system-out>
 <![CDATA[[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-cancel-o1
 ]]>
 </system-out>
 </testcase>
-<testcase name="UC-ORDER-CANCEL-001__SC-003 cancellation after packing completes with a fee notice" classname="order-cancel.integration.ts" time="0.203">
+<testcase name="UC-ORDER-CANCEL-001__SC-003 cancellation after packing completes with a fee notice" classname="order-cancel.integration.ts" time="0.201">
 <system-out>
 <![CDATA[[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
 [ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PACKED-cancel-o1
@@ -24,7 +22,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="UC-ORDER-CANCEL-001__RACE-PLACED-pack-cancel-outcome pack loses to cancel" classname="order-cancel.integration.ts" time="0.119">
+<testcase name="UC-ORDER-CANCEL-001__RACE-PLACED-pack-cancel-outcome pack loses to cancel" classname="order-cancel.integration.ts" time="0.12">
 </testcase>
 </testsuite>
 </testsuites>

@@ -51,3 +51,15 @@ describe("example generator: product code", () => {
     expect(() => select(inputs(), inputs().bindings, reg)).toThrow(/no pattern in the registry selects on the screen/);
   });
 });
+
+describe("example generator: races decided by arrival order", () => {
+  it("renders no race test and leaves the screen's side to the registry", () => {
+    const i = inputs();
+    i.model.ir.races![0]!.winner = "first";
+    expect(resolve(i).map((f) => f.node)).not.toContain("RACE-PLACED-pack-cancel-outcome");
+    expect(select(i, i.bindings, loadRegistry(EXAMPLE.registry)).unprescribed).toContainEqual({
+      decision: "RACE-PLACED-pack-cancel is decided by arrival order: no pattern renders either side's view",
+      disposition: "registry-addition",
+    });
+  });
+});

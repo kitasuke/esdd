@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
 import { parseIR } from "../../src/parse.ts";
 import { outcomeText, parseSteps, runStepsChecks, type StepsDoc } from "../../src/steps.ts";
+import { RACE_WINNER_FIRST } from "../../src/text.ts";
 import { cellKey, type Model, type OutcomeItem } from "../../src/types.ts";
 import { generateProduct, loadRegistry, type ProductBindings } from "./product.ts";
 
@@ -136,6 +137,8 @@ export function resolve({ model, bindings, steps }: Inputs): ScenarioFile[] {
   }
   // A race is two nodes: the winner belongs to the backend, the loser's view to integration
   for (const race of model.ir.races ?? []) {
+    // A race decided by arrival order has no fixed loser; the example renderer does not model it
+    if (race.winner === RACE_WINNER_FIRST) continue;
     const node = `RACE-${race.state}-${race.between[0]}-${race.between[1]}-outcome`;
     const loserEvent = race.between.find((e) => e !== race.winner) ?? "";
     const won = step(race.state, race.winner);

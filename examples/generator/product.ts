@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { parse, stringify } from "yaml";
 import { outcomeText } from "../../src/steps.ts";
+import { RACE_WINNER_FIRST } from "../../src/text.ts";
 import type { Inputs } from "./generate.ts";
 
 type Addressing = { role?: string; name?: string; label?: string; testid?: string; text?: string };
@@ -171,6 +172,10 @@ export function select(inputs: Inputs, bindings: ProductBindings, reg: { path: s
   const conflictNotices: ScreenSelection["slots"]["conflict_notices"] = [];
   for (const race of ir.races ?? []) {
     const id = `RACE-${race.state}-${race.between[0]}-${race.between[1]}`;
+    if (race.winner === RACE_WINNER_FIRST) {
+      unprescribed.push({ decision: `${id} is decided by arrival order: no pattern renders either side's view`, disposition: "registry-addition" });
+      continue;
+    }
     const loser = race.between.find((e) => e !== race.winner) ?? "";
     const text = race.outcome.map(outcomeText).join(" ");
     const quoted = [...text.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
