@@ -286,6 +286,43 @@ scenarios:
     expect(open.match(/Who may cancel\?/g)).toHaveLength(1);
   });
 
+  it("asks once about races that share one event against the same actor", () => {
+    const trip = model(`
+usecase: UC-TEST-006
+name: Trip
+source: { spec: "https://example.com/spec" }
+initial: GOING
+states:
+  - { id: GOING, label: going }
+  - { id: THERE, label: there }
+  - { id: DONE, label: done, terminal: true }
+  - { id: CANCELED, label: canceled, terminal: true }
+events:
+  - { id: arrive, label: arrive, actor: driver }
+  - { id: finish, label: finish, actor: driver }
+  - { id: expire, label: expire, actor: system }
+  - { id: cancel, label: cancel, actor: operator }
+transitions:
+  - { from: GOING, on: arrive, to: THERE, outcome: ["there is shown"] }
+  - { from: THERE, on: finish, to: DONE, outcome: ["done is shown"] }
+  - { from: GOING, on: expire, to: CANCELED, outcome: ["expired is shown"] }
+  - { from: [GOING, THERE], on: cancel, to: CANCELED, outcome: ["canceled is shown"] }
+  - { from: GOING, on: finish, impossible: true, reason: "not there yet" }
+  - { from: THERE, on: [arrive, expire], impossible: true, reason: "already there" }
+scenarios:
+  - { id: SC-001, name: trip, path: [arrive, finish] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: trip }], []);
+    const open = md.slice(md.indexOf("## Open questions"));
+    // cancel races arrive (going), finish (there) and expire (going): one question per other actor
+    expect(open).toContain(
+      "- **Trip**: While going / there, if operator does “cancel” and driver does “arrive” / “finish” at the same time, which one wins, and what does each side see?",
+    );
+    expect(open).toContain("- **Trip**: While going, if operator does “cancel” and system does “expire” at the same time");
+    expect(open).toContain("- **Trip**: While going, if driver does “arrive” and system does “expire” at the same time");
+    expect(open.match(/at the same time/g)).toHaveLength(3);
+  });
+
   it("keeps a label with replacement patterns such as $& literal", () => {
     const open = model(`
 usecase: UC-TEST-003

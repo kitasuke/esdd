@@ -8,7 +8,7 @@
 import { parse as parseYaml } from "yaml";
 import { checkRaceDeclarations, findPendingMarker, runChecks, undeclaredCells, undeclaredRaces } from "./checks.ts";
 import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
-import { type Cell, type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
+import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
 
 const PRD_ID = /^PRD-[A-Z0-9-]+$/;
 const STATUSES = ["draft", "in_review", "approved"] as const;
@@ -393,8 +393,7 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
     if (na.size > 0) {
       out.push(`${h(2)} ${p.labels.not_applicable}`, "");
       // several events in one declaration are joined with the quotes the phrase puts around {event}
-      const quoted = /(.)\{event\}(.)/.exec(p.phrases.impossible);
-      const join = quoted ? `${quoted[2]} / ${quoted[1]}` : " / ";
+      const join = quoteJoin(p.phrases.impossible, "event");
       for (const d of [...na.entries()].sort(([a], [b]) => a - b).map(([, v]) => v)) {
         const values = { state: [...d.states].join(" / "), event: [...d.events].join(join), reason: d.reason };
         out.push(`- ${fill(p.phrases.impossible, values)}`);
@@ -463,6 +462,39 @@ function irPending(model: Model): { where: string; text: string }[] {
   return out;
 }
 
+/** Joins several names in a {key} placeholder with the quotes the phrase puts around it */
+function quoteJoin(phrase: string, key: string): string {
+  const quoted = new RegExp(`(.)\\{${key}\\}(.)`).exec(phrase);
+  return quoted ? `${quoted[2]} / ${quoted[1]}` : " / ";
+}
+
+/**
+ * Undeclared races that share one event against the same actor are one decision ("does the
+ * operator's cancel win over whatever the driver does?"), so they are asked once. The event in the
+ * most races is taken first; the order is the model's event order on a tie, so the result is
+ * deterministic
+ */
+function groupRaces(races: { state: string; a: EventDef; b: EventDef }[], eventOrder: string[]) {
+  const groups: { shared: EventDef; others: EventDef[]; states: string[] }[] = [];
+  let rest = races;
+  while (rest.length > 0) {
+    const count = (id: string) => rest.filter((r) => r.a.id === id || r.b.id === id).length;
+    const shared = eventOrder.filter((id) => count(id) > 0).sort((x, y) => count(y) - count(x))[0]!;
+    const mine = rest.filter((r) => r.a.id === shared || r.b.id === shared);
+    rest = rest.filter((r) => !mine.includes(r));
+    const byActor = new Map<string, { shared: EventDef; others: EventDef[]; states: string[] }>();
+    for (const r of mine) {
+      const [own, other] = r.a.id === shared ? [r.a, r.b] : [r.b, r.a];
+      const g = byActor.get(other.actor) ?? { shared: own, others: [], states: [] };
+      if (!g.others.some((e) => e.id === other.id)) g.others.push(other);
+      if (!g.states.includes(r.state)) g.states.push(r.state);
+      byActor.set(other.actor, g);
+    }
+    groups.push(...byActor.values());
+  }
+  return groups;
+}
+
 /**
  * The IR's findings as questions to the reader. Undeclared cells and races are worded with the
  * profile's phrases from the labels; the other findings keep the checker's words, with ids replaced
@@ -473,8 +505,14 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
   const cells = undeclaredCells(model).map(({ state, event }) =>
     fill(p.phrases.undeclared, { state: name.state(state), event: name.event(event), actor: name.actor(model.events.get(event)!.actor) }),
   );
-  const races = undeclaredRaces(model).map(({ state, a, b }) =>
-    fill(p.phrases.unraced, { state: name.state(state), a: name.event(a.id), a_actor: name.actor(a.actor), b: name.event(b.id), b_actor: name.actor(b.actor) }),
+  const races = groupRaces(undeclaredRaces(model), [...model.events.keys()]).map((g) =>
+    fill(p.phrases.unraced, {
+      state: g.states.map(name.state).join(" / "),
+      a: name.event(g.shared.id),
+      a_actor: name.actor(g.shared.actor),
+      b: g.others.map((e) => name.event(e.id)).join(quoteJoin(p.phrases.unraced, "b")),
+      b_actor: name.actor(g.others[0]!.actor),
+    }),
   );
   // ids are ASCII words; \b keeps NO_MATCH from matching inside MATCHING and the like
   const ids = [

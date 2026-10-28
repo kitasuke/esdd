@@ -92,7 +92,8 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   in, not as the checker's location; a long section is shown by its lines that carry the marker.
   The frame's `questions` come next, with their proposals. The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race is worded with
-  the profile's `undeclared` / `unraced` phrase instead. Coverage is left out: filling it is the
+  the profile's `undeclared` / `unraced` phrase instead; races that share one event against the same
+  actor (the operator's cancel against whatever the driver does, in any state) are one question. Coverage is left out: filling it is the
   author's job (`--suggest-paths`), not a decision for the owner. Then come the assumed answers, which become final when the IRs are approved
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
 - `ASSUMED(<id>)` markers stay in the IR for tracing; the rendered text shows the profile's
