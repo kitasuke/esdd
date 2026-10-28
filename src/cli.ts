@@ -5,6 +5,7 @@
 //                   [--bindings <bindings.yaml>] [--suggest-paths] [--json] [--strict]
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
+//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest
 //
 // --bindings checks a locator/literal contract (docs/bindings.md).
 // When the target usecase's IR is passed alongside, the full-population
@@ -15,6 +16,8 @@
 // scenario files and checks that every node Green through a direct test has a negative control.
 // --approved checks the IRs as approved IRs (docs/approval.md): the approval record and spec version
 // are required, the file name must match the usecase id, and pending markers become errors.
+// --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
+// (one item per line, input coverage and assumptions as tables — docs/approval.md).
 //
 // Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
@@ -24,6 +27,7 @@ import process from "node:process";
 import { parseBindings, runBindingsChecks } from "./bindings.ts";
 import { coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
+import { renderDigest } from "./digest.ts";
 import { checkApproved, escalatePending } from "./approval.ts";
 import { parseIR } from "./parse.ts";
 import { suggestPaths } from "./paths.ts";
@@ -56,6 +60,7 @@ interface Args {
   json: boolean;
   strict: boolean;
   approved: boolean;
+  digest: boolean;
 }
 
 // When run via `pnpm --filter`, cwd is the package directory, so resolve
@@ -75,6 +80,7 @@ function parseArgs(argv: string[]): Args {
     json: false,
     strict: false,
     approved: false,
+    digest: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -109,6 +115,8 @@ function parseArgs(argv: string[]): Args {
       args.strict = true;
     } else if (a === "--approved") {
       args.approved = true;
+    } else if (a === "--digest") {
+      args.digest = true;
     } else if (a.startsWith("--")) {
       console.error(`unknown option: ${a}`);
       process.exit(2);
@@ -202,9 +210,31 @@ function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.files.length === 0 && args.bindings.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict] [--approved] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
     );
     process.exit(2);
+  }
+
+  if (args.digest) {
+    // no checks here (run them separately before asking for approval); an unparsable IR is invalid input
+    const pages: string[] = [];
+    for (const file of args.files) {
+      let source: string;
+      try {
+        source = readFileSync(resolveInput(file), "utf8");
+      } catch (e) {
+        console.error(`cannot read: ${file}: ${(e as Error).message}`);
+        process.exit(2);
+      }
+      const { model, findings } = parseIR(source);
+      if (!model) {
+        console.error(`cannot render a digest (the IR does not parse): ${file}: ${findings.map((f) => f.message).join(" / ")}`);
+        process.exit(2);
+      }
+      pages.push(renderDigest(model));
+    }
+    process.stdout.write(pages.join("\n---\n\n"));
+    return;
   }
 
   if ((args.traces.length > 0 || args.scenarios) && args.results.length === 0) {
