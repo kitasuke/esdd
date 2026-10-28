@@ -15,7 +15,7 @@
 
 import { parse as parseYaml } from "yaml";
 import { inputConditions } from "./checks.ts";
-import { raceWinnerText } from "./text.ts";
+import { findPendingMarker, raceWinnerText } from "./text.ts";
 import { cellKey, type Finding, type Model, type OutcomeItem } from "./types.ts";
 
 // unit = pure functions. backend = the real server started against a real database, driven
@@ -116,7 +116,6 @@ export interface TraceDoc {
 }
 
 // Same markers as checks.ts: an unanswered question left in an untested reason
-const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -706,7 +705,7 @@ export function runTrace(
         message: `untested.${nodeId}: a reason is required`,
       });
     } else {
-      const marker = PENDING_MARKERS.find((m) => reason.includes(m));
+      const marker = findPendingMarker(reason);
       if (marker) {
         findings.push({
           level: "warn",

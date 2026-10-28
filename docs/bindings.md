@@ -27,7 +27,7 @@ literal_coverage (below). The source of truth for the checks is `src/bindings.ts
 
 ```yaml
 bindings: UC-PROFILE-EMAIL-001 # target usecase id (must match the IR)
-platform: web                  # v0.1 ships only the web (Playwright/ARIA) profile
+platform: web                  # web (Playwright/ARIA) is built in; others come from the configuration
 graph: account                 # API graph name (required for platform: web)
 
 events: # IR event vocabulary → API operations (called_api is mechanically derived from operation/kind)
@@ -91,10 +91,13 @@ discovery after generation. In one reproduction trial, this class accounted for 
 
 ## Extending platform profiles
 
-The addressing-form vocabulary is designed to be swappable per platform (the
-checker's `ELEMENT_KEYS_BY_PLATFORM`). To extend to mobile native and the like, add a
-profile with that UI stack's locator vocabulary (e.g. test tags / accessibility
-descriptions / declared screen states). Rules that carry over to such a profile:
+The addressing-form vocabulary is swappable per platform. `web` is built in; a project adds
+its own platform through the configuration (`platforms` in `--config`, see the README's
+"Configuration"): the element keys of that UI stack's locator vocabulary (e.g. test tags /
+accessibility descriptions / declared screen states), whether a `graph` is required, and checks
+for one element and one event. The generic checks (exactly one addressing form, the role set,
+uniqueness, literals, literal_coverage) apply to every platform. Rules that carry over to such a
+platform:
 
 - Address controls that advance state by a test tag, not by visible text, because copy
   changes. Name tags in kebab-case as `<kind>-<subject>`

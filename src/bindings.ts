@@ -8,6 +8,8 @@
 // contract-review safety net.
 
 import { parse as parseYaml } from "yaml";
+import { config } from "./config.ts";
+import { findPendingMarker, pendingMarkers } from "./text.ts";
 import type { Finding, Model } from "./types.ts";
 
 /** How to address an element. Has exactly one addressing form (locator priority order) */
@@ -20,12 +22,31 @@ export interface ElementBinding {
   text?: string;
   /** Optional note (not checked) */
   note?: string;
+  /** Addressing forms of other platforms (config.platforms) */
+  [key: string]: unknown;
 }
 
 export interface EventBinding {
   operation?: string;
   kind?: "mutation" | "query";
   called_api?: string;
+  /** Keys of other platforms (config.platforms) */
+  [key: string]: unknown;
+}
+
+/**
+ * A bindings platform: the locator vocabulary of one kind of UI. web (Playwright/ARIA) is built in;
+ * a project adds its own (a mobile toolkit, say) through config.platforms
+ */
+export interface BindingsPlatform {
+  /** Allowed element keys: the addressing forms, plus name (with role) and note */
+  elementKeys: string[];
+  /** Whether the bindings must name the API graph (graph:) */
+  requiresGraph?: boolean;
+  /** Platform-specific checks of one element, after the generic ones (exactly one form, roles, uniqueness) */
+  checkElement?(id: string, element: ElementBinding, findings: Finding[]): void;
+  /** Checks of one event entry (naming of the operation the event calls) */
+  checkEvent?(id: string, event: EventBinding, findings: Finding[]): void;
 }
 
 /** Literal stance per rule id. The value type of literal_coverage */
@@ -43,8 +64,6 @@ export interface BindingsDoc {
   literal_coverage?: Record<string, LiteralCoverageEntry>;
 }
 
-// platform profiles are an extension point — v0.1 ships only web (Playwright/ARIA)
-const PLATFORMS = new Set(["web"]);
 
 // Allowed set of ARIA roles used in real UIs. Grow it in sync with your project's role table.
 // A role missing here is either a typo or an unregistered role — fix that first, either way.
@@ -79,20 +98,57 @@ const ALLOWED_ROLES = new Set([
   "alertdialog",
   "slider",
   "status",
+  "radiogroup",
 ]);
 
-const ELEMENT_KEYS_BY_PLATFORM: Record<string, Set<string>> = {
-  web: new Set(["role", "name", "label", "testid", "text", "note"]),
-};
 const CALLED_API_PATTERN = /^called[A-Z][A-Za-z0-9]*(Query|Mutation)$/;
-const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function findPendingMarker(text: string): string | undefined {
-  return PENDING_MARKERS.find((m) => text.includes(m));
+/** web: Playwright locators over the ARIA tree, events named after the fake client's call (called<Operation><Kind>) */
+const WEB: BindingsPlatform = {
+  elementKeys: ["role", "name", "label", "testid", "text", "note"],
+  requiresGraph: true,
+  checkEvent(id, e, findings) {
+    if (typeof e.operation !== "string" || !/^[A-Z][A-Za-z0-9]*$/.test(e.operation)) {
+      findings.push({
+        level: "error",
+        check: "bindings-events",
+        message: `events.${id}: operation must be a PascalCase operation name: ${String(e.operation)}`,
+      });
+      return;
+    }
+    if (e.kind !== "mutation" && e.kind !== "query") {
+      findings.push({
+        level: "error",
+        check: "bindings-events",
+        message: `events.${id}: kind must be mutation | query: ${String(e.kind)}`,
+      });
+      return;
+    }
+    if (typeof e.called_api !== "string" || !CALLED_API_PATTERN.test(e.called_api)) {
+      findings.push({
+        level: "error",
+        check: "bindings-events",
+        message: `events.${id}: called_api must follow the called<Operation><Query|Mutation> form: ${String(e.called_api)}`,
+      });
+      return;
+    }
+    const expected = `called${e.operation}${e.kind === "mutation" ? "Mutation" : "Query"}`;
+    if (e.called_api !== expected) {
+      findings.push({
+        level: "error",
+        check: "bindings-events",
+        message: `events.${id}: called_api should be ${expected} (mechanically derived from operation/kind): ${e.called_api}`,
+      });
+    }
+  },
+};
+
+function platforms(): Record<string, BindingsPlatform> {
+  return { web: WEB, ...config().platforms };
 }
 
 /** Shape the YAML into a BindingsDoc. Structural errors accumulate as findings; the doc is returned best-effort */
@@ -148,18 +204,18 @@ export function parseBindings(source: string): {
       message: "bindings must be a string holding the target usecase id",
     });
   }
-  if (!PLATFORMS.has(doc.platform)) {
+  const platform = platforms()[doc.platform];
+  if (!platform) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: `platform must be one of ${[...PLATFORMS].join(" | ")}: ${String(doc.platform)}`,
+      message: `platform must be one of ${Object.keys(platforms()).join(" | ")}: ${String(doc.platform)}`,
     });
-  }
-  if (doc.platform === "web" && !doc.graph) {
+  } else if (platform.requiresGraph && !doc.graph) {
     findings.push({
       level: "error",
       check: "bindings-schema",
-      message: "graph is required when platform: web",
+      message: `graph is required when platform: ${doc.platform}`,
     });
   }
   if (!isRecord(doc.elements)) {
@@ -175,8 +231,8 @@ export function parseBindings(source: string): {
 
 /** Addressing-form check for element entries (allowed forms differ per platform) */
 function checkElements(doc: BindingsDoc, findings: Finding[]): void {
-  const allowedKeys =
-    ELEMENT_KEYS_BY_PLATFORM[doc.platform] ?? ELEMENT_KEYS_BY_PLATFORM["web"]!;
+  const platform = platforms()[doc.platform] ?? WEB;
+  const allowedKeys = new Set(platform.elementKeys);
   const formKeys = [...allowedKeys].filter((k) => k !== "note" && k !== "name");
   const seenIdentity = new Map<string, string>();
   for (const [id, entry] of Object.entries(doc.elements)) {
@@ -254,10 +310,11 @@ function checkElements(doc: BindingsDoc, findings: Finding[]): void {
     } else {
       seenIdentity.set(identity, id);
     }
+    platform.checkElement?.(id, e, findings);
   }
 }
 
-/** Naming check for events' operation / called_api (fake-client naming pattern) */
+/** Events: a map of maps; what each entry holds is the platform's to check */
 function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
   if (!doc.events) return;
   if (!isRecord(doc.events)) {
@@ -268,6 +325,7 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
     });
     return;
   }
+  const platform = platforms()[doc.platform] ?? WEB;
   for (const [id, entry] of Object.entries(doc.events)) {
     if (!isRecord(entry)) {
       findings.push({
@@ -277,39 +335,7 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
       });
       continue;
     }
-    const e = entry as unknown as EventBinding;
-    if (typeof e.operation !== "string" || !/^[A-Z][A-Za-z0-9]*$/.test(e.operation)) {
-      findings.push({
-        level: "error",
-        check: "bindings-events",
-        message: `events.${id}: operation must be a PascalCase operation name: ${String(e.operation)}`,
-      });
-      continue;
-    }
-    if (e.kind !== "mutation" && e.kind !== "query") {
-      findings.push({
-        level: "error",
-        check: "bindings-events",
-        message: `events.${id}: kind must be mutation | query: ${String(e.kind)}`,
-      });
-      continue;
-    }
-    if (typeof e.called_api !== "string" || !CALLED_API_PATTERN.test(e.called_api)) {
-      findings.push({
-        level: "error",
-        check: "bindings-events",
-        message: `events.${id}: called_api must follow the called<Operation><Query|Mutation> form: ${String(e.called_api)}`,
-      });
-      continue;
-    }
-    const expected = `called${e.operation}${e.kind === "mutation" ? "Mutation" : "Query"}`;
-    if (e.called_api !== expected) {
-      findings.push({
-        level: "error",
-        check: "bindings-events",
-        message: `events.${id}: called_api should be ${expected} (mechanically derived from operation/kind): ${e.called_api}`,
-      });
-    }
+    platform.checkEvent?.(id, entry as EventBinding, findings);
   }
 }
 
@@ -395,11 +421,11 @@ function checkLiteralCoverage(
     }
     if (hasLiteral) {
       const key = entry.literal as string;
-      if (key === "TBD") {
+      if (pendingMarkers().includes(key)) {
         findings.push({
           level: "warn",
           check: "pending",
-          message: `literal_coverage.${id}: literal undecided (TBD) — resolve via the question list`,
+          message: `literal_coverage.${id}: literal undecided (${key}) — resolve via the question list`,
         });
       } else if (!(doc.literals && key in doc.literals)) {
         findings.push({
