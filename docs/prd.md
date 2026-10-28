@@ -43,6 +43,8 @@ usecases:                      # IR files, relative to this file
   - order-cancel.usecase.yaml
 sections:                      # free sections a profile places by id (Markdown)
   rollout: "Released to everyone at once"
+questions:                     # asked, not answered yet, and not a field of the frame or an IR
+  - { question: "Can a customer cancel a gift order?", proposal: "Only the buyer can" }
 ```
 
 [examples/order-cancel.prd.yaml](../examples/order-cancel.prd.yaml) is a complete frame.
@@ -61,6 +63,7 @@ The frame and every IR it links are checked together:
 | prd-pending | `TBD` / `TODO` / `FIXME` / `UNRESOLVED` left in the frame (warn) |
 | prd-actors | every actor in the IRs' events is one of `users` (warn): a PRD that never says who an actor is leaves the reader guessing |
 | prd-usecases | no usecase linked twice |
+| prd-questions | a question in `questions` is still open (warn) |
 | prd-sections | a section the profile marks `required` is missing, or a frame section the profile does not place (warn) |
 | the IR checks | everything in [usecase-ir.md](usecase-ir.md), per linked IR |
 
@@ -73,10 +76,12 @@ With `status: approved`, every warn becomes an error: an approved PRD has no ope
 npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
 ```
 
-- **Requirements** are written one per transition, in the EARS style
+- **Requirements** are written one per transition declaration, in the EARS style
   (*While \<state\>, when \<actor\> does \<event\>, the system shall …*), with the transition's
   outcomes listed under it. EARS is chosen because every part of its sentence maps to one field
-  of a transition, so the sentence can be produced without inventing words
+  of a transition, so the sentence can be produced without inventing words. A declaration with
+  several `from` states is one sentence naming them all, as it is one decision; a transition back
+  to its own state uses the `stay` phrase
 - **Cases that do not occur** list the `impossible` declarations with their reasons. They are
   decisions too, and a reader who disagrees with one has found a gap in the spec
 - **Simultaneous operations** come from `races`, **Rules** from `rules` (one table per rule),
@@ -84,9 +89,11 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   Given / When / Then
 - **Open questions** are computed at render time, so the list cannot go stale. A `TBD` left in the
   frame or an IR is shown as the text to complete, under the heading or usecase the reader finds it
-  in, not as the checker's location. The other findings follow as the checker words them (they are
+  in, not as the checker's location; a long section is shown by its lines that carry the marker.
+  The frame's `questions` come next, with their proposals. The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race is worded with
-  the profile's `undeclared` / `unraced` phrase instead. Then come the assumed answers, which become final when the IRs are approved
+  the profile's `undeclared` / `unraced` phrase instead. Coverage is left out: filling it is the
+  author's job (`--suggest-paths`), not a decision for the owner. Then come the assumed answers, which become final when the IRs are approved
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
 - `ASSUMED(<id>)` markers stay in the IR for tracing; the rendered text shows the profile's
   `assumed` phrase in their place
@@ -160,7 +167,8 @@ assumption — never filled in silently.
    and the checker then asks for its cells. A candidate the owner rejects is written down too: as
    a `non_goals` entry when it is out of scope, or as an `impossible` declaration with the reason
    when it cannot occur. That way the rendered PRD records the decision, and the next reader does
-   not ask again
+   not ask again. A candidate the owner has not answered yet goes into the frame's `questions`, so
+   it stays on the open questions instead of being lost
 5. **Check** with `--prd`. The findings are the question list. Ask them, or apply a proposed answer
    as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Repeat until no
    error is left; an answer that adds an event or a state brings its own candidates and cells

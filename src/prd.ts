@@ -8,7 +8,7 @@
 import { parse as parseYaml } from "yaml";
 import { checkRaceDeclarations, findPendingMarker, runChecks, undeclaredCells, undeclaredRaces } from "./checks.ts";
 import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
-import { type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
+import { type Cell, type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
 
 const PRD_ID = /^PRD-[A-Z0-9-]+$/;
 const STATUSES = ["draft", "in_review", "approved"] as const;
@@ -44,6 +44,17 @@ export interface PrdFrame {
   usecases: string[];
   /** Free sections a profile places by id (rollout, UI, …). Markdown */
   sections?: Record<string, string>;
+  /**
+   * Questions asked but not answered yet that belong to no field: a candidate nobody declared, which
+   * the IRs cannot hold until it is decided. Each is an open question; an approved frame has none
+   */
+  questions?: PrdQuestion[];
+}
+
+export interface PrdQuestion {
+  question: string;
+  /** The answer the author proposes, when there is a basis for one */
+  proposal?: string;
 }
 
 export interface ParsePrdResult {
@@ -95,6 +106,14 @@ export function parsePrd(source: string): ParsePrdResult {
   if (sections !== undefined && (typeof sections !== "object" || sections === null || Array.isArray(sections))) {
     err("sections must be a map of section id to Markdown");
   }
+  const questions = f["questions"];
+  if (questions !== undefined) {
+    if (!Array.isArray(questions)) err("questions must be a list of { question, proposal? }");
+    else questions.forEach((q, i) => {
+      if (!nonEmptyString(q?.question)) err(`questions[${i}]: question is required`);
+      if (q?.proposal !== undefined && !nonEmptyString(q.proposal)) err(`questions[${i}]: proposal must be text`);
+    });
+  }
   if (findings.length > 0) return { findings };
   return { frame: raw as PrdFrame, findings };
 }
@@ -137,6 +156,10 @@ export function checkPrd(frame: PrdFrame, models: Model[]): Finding[] {
 
   for (const { at, marker } of framePending(frame)) {
     warn("prd-pending", `${at}: an unanswered marker (${marker}) remains. Ask the PRD owner`);
+  }
+
+  for (const q of frame.questions ?? []) {
+    warn("prd-questions", `an open question remains: ${q.question}. Ask the PRD owner`);
   }
 
   const users = new Set(frame.users.map((u) => u.id));
@@ -204,6 +227,8 @@ export interface PrdProfile {
     and: string;
     goal_table: [string, string, string, string];
     rule_table: [string, string];
+    /** Before the proposed answer of an open question in frame.questions */
+    proposal: string;
     input_table: [string, string, string];
     assumed_table: [string, string, string, string];
     source: string;
@@ -251,6 +276,7 @@ export const DEFAULT_PROFILE: PrdProfile = {
     and: "And",
     goal_table: ["ID", "Goal", "Metric", "Target"],
     rule_table: ["Input", "Expected"],
+    proposal: "proposed",
     input_table: ["Input", "Condition", "Handled by"],
     assumed_table: ["ID", "Question", "Applied answer", "Basis"],
     source: "Source",
@@ -335,30 +361,42 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
   const out: string[] = [`${h(1)} ${ir.name} (${ir.usecase})`, "", `${p.labels.source}: \`${file}\``, ""];
 
   if (model.hasStateMachine) {
-    const reqs: string[] = [];
+    // a transition or ignored declaration with a from array is one decision: render it once, naming every state
+    const reqs = new Map<string, { states: string[]; event: string; to?: string; cell: Cell }>();
     // an impossible declaration with from/on arrays is one decision with one reason: render it once
     const na = new Map<number, { states: Set<string>; events: Set<string>; reason: string }>();
     for (const [sid, state] of model.states) {
       if (state.terminal) continue;
-      for (const [eid, ev] of model.events) {
+      for (const [eid] of model.events) {
         const c = model.cells.get(cellKey(sid, eid))?.[0];
         if (!c) continue;
-        const values = { state: stateName(sid), event: eventName(eid), actor: name.actor(ev.actor), to: c.to ? stateName(c.to) : "", reason: c.reason ?? "" };
-        if (c.ignored) reqs.push(`- ${fill(p.phrases.ignored, values)}`);
-        else if (c.impossible) {
+        if (c.impossible) {
           const d = na.get(c.entryIndex) ?? { states: new Set(), events: new Set(), reason: c.reason ?? "" };
-          d.states.add(values.state);
-          d.events.add(values.event);
+          d.states.add(stateName(sid));
+          d.events.add(eventName(eid));
           na.set(c.entryIndex, d);
+          continue;
         }
-        else reqs.push(`- ${fill(c.to === sid ? p.phrases.stay : p.phrases.transition, values)}`, ...outcomeLines(c.outcome));
+        // a transition back to its own state reads differently, so it is never grouped with the others
+        const key = c.to === sid ? `${sid}:${eid}` : `${c.entryIndex}:${eid}`;
+        const g = reqs.get(key) ?? { states: [], event: eid, to: c.to, cell: c };
+        g.states.push(sid);
+        reqs.set(key, g);
       }
     }
-    out.push(`${h(2)} ${p.labels.requirements}`, "", ...reqs, "");
+    const reqLines = [...reqs.values()].flatMap(({ states, event, cell: c }) => {
+      const values = { state: states.map(stateName).join(" / "), event: eventName(event), actor: name.actor(model.events.get(event)!.actor), to: c.to ? stateName(c.to) : "", reason: c.reason ?? "" };
+      if (c.ignored) return [`- ${fill(p.phrases.ignored, values)}`];
+      return [`- ${fill(c.to === states[0] ? p.phrases.stay : p.phrases.transition, values)}`, ...outcomeLines(c.outcome)];
+    });
+    out.push(`${h(2)} ${p.labels.requirements}`, "", ...reqLines, "");
     if (na.size > 0) {
       out.push(`${h(2)} ${p.labels.not_applicable}`, "");
+      // several events in one declaration are joined with the quotes the phrase puts around {event}
+      const quoted = /(.)\{event\}(.)/.exec(p.phrases.impossible);
+      const join = quoted ? `${quoted[2]} / ${quoted[1]}` : " / ";
       for (const d of [...na.entries()].sort(([a], [b]) => a - b).map(([, v]) => v)) {
-        const values = { state: [...d.states].join(" / "), event: [...d.events].join("” / “"), reason: d.reason };
+        const values = { state: [...d.states].join(" / "), event: [...d.events].join(join), reason: d.reason };
         out.push(`- ${fill(p.phrases.impossible, values)}`);
       }
       out.push("");
@@ -447,7 +485,8 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
   // a function replacement keeps $& or $1 in a label literal
   const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), () => label!), text);
   const others = [
-    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races"].includes(f.check)),
+    // coverage is filled by the author (--suggest-paths), not decided by the owner
+    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races", "coverage"].includes(f.check)),
     ...checkRaceDeclarations(model),
   ].map((f) => labeled(f.message));
   return [...cells, ...races, ...others];
@@ -461,8 +500,11 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
       const where = f.goal ? `${heading(f.section)} ${f.goal.id} ${p.labels.goal_table[f.goal.column]}` : heading(f.section);
       // a metric or target alone ("TBD") does not say which goal it belongs to
       const of = f.goal && f.goal.column !== 1 ? ` (${f.goal.statement})` : "";
-      return `- **${where}**: ${f.text}${of}`;
+      // a long section is shown by the lines that carry the marker, not as a whole
+      const lines = f.text.split("\n").filter((l) => findPendingMarker(l)).map((l) => l.trim().replace(/^[-*]\s+/, ""));
+      return `- **${where}**: ${lines.length > 0 ? lines.join(" / ") : f.text}${of}`;
     }),
+    ...(frame.questions ?? []).map((q) => `- ${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`),
     ...frameFindings.filter((f) => f.check !== "prd-pending").map((f) => `- ${f.message}`),
     ...ucs.flatMap((uc) => irPending(uc.model).map((x) => `- **${uc.model.ir.name}: ${x.where}**: ${x.text}`)),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
