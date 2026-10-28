@@ -41,6 +41,23 @@ describe("config", () => {
     ]);
   });
 
+  it("takes a configured marker as an undecided literal in literal_coverage", () => {
+    const source = `
+bindings: UC-TEST-001
+platform: web
+graph: account
+elements:
+  go: { role: button, name: Go }
+literal_coverage:
+  RULE-001: { literal: OPEN QUESTION }
+`;
+    const model = parseIR(IR.replace("scenarios:", "rules:\n  - { id: RULE-001, name: fee, cases: [{ input: a, expected: b }] }\nscenarios:")).model!;
+    const run = () => runBindingsChecks(parseBindings(source).doc!, { model }).map((f) => `${f.level} ${f.message}`);
+    expect(run()).toEqual(["error literal_coverage.RULE-001: literals.OPEN QUESTION does not exist"]);
+    configure({ pendingMarkers: ["OPEN QUESTION"] });
+    expect(run()).toEqual(["warn literal_coverage.RULE-001: literal undecided (OPEN QUESTION) — resolve via the question list"]);
+  });
+
   it("adds a bindings platform with its own keys and checks", () => {
     const source = `
 bindings: UC-TEST-001

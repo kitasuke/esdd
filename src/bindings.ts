@@ -9,7 +9,7 @@
 
 import { parse as parseYaml } from "yaml";
 import { config } from "./config.ts";
-import { findPendingMarker } from "./text.ts";
+import { findPendingMarker, pendingMarkers } from "./text.ts";
 import type { Finding, Model } from "./types.ts";
 
 /** How to address an element. Has exactly one addressing form (locator priority order) */
@@ -421,11 +421,11 @@ function checkLiteralCoverage(
     }
     if (hasLiteral) {
       const key = entry.literal as string;
-      if (key === "TBD") {
+      if (pendingMarkers().includes(key)) {
         findings.push({
           level: "warn",
           check: "pending",
-          message: `literal_coverage.${id}: literal undecided (TBD) — resolve via the question list`,
+          message: `literal_coverage.${id}: literal undecided (${key}) — resolve via the question list`,
         });
       } else if (!(doc.literals && key in doc.literals)) {
         findings.push({

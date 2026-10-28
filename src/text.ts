@@ -29,7 +29,12 @@ export function nonEmptyString(v: unknown): v is string {
 
 const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
 
-/** The unanswered-question marker in a text, if any (the defaults plus the project's pendingMarkers) */
+/** The unanswered-question markers: the defaults plus the project's pendingMarkers */
+export function pendingMarkers(): string[] {
+  return [...PENDING_MARKERS, ...(config().pendingMarkers ?? [])];
+}
+
+/** The unanswered-question marker in a text, if any */
 export function findPendingMarker(text: string): string | undefined {
-  return [...PENDING_MARKERS, ...(config().pendingMarkers ?? [])].find((m) => text.includes(m));
+  return pendingMarkers().find((m) => text.includes(m));
 }
