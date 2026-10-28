@@ -17,13 +17,15 @@ import {
   type Model,
   type UseCaseIR,
 } from "./types.ts";
+import { config } from "./config.ts";
 
 const STATE_ID = /^[A-Z][A-Z0-9_]*$/;
 const EVENT_ID = /^[a-z][a-z0-9_]*$/;
 const USECASE_ID = /^UC-[A-Z0-9-]+$/;
 const SCENARIO_ID = /^SC-[A-Z0-9-]+$/;
 const RULE_ID = /^RULE-[A-Z0-9-]+$/;
-// actor is an open vocabulary (e.g. customer / staff / system). Consistency within a usecase is enforced by review
+// actor is an open vocabulary (e.g. customer / staff / system) unless the project config closes it (config.actors).
+// Consistency within a usecase is enforced by review
 
 function toArray(v: string | string[] | undefined): string[] {
   if (v === undefined) return [];
@@ -88,8 +90,11 @@ export function parseIR(source: string): ParseResult {
       continue;
     }
     if (events.has(e.id)) err(`duplicate event id: ${e.id}`);
+    const actors = config().actors;
     if (typeof e.actor !== "string" || e.actor.trim() === "") {
       err(`event ${e.id}: actor is required (e.g. customer / staff / system)`);
+    } else if (actors && !actors.includes(e.actor)) {
+      err(`event ${e.id}: actor must be one of ${actors.join(" | ")}: ${e.actor}`);
     }
     events.set(e.id, e);
   }
@@ -168,6 +173,21 @@ export function parseIR(source: string): ParseResult {
         if (!sc?.given?.length || !sc?.when?.length || !sc?.then?.length) {
           err(`${at} (${sc?.id}): given / when / then are all required`);
         }
+      }
+      // each given / when / then item is a string of an observable fact (the { surface, ui } form is for
+      // transition outcomes only). Checked in every scenario that writes them, with or without states
+      for (const key of ["given", "when", "then"] as const) {
+        const items: unknown = sc?.[key];
+        if (items === undefined) continue;
+        if (!Array.isArray(items)) {
+          err(`${at} (${sc?.id}): ${key} must be a list of strings`);
+          continue;
+        }
+        items.forEach((item, j) => {
+          if (typeof item !== "string") {
+            err(`${at} (${sc?.id}): ${key}[${j}] must be a string (the { surface, ui } form is for transition outcomes only)`);
+          }
+        });
       }
     });
   }

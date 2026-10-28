@@ -7,10 +7,9 @@ import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 
 export function loadObservationNames(definitionsPath: string): Set<string> {
-  // Registry YAML files may contain duplicate keys, so do not enforce uniqueKeys
-  const raw = parseYaml(readFileSync(definitionsPath, "utf8"), {
-    uniqueKeys: false,
-  }) as {
+  // keep uniqueKeys strict (the default): with duplicate keys YAML silently drops the first block,
+  // and a registry entry would vanish without anyone noticing
+  const raw = parseYaml(readFileSync(definitionsPath, "utf8")) as {
     observations?: Record<string, { keys?: Record<string, unknown> }>;
   };
   const names = new Set<string>();

@@ -31,7 +31,7 @@ summary: one sentence a reader can repeat
 problem:                       # what is wrong today, as observed facts
   - "Customers can only cancel by contacting support"
 users:                         # the ids are the actors the IRs' events name
-  - { id: customer, description: "the person who placed the order" }
+  - { id: customer, label: the customer, description: "the person who placed the order" }  # label: the name the PRD uses (the id when omitted)
 goals:
   - id: G1
     statement: Customers cancel without contacting support
@@ -65,6 +65,7 @@ The frame and every IR it links are checked together:
 | the IR checks | everything in [usecase-ir.md](usecase-ir.md), per linked IR |
 
 With `status: approved`, every warn becomes an error: an approved PRD has no open question left.
+`--approved` additionally requires `status: approved`, for frames committed as approved (in CI, say).
 
 ## The rendered PRD
 
@@ -84,7 +85,8 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
 - **Open questions** are computed at render time, so the list cannot go stale. A `TBD` left in the
   frame or an IR is shown as the text to complete, under the heading or usecase the reader finds it
   in, not as the checker's location. The other findings follow as the checker words them (they are
-  already questions), and then the assumed answers, which become final when the IRs are approved
+  already questions; ids in them are replaced by labels). An undeclared cell or race is worded with
+  the profile's `undeclared` / `unraced` phrase instead. Then come the assumed answers, which become final when the IRs are approved
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
 - `ASSUMED(<id>)` markers stay in the IR for tracing; the rendered text shows the profile's
   `assumed` phrase in their place
@@ -95,10 +97,14 @@ What differs between companies is the layout and the wording, not the method. A 
 that part; keys it leaves out keep the default.
 
 ```yaml
+title: false           # leave out the title line when the destination shows the title itself
 sections:              # the order and headings; replaces the default list when given
   - { id: summary, heading: TL;DR }
+  - { heading: Background, level: 1 }                  # no id: a heading only, grouping what follows
+  - { id: problem, heading: Problem, level: 2 }        # level: the Markdown heading level (default 2)
   - { id: use_cases, heading: What it does }
   - { id: rollout, heading: Rollout, required: true }   # any id other than the built-ins is read from frame.sections
+  - { id: notes, heading: Notes, always: true }        # kept as an empty heading when the frame leaves it empty
   - { id: open_questions, heading: Decisions still needed }
 phrases:               # sentence patterns; placeholders {state} {event} {actor} {to} {a} {b} {winner} {reason}
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
@@ -107,8 +113,11 @@ labels:                # sub-headings and table headers
   acceptance: Acceptance tests
 ```
 
-Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_cases`,
-`open_questions`. Phrase keys: `transition`, `ignored`, `impossible`, `race`, `race_first`, `assumed`.
+Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_case_list` (one line
+per usecase with its critical scenarios), `use_cases` (each usecase one heading level below the section),
+`open_questions`.
+To follow a template a team already uses, copy its headings, order and levels into the profile and add
+only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`.
 A profile for a team that writes specs in another language translates `phrases` and `labels`;
 the IR texts stay in the language they were written in.
 [examples/prd-profile.yaml](../examples/prd-profile.yaml) is a complete profile.

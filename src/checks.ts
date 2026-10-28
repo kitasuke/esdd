@@ -3,10 +3,14 @@
 // Check failures are worded so they read as questions back to the spec.
 
 import { checkAssumptions } from "./assumptions.ts";
-import { outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
+import { config } from "./config.ts";
+import { findPendingMarker, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
+
+export { findPendingMarker };
 import {
   cellKey,
   type Cell,
+  type EventDef,
   type Finding,
   type Model,
   type OutcomeItem,
@@ -25,23 +29,24 @@ function transitionCells(model: Model): Cell[] {
 }
 
 /** Exhaustiveness: is every non-terminal state × event declared as a transition or impossible? */
+/** The non-terminal state × event cells with no declaration (shared by the check and the PRD renderer) */
+export function undeclaredCells(model: Model): { state: string; event: string }[] {
+  return nonTerminalStates(model).flatMap((state) =>
+    [...model.events.keys()].filter((event) => !model.cells.has(cellKey(state, event))).map((event) => ({ state, event })),
+  );
+}
+
 export function checkExhaustiveness(model: Model): Finding[] {
-  const findings: Finding[] = [];
-  for (const state of nonTerminalStates(model)) {
-    for (const event of model.events.keys()) {
-      if (!model.cells.has(cellKey(state, event))) {
-        const label = model.events.get(event)?.label ?? event;
-        findings.push({
-          level: "error",
-          check: "exhaustiveness",
-          message:
-            `${state} × ${event}: undeclared. Answer "what happens when ${label} occurs in ${state}?" ` +
-            `(define a transition, or declare impossible: true with a reason)`,
-        });
-      }
-    }
-  }
-  return findings;
+  return undeclaredCells(model).map(({ state, event }) => {
+    const label = model.events.get(event)?.label ?? event;
+    return {
+      level: "error",
+      check: "exhaustiveness",
+      message:
+        `${state} × ${event}: undeclared. Answer "what happens when ${label} occurs in ${state}?" ` +
+        `(define a transition, or declare impossible: true with a reason)`,
+    };
+  });
 }
 
 /** Determinism: does any (from, on) pair have more than one declaration? */
@@ -142,7 +147,43 @@ export function checkEscapability(model: Model): Finding[] {
  * Race declaration obligation: when a state has transitions triggered by events of
  * different actors, the behavior of that racing pair must be declared under races.
  */
+/** Pairs of events of different actors, both possible in a state, with no races declaration (shared by the check and the PRD renderer) */
+export function undeclaredRaces(model: Model): { state: string; a: EventDef; b: EventDef }[] {
+  const races = model.ir.races ?? [];
+  const out: { state: string; a: EventDef; b: EventDef }[] = [];
+  for (const state of nonTerminalStates(model)) {
+    const active = [...model.events.values()].filter((e) => {
+      const cell = one(model, state, e.id);
+      return cell !== undefined && !cell.impossible;
+    });
+    for (let i = 0; i < active.length; i++) {
+      for (let j = i + 1; j < active.length; j++) {
+        const a = active[i]!;
+        const b = active[j]!;
+        if (a.actor === b.actor) continue;
+        const declared = races.some((r) => r.state === state && r.between.includes(a.id) && r.between.includes(b.id));
+        if (!declared) out.push({ state, a, b });
+      }
+    }
+  }
+  return out;
+}
+
 export function checkRaces(model: Model): Finding[] {
+  return [
+    ...checkRaceDeclarations(model),
+    ...undeclaredRaces(model).map(({ state, a, b }): Finding => ({
+      level: "error",
+      check: "races",
+      message:
+        `${state}: ${a.actor}'s ${a.id} and ${b.actor}'s ${b.id} can race. ` +
+        `Declare in races "if they happen almost simultaneously, which one wins, and what does the user see?"`,
+    })),
+  ];
+}
+
+/** Validity of the races declarations themselves */
+export function checkRaceDeclarations(model: Model): Finding[] {
   const findings: Finding[] = [];
   const races = model.ir.races ?? [];
 
@@ -176,35 +217,6 @@ export function checkRaces(model: Model): Finding[] {
     }
   });
 
-  // Obligation: detect pairs with different actors
-  for (const state of nonTerminalStates(model)) {
-    const active = [...model.events.values()].filter((e) => {
-      const cell = one(model, state, e.id);
-      return cell !== undefined && !cell.impossible;
-    });
-    for (let i = 0; i < active.length; i++) {
-      for (let j = i + 1; j < active.length; j++) {
-        const a = active[i]!;
-        const b = active[j]!;
-        if (a.actor === b.actor) continue;
-        const declared = races.some(
-          (r) =>
-            r.state === state &&
-            r.between.includes(a.id) &&
-            r.between.includes(b.id),
-        );
-        if (!declared) {
-          findings.push({
-            level: "error",
-            check: "races",
-            message:
-              `${state}: ${a.actor}'s ${a.id} and ${b.actor}'s ${b.id} can race. ` +
-              `Declare in races "if they happen almost simultaneously, which one wins, and what does the user see?"`,
-          });
-        }
-      }
-    }
-  }
   return findings;
 }
 
@@ -309,11 +321,6 @@ export interface CheckOptions {
 // Markers for unanswered spec questions. The convention (usecase-ir.md) of leaving
 // "TBD" etc. in outcome / reason / rules.expected when placing an ASSUMPTION makes
 // them machine-visible. warn = a human must resolve them before approval.
-const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
-
-export function findPendingMarker(text: string): string | undefined {
-  return PENDING_MARKERS.find((m) => text.includes(m));
-}
 
 function pendingInOutcome(outcome: OutcomeItem[] | undefined): string | undefined {
   for (const t of outcomeTexts(outcome)) {
@@ -349,6 +356,8 @@ export function checkPending(model: Model): Finding[] {
   });
   (model.ir.scenarios ?? []).forEach((sc) => {
     for (const t of sc.then ?? []) {
+      // a non-string is a structure error reported elsewhere; skip it here instead of throwing
+      if (typeof t !== "string") continue;
       const m = findPendingMarker(t);
       if (m) {
         push(`scenarios[${sc.id}].then`, m);
@@ -370,7 +379,8 @@ export const INPUT_DEFAULT_CONDITIONS: Record<string, string[]> = {
 export function inputConditions(model: Model): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const inp of model.ir.inputs ?? []) {
-    map.set(inp.id, inp.conditions?.length ? inp.conditions : (INPUT_DEFAULT_CONDITIONS[inp.kind] ?? []));
+    const defaults = { ...INPUT_DEFAULT_CONDITIONS, ...config().inputConditions };
+    map.set(inp.id, inp.conditions?.length ? inp.conditions : (defaults[inp.kind] ?? []));
   }
   return map;
 }

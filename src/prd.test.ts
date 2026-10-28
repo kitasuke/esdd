@@ -150,6 +150,91 @@ describe("renderPrd", () => {
     expect(renderPrd(frame(), ucs, [], profile)).toMatch(/\n## UI\n\nTBD\n$/);
   });
 
+  it("follows a nested template: no title, heading-only groups, levels, and the usecase list", () => {
+    const profile = mergeProfile({
+      title: false,
+      sections: [
+        { heading: "Why", level: 1 },
+        { id: "goals", heading: "Goals", level: 2 },
+        { id: "use_case_list", heading: "Use cases", level: 1 },
+        { id: "use_cases", heading: "Spec", level: 1 },
+      ],
+    });
+    const md = renderPrd(frame(), ucs, [], profile);
+    expect(md.match(/^#+ .*/gm)).toEqual([
+      "# Why",
+      "## Goals",
+      "# Use cases",
+      "# Spec",
+      "## Order (UC-TEST-001)",
+      "### Requirements",
+      "### Cases that do not occur",
+      "### Acceptance criteria",
+    ]);
+    expect(md).toContain("# Use cases\n\n- Order\n  - proceed\n");
+  });
+
+  it("keeps the heading of an empty section marked always", () => {
+    const profile = mergeProfile({ sections: [{ id: "notes", heading: "Notes", always: true }, { id: "rollout", heading: "Rollout" }] });
+    expect(renderPrd(frame(), ucs, [], profile)).toBe("# Test feature\n\n`PRD-TEST` · draft\n\n## Notes\n\n## Rollout\n\nall at once\n");
+  });
+
+  it("names actors by their label and words undeclared cells and races as questions with labels", () => {
+    const labeled = frame(FRAME.replace("{ id: operator, description:", "{ id: operator, label: the clerk, description:"));
+    const open = model(`
+usecase: UC-TEST-002
+name: Ticket
+source: { spec: "https://example.com/spec" }
+initial: OPEN
+states:
+  - { id: OPEN, label: open }
+  - { id: OPEN_LATE, label: open late }
+  - { id: CLOSED, label: closed, terminal: true }
+events:
+  - { id: close, label: close it, actor: operator }
+  - { id: expire, label: let it expire, actor: system }
+transitions:
+  - { from: OPEN, on: close, to: CLOSED, outcome: ["closed is shown"] }
+  - { from: OPEN, on: expire, to: OPEN_LATE, outcome: ["late is shown"] }
+  - { from: OPEN_LATE, on: close, to: CLOSED, outcome: ["closed is shown"] }
+scenarios:
+  - { id: SC-001, name: close, path: [close] }
+`);
+    const md = renderPrd(labeled, [{ file: "t.usecase.yaml", model: open }], []);
+    expect(md).toContain("- While open, when the clerk does “close it”, the system shall move to closed.");
+    expect(md).toContain("- **Ticket**: While open late, what happens when system does “let it expire”?");
+    expect(md).toContain(
+      "- **Ticket**: While open, if the clerk does “close it” and system does “let it expire” at the same time, which one wins, and what does each side see?",
+    );
+    // the other findings keep the checker's words, with labels for ids
+    expect(md).toContain("- **Ticket**: open × let it expire → open late:");
+    expect(md).not.toMatch(/\bOPEN_LATE\b/);
+  });
+
+  it("keeps a label with replacement patterns such as $& literal", () => {
+    const open = model(`
+usecase: UC-TEST-003
+name: Fee
+source: { spec: "https://example.com/spec" }
+initial: OPEN
+states:
+  - { id: OPEN, label: "open ($& due)" }
+  - { id: OPEN_LATE, label: "late ($1 fee)" }
+  - { id: CLOSED, label: closed, terminal: true }
+events:
+  - { id: close, label: close it, actor: operator }
+  - { id: expire, label: let it expire, actor: system }
+transitions:
+  - { from: OPEN, on: close, to: CLOSED, outcome: ["closed is shown"] }
+  - { from: OPEN, on: expire, to: OPEN_LATE, outcome: ["late is shown"] }
+  - { from: OPEN_LATE, on: close, to: CLOSED, outcome: ["closed is shown"] }
+scenarios:
+  - { id: SC-001, name: close, path: [close] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: open }], []);
+    expect(md).toContain("- **Fee**: open ($& due) × let it expire → late ($1 fee):");
+  });
+
   it("is deterministic", () => {
     expect(renderPrd(frame(), ucs, [])).toBe(renderPrd(frame(), ucs, []));
   });

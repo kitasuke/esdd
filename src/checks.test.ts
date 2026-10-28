@@ -403,10 +403,10 @@ ${thenLine}
     const errors = errorsOf(
       check(STATELESS("    then: [the running total (pre-tax) shows $9,000]")),
       "structure",
-    );
+    ).filter((f) => f.message.includes("split a number"));
+    // the 000 split off is also a number, not a string, which is reported on its own
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toContain("scenarios[0] (SC-003).then[0..1]");
-    expect(errors[0]?.message).toContain("split a number");
   });
 
   it("also checks transitions outcome and rules expected", () => {
