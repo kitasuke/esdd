@@ -1,8 +1,8 @@
 // Example generator: resolves an approved IR + bindings + step definitions into scenario files,
 // then renders those into Playwright tests (integration, E2E) and a vitest unit test.
-// It is example-only: a project writes its renderer for its own test framework. The part that
-// carries over is resolve() — every phrase a test needs must resolve to a step definition, or
-// generation stops (docs/generation.md "Step definitions and scenario files").
+// It is example-only: a project writes its renderer for its own test framework. What carries
+// over is the step definitions check (`--steps`, src/steps.ts), which loadInputs() runs first:
+// every phrase a test needs must resolve, or generation stops.
 //
 // Usage: node examples/generator/generate.ts [--check]
 //   --check: compare with the committed files instead of writing them (exit 1 on a difference)
@@ -12,21 +12,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
 import { parseIR } from "../../src/parse.ts";
+import { outcomeText, parseSteps, runStepsChecks, type StepsDoc } from "../../src/steps.ts";
 import { cellKey, type Model, type OutcomeItem } from "../../src/types.ts";
 
 // ---- inputs ---------------------------------------------------------------------------
 
 type Call = { expect: string; not?: string; args?: string[] };
 type Unresolved = { unresolved: string };
-
-export interface StepDefinitions {
-  steps: string;
-  states: Record<string, { fixture: string }>;
-  givens: Record<string, { state: string }>;
-  events: Record<string, { screen: string } | { fixture: string }>;
-  outcomes: Record<string, Call | Unresolved>;
-  rules?: Record<string, { function: { name: string; from: string }; cases: { args: unknown[]; returns: unknown }[] }>;
-}
 
 interface Bindings {
   bindings: string;
@@ -37,21 +29,24 @@ export interface Inputs {
   irPath: string;
   model: Model;
   bindings: Bindings;
-  steps: StepDefinitions;
+  steps: StepsDoc;
 }
 
 export function loadInputs(irPath: string, bindingsPath: string, stepsPath: string): Inputs {
   const { model, findings } = parseIR(readFileSync(irPath, "utf8"));
   if (!model) throw new Error(`cannot parse ${irPath}: ${findings.map((f) => f.message).join("; ")}`);
   const bindings = parse(readFileSync(bindingsPath, "utf8")) as Bindings;
-  const steps = parse(readFileSync(stepsPath, "utf8")) as StepDefinitions;
-  for (const [file, id] of [
-    [bindingsPath, bindings.bindings],
-    [stepsPath, steps.steps],
-  ]) {
-    if (id !== model.ir.usecase) throw new Error(`${file} is for ${id}, not ${model.ir.usecase}`);
+  if (bindings.bindings !== model.ir.usecase) {
+    throw new Error(`${bindingsPath} is for ${bindings.bindings}, not ${model.ir.usecase}`);
   }
-  return { irPath, model, bindings, steps };
+  const parsed = parseSteps(readFileSync(stepsPath, "utf8"));
+  const errors = [...parsed.findings, ...(parsed.doc ? runStepsChecks(parsed.doc, { model }) : [])].filter(
+    (f) => f.level === "error",
+  );
+  if (!parsed.doc || errors.length > 0) {
+    throw new Error(`${stepsPath}:\n${errors.map((f) => `  - [${f.check}] ${f.message}`).join("\n")}`);
+  }
+  return { irPath, model, bindings, steps: parsed.doc };
 }
 
 // ---- resolve: IR + bindings + step definitions → scenario files -------------------------
@@ -78,8 +73,6 @@ export interface ScenarioFile {
   race?: { winner: { event: string; to: string }; loser: Omit<ResolvedStep, "transition" | "to"> };
   questions: string[];
 }
-
-const outcomeText = (o: OutcomeItem) => (typeof o === "string" ? o : (o.ui ?? o.observation ?? JSON.stringify(o)));
 
 /** Every phrase without a step definition is collected, then reported at once. */
 export function resolve({ model, bindings, steps }: Inputs): ScenarioFile[] {

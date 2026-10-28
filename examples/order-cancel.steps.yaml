@@ -2,6 +2,7 @@
 # Maps every IR phrase a test has to set up, perform or check to a semantic-driver or harness
 # call, so generating a test is a lookup rather than an interpretation. Reviewed together with
 # the IR and the bindings: a phrase with no entry blocks generation.
+# Check:    npm run check -- examples/order-cancel.usecase.yaml --steps examples/order-cancel.steps.yaml
 # Generate: node examples/generator/generate.ts
 steps: UC-ORDER-CANCEL-001
 
