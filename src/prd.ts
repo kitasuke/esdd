@@ -17,7 +17,7 @@ import {
   unreachableStates,
 } from "./checks.ts";
 import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
-import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
+import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, type RaceDef, cellKey } from "./types.ts";
 
 const PRD_ID = /^PRD-[A-Z0-9-]+$/;
 const STATUSES = ["draft", "in_review", "approved"] as const;
@@ -437,8 +437,18 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
     }
     const races = ir.races ?? [];
     if (races.length > 0) {
-      const lines = races.flatMap((r) => {
-        const values = { state: stateName(r.state), a: eventName(r.between[0]), b: eventName(r.between[1]), winner: eventName(r.winner) };
+      // a declaration that names several states or events is one decision: one sentence for it
+      const decls = new Map<number, RaceDef[]>();
+      races.forEach((r, i) => decls.set(r.declaration ?? i, [...(decls.get(r.declaration ?? i) ?? []), r]));
+      const uniq = (xs: string[]) => [...new Set(xs)];
+      const lines = [...decls.values()].flatMap((rs) => {
+        const r = rs[0]!;
+        const values = {
+          state: uniq(rs.map((x) => x.state)).map(stateName).join(" / "),
+          a: eventName(r.between[0]),
+          b: uniq(rs.map((x) => x.between[1])).map(eventName).join(quoteJoin(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, "b")),
+          winner: eventName(r.winner),
+        };
         return [`- ${fill(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, values)}`, ...outcomeLines(r.outcome)];
       });
       out.push(...sub("races", lines));

@@ -402,6 +402,38 @@ scenarios:
     expect(open).not.toContain("uncovered.");
   });
 
+  it("writes a race declaration that names several states and events as one sentence", () => {
+    const trip = model(`
+usecase: UC-TEST-009
+name: Trip
+source: { spec: "https://example.com/spec" }
+initial: GOING
+states:
+  - { id: GOING, label: going }
+  - { id: THERE, label: there }
+  - { id: DONE, label: done, terminal: true }
+  - { id: CANCELED, label: canceled, terminal: true }
+events:
+  - { id: arrive, label: arrive, actor: driver }
+  - { id: finish, label: finish, actor: driver }
+  - { id: cancel, label: cancel, actor: operator }
+transitions:
+  - { from: GOING, on: arrive, to: THERE, outcome: ["there is shown"] }
+  - { from: THERE, on: finish, to: DONE, outcome: ["done is shown"] }
+  - { from: [GOING, THERE], on: cancel, to: CANCELED, outcome: ["canceled is shown"] }
+  - { from: GOING, on: finish, impossible: true, reason: "not there yet" }
+  - { from: THERE, on: arrive, impossible: true, reason: "already there" }
+races:
+  - { state: [GOING, THERE], between: [cancel], against: driver, winner: cancel, outcome: ["canceled is shown"] }
+scenarios:
+  - { id: SC-001, name: trip, path: [arrive, finish] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: trip }], []);
+    expect(md).toContain("- While going / there, if “cancel” and “arrive” / “finish” happen at the same time, “cancel” wins.\n  - canceled is shown");
+    expect(md.match(/happen at the same time/g)).toHaveLength(1);
+    expect(md).not.toContain("which one wins");
+  });
+
   it("keeps a label with replacement patterns such as $& literal", () => {
     const open = model(`
 usecase: UC-TEST-003

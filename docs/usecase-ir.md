@@ -87,6 +87,22 @@ visible in the IR, which a duplicated state machine hides.
 the same thing at once) is not a race between two events; write it as a rule with one case per way it can
 arrive ([scenarios / rules](#scenarios--rules)), with what the user sees as `expected`.
 
+One answer often settles many races ("the operator's cancel wins over whatever the driver does, in any
+state"), so one declaration can cover them. `state` may list states, and `between` may name one event,
+which then races every event of another actor that is possible in each listed state; `against` limits
+that to one actor. The checker expands the declaration into one race per state and pair, so every
+check and the trace see the same races as if they were written out, and a race declared twice is an
+error:
+
+```yaml
+races:
+  - state: [PLACED, PACKED]
+    between: [cancel]               # cancel against every event of another actor possible in each state
+    against: warehouse              # optional: only that actor's events
+    winner: cancel                  # the one event, or first
+    outcome: ["the order is canceled"]
+```
+
 State ids are UPPER_SNAKE_CASE and event ids lower_snake_case, both ASCII; scenario ids
 start with `SC-` and rule ids with `RULE-`. An event's `actor` is required, and `to` and
 `outcome` are required on every transition that is not `impossible` or `ignored`. A

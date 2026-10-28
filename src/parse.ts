@@ -13,11 +13,15 @@ import {
 import {
   cellKey,
   type Cell,
+  type EventDef,
   type Finding,
   type Model,
+  type RaceDecl,
+  type RaceDef,
   type UseCaseIR,
 } from "./types.ts";
 import { config } from "./config.ts";
+import { RACE_WINNER_FIRST } from "./text.ts";
 
 const STATE_ID = /^[A-Z][A-Z0-9_]*$/;
 const EVENT_ID = /^[a-z][a-z0-9_]*$/;
@@ -192,13 +196,15 @@ export function parseIR(source: string): ParseResult {
     });
   }
 
-  // races (shape only)
-  (ir.races ?? []).forEach((r, i) => {
+  // races (shape only; expanded into one race per state and pair once the cells are known)
+  const raceDecls = (ir.races ?? []) as unknown as RaceDecl[];
+  raceDecls.forEach((r, i) => {
     const at = `races[${i}]`;
-    if (!r?.state) err(`${at}: state is required`);
-    if (!Array.isArray(r?.between) || r.between.length !== 2) {
-      err(`${at}: between must be an array of exactly two events`);
+    if (toArray(r?.state).length === 0) err(`${at}: state is required`);
+    if (!Array.isArray(r?.between) || r.between.length < 1 || r.between.length > 2) {
+      err(`${at}: between must name two events, or one event to race every event of another actor`);
     }
+    if (r?.against !== undefined && r.between?.length !== 1) err(`${at}: against is only for a between that names one event`);
     if (!r?.winner) err(`${at}: winner is required`);
     if (!r?.outcome?.length) err(`${at}: outcome is required`);
   });
@@ -241,6 +247,10 @@ export function parseIR(source: string): ParseResult {
     }
   });
 
+  if (findings.some((f) => f.level === "error")) {
+    return { findings };
+  }
+  ir.races = expandRaces(raceDecls, cells, events as Map<string, EventDef>, err);
   if (findings.some((f) => f.level === "error")) {
     return { findings };
   }
@@ -388,3 +398,36 @@ function flowSplitFindings(doc: Document): string[] {
   });
   return out;
 }
+
+/**
+ * A races declaration as written → one race per state and pair. A declaration with one event races it
+ * against every event of another actor (of against, when given) that is possible in each state, so a
+ * reader's single answer ("the operator's cancel wins over whatever the driver does") is one entry
+ */
+function expandRaces(decls: RaceDecl[], cells: Map<string, Cell[]>, events: Map<string, EventDef>, err: (m: string) => void): RaceDef[] {
+  const possible = (state: string, event: string) => {
+    const c = cells.get(cellKey(state, event))?.[0];
+    return c !== undefined && !c.impossible;
+  };
+  return decls.flatMap((r, i) => {
+    const at = `races[${i}]`;
+    const base = { winner: r.winner, outcome: r.outcome, declaration: i };
+    if (r.between.length === 2) {
+      return toArray(r.state).map((state) => ({ ...base, state, between: [r.between[0], r.between[1]!] as [string, string] }));
+    }
+    const [a] = r.between;
+    const actor = events.get(a)?.actor;
+    if (r.winner !== a && r.winner !== RACE_WINNER_FIRST) err(`${at}: winner must be ${a} or ${RACE_WINNER_FIRST}`);
+    if (r.against !== undefined && ![...events.values()].some((e) => e.actor === r.against)) {
+      err(`${at}: against names an actor no event has: ${r.against}`);
+    }
+    const races = toArray(r.state).flatMap((state) =>
+      [...events.values()]
+        .filter((e) => e.id !== a && e.actor !== actor && (r.against === undefined || e.actor === r.against) && possible(state, e.id))
+        .map((e) => ({ ...base, state, between: [a, e.id] as [string, string] })),
+    );
+    if (races.length === 0) err(`${at}: ${a} races no event of another actor in ${toArray(r.state).join(", ")}`);
+    return races;
+  });
+}
+

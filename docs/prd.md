@@ -94,7 +94,8 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   already questions; ids in them are replaced by labels). An undeclared cell or race, a state nothing leads to or out of, an input cell nothing covers and an
   actor `users` does not name are worded with the profile's `undeclared` / `unraced` / `unreachable` /
   `trapped` / `uncovered` / `unknown_actor` phrase instead; races that share one event against the same
-  actor (the operator's cancel against whatever the driver does, in any state) are one question. Coverage is left out: filling it is the
+  actor (the operator's cancel against whatever the driver does, in any state) are one question,
+  and one `races` declaration answers it ([usecase-ir.md](usecase-ir.md#states-mode)). Coverage is left out: filling it is the
   author's job (`--suggest-paths`), not a decision for the owner. Then come the assumed answers, which become final when the IRs are approved
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
 - `ASSUMED(<id>)` markers stay in the IR for tracing; the rendered text shows the profile's
