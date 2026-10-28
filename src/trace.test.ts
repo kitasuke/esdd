@@ -127,6 +127,23 @@ describe("enumerateNodes", () => {
     ]);
   });
 
+  it("makes an ignored event a node to verify, and makes no node for an impossible cell", () => {
+    const src = STATEFUL.replace(
+      "races:",
+      `  - { from: A, on: resend, ignored: true, reason: a resent notice is ignored }
+races:`,
+    ).replace(
+      "  - { id: stop_now, actor: customer }",
+      `  - { id: stop_now, actor: customer }
+  - { id: resend, actor: system }`,
+    );
+    const nodes = enumerateNodes(model(src));
+    expect(nodes.find((n) => n.id === "T-A-resend")).toMatchObject({
+      kind: "ignored",
+      label: "A × resend is ignored — a resent notice is ignored",
+    });
+  });
+
   it("enumerates input cells except na ones, with the covering nodes as derivation sources", () => {
     const cells = enumerateNodes(model(STATELESS)).filter((n) => n.kind === "input_cell");
     expect(cells.map((n) => [n.id, n.coveredBy])).toEqual([

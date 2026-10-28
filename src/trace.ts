@@ -15,6 +15,7 @@
 
 import { parse as parseYaml } from "yaml";
 import { inputConditions } from "./checks.ts";
+import { raceWinnerText } from "./text.ts";
 import { cellKey, type Finding, type Model, type OutcomeItem } from "./types.ts";
 
 // unit = pure functions. backend = the real server started against a real database, driven
@@ -43,6 +44,7 @@ export type NodeKind =
   | "scenario"
   | "rule_case"
   | "transition"
+  | "ignored"
   | "race"
   | "race_outcome"
   | "outcome"
@@ -455,7 +457,20 @@ export function enumerateNodes(model: Model): TraceNode[] {
     }
     for (const list of model.cells.values()) {
       const c = list[0]!;
-      if (c.impossible || model.states.get(c.from)?.terminal) continue;
+      if (model.states.get(c.from)?.terminal) continue;
+      // An ignored event can arrive, so it gets a node: a test confirms the state and the display do not change
+      if (c.ignored) {
+        nodes.push({
+          id: transitionNodeId(c.from, c.on),
+          kind: "ignored",
+          label: `${c.from} × ${c.on} is ignored — ${c.reason}`,
+          critical: false,
+          taggable: true,
+          coveredBy: [],
+        });
+        continue;
+      }
+      if (c.impossible) continue;
       nodes.push({
         id: transitionNodeId(c.from, c.on),
         kind: "transition",
@@ -485,7 +500,7 @@ export function enumerateNodes(model: Model): TraceNode[] {
       nodes.push({
         id,
         kind: "race",
-        label: `${r.state}: ${r.between.join(" vs ")} → ${r.winner} wins`,
+        label: `${r.state}: ${r.between.join(" vs ")} → ${raceWinnerText(r.winner)}`,
         critical: false,
         taggable: true,
         coveredBy: [],
