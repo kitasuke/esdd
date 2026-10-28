@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Example integration results (JUnit XML) for examples/order-cancel.generated/order-cancel.integration.ts.
-     Illustrative: this repository has no application to run the integration tests against.
-     Each test name carries the tag <usecase>__<node>; [ESDD-OUTCOME] markers follow each outcome's assert. -->
-<testsuites name="integration" tests="4" failures="0" skipped="0">
-  <testsuite name="order-cancel.integration" tests="4" failures="0" skipped="0">
-    <testcase classname="order-cancel.integration" name="UC-ORDER-CANCEL-001__SC-001 an order progresses to delivered" time="1.9">
-      <system-out>[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
+<!-- Integration results (JUnit XML) from a real run: npm run example:integration — the generated tests against the generated product code in Chromium -->
+<testsuites id="" name="" tests="4" failures="0" skipped="0" errors="0" time="1.4602330000000001">
+<testsuite name="order-cancel.integration.ts" timestamp="2026-10-28T03:47:20.993Z" hostname="localhost" tests="4" failures="0" skipped="0" time="0.724" errors="0">
+<testcase name="UC-ORDER-CANCEL-001__SC-001 an order progresses to delivered" classname="order-cancel.integration.ts" time="0.281">
+<system-out>
+<![CDATA[[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
 [ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PACKED-hand_over-o1
 [ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-HANDED_OVER-complete-o1
+]]>
 </system-out>
-    </testcase>
-    <testcase classname="order-cancel.integration" name="UC-ORDER-CANCEL-001__SC-002 cancellation before packing completes free of charge" time="1.1">
-      <system-out>[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-cancel-o1
+</testcase>
+<testcase name="UC-ORDER-CANCEL-001__SC-002 cancellation before packing completes free of charge" classname="order-cancel.integration.ts" time="0.121">
+<system-out>
+<![CDATA[[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-cancel-o1
+]]>
 </system-out>
-    </testcase>
-    <testcase classname="order-cancel.integration" name="UC-ORDER-CANCEL-001__SC-003 cancellation after packing completes with a fee notice" time="1.6">
-      <system-out>[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
+</testcase>
+<testcase name="UC-ORDER-CANCEL-001__SC-003 cancellation after packing completes with a fee notice" classname="order-cancel.integration.ts" time="0.203">
+<system-out>
+<![CDATA[[ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PLACED-pack-o1
 [ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PACKED-cancel-o1
 [ESDD-OUTCOME] UC-ORDER-CANCEL-001__T-PACKED-cancel-o2
+]]>
 </system-out>
-    </testcase>
-    <testcase classname="order-cancel.integration" name="UC-ORDER-CANCEL-001__RACE-PLACED-pack-cancel-outcome pack loses to cancel" time="0.9">
-    </testcase>
-  </testsuite>
+</testcase>
+<testcase name="UC-ORDER-CANCEL-001__RACE-PLACED-pack-cancel-outcome pack loses to cancel" classname="order-cancel.integration.ts" time="0.119">
+</testcase>
+</testsuite>
 </testsuites>

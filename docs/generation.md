@@ -178,6 +178,32 @@ uncovered.
 
 ### Product code
 
+Product code goes through the same three stages as tests, with the pattern registry in the
+place of the step definitions:
+
+```
+approved IR + bindings + step definitions + pattern registry
+   ↓ select — every shape must match a pattern, or generation stops
+decision record (generated: the pattern per target, its filled slots, and `unprescribed`)
+   ↓ render — no decisions left to make
+product code
+```
+
+Selection fills each slot from an input: status copy from the outcomes and the bindings
+literals, controls from the events and their actors, which states offer a control from the
+transition matrix, rule calls from the outcomes that cite a rule, and API conventions from the
+registry's rulings. A slot no input fills becomes an `unprescribed` entry rather than a
+choice, and the code renders without it. The rule functions come from the same case table as
+their unit tests, so those tests are Green from birth. The integration tests are generated
+independently of the product code, and are the check that the two agree.
+
+The example in [examples/order-cancel.generated/](../examples/order-cancel.generated/) runs
+this end to end: `npm run example:integration` runs the generated integration tests against
+the generated screen in Chromium. Selection flags two questions on its own: no outcome names
+the status text of the initial state, and the bindings have nothing for what the losing side
+of one race sees. This is the least established part of the method; the registry format and
+the slots are one possible shape, not something the checker enforces.
+
 - **Select, then instantiate**: choose a pattern from the registry by the IR's shape,
   follow its exemplar, and record the choice in the decision record
   ([pattern registry](#pattern-registry-select--instantiate))
@@ -268,8 +294,9 @@ instantiate(bindings vocabulary)**:
 4. When you meet a shape with no matching pattern, **extend the registry first**,
    then generate
 
-The registry is a project-specific asset (not included in this repository). How to
-build one: census the existing codebase and record the recurring archetypes as
+The registry is a project-specific asset; [examples/pattern-registry.yaml](../examples/pattern-registry.yaml)
+shows the shape for the order-cancel example, where the example generator's renderers stand in
+for the exemplars. How to build one: census the existing codebase and record the recurring archetypes as
 "selection criteria + exemplar + structural notes". Where competing implementation
 styles exist, write the winner down as a **ruling**, and explicitly mark patterns
 with no real exemplar as "not registered" (to distinguish them from the unexamined).
@@ -335,6 +362,11 @@ happened. Guard against it while writing and after running:
 - **Count a Green only after a negative control.** Break the expectation or change the
   fake's response, and confirm the test fails once. Report Greens without one as
   "Green (no negative control yet)"
+- **Inverting an assertion is not always a control.** An absence check ("the notice is
+  hidden") passes at once, before an action's response has rendered, so turning a presence
+  check into an absence check can stay Green against a working implementation. Withhold the
+  fixture instead (for a race, the fake's rejection of the loser), and generate absence
+  outcomes after a presence assertion that waits for the response
 
 ## Handling Red
 

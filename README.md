@@ -122,7 +122,7 @@ discovery after generation.
   acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
   generation decision records, mechanism scenarios for bug tickets, no false greens).
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
-  the IR, its bindings and its step definitions by the example generator in [examples/generator/](examples/generator/)
+  the IR, its bindings, its step definitions and a pattern registry by the example generator in [examples/generator/](examples/generator/)
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, binding the approval
   to one exact IR, partial approval, and order-preserving updates
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
@@ -137,7 +137,9 @@ Platform profiles are designed as an extension point (for mobile and the like, e
 project swaps in its own locator vocabulary). A production generator is not included —
 generation is run per project, following the rules in `docs/generation.md`, together
 with that project's vocabulary registries. `examples/generator/` is an example-only
-generator for the order-cancel example (Playwright + vitest).
+generator for the order-cancel example: it generates the tests and the product code, and
+`npm run example:integration` runs the generated integration tests against the generated
+product code in Chromium.
 
 ## License
 

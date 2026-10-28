@@ -26,7 +26,37 @@ negative_controls:
         breakage: "expect the canceled_notice literal key instead, regenerate"
         observed_failure: "RULE-001-c2: expected { kind: 'fee_notice', …(1) } to deeply equal { kind: 'fee_notice', …(1) }"
         verified: "2026-10-28 local"
-  SC-001: { status: pending, reason: "example results — no application to run the tests against" }
-  SC-002: { status: pending, reason: "example results — no application to run the tests against" }
-  SC-003: { status: pending, reason: "example results — no application to run the tests against" }
-  RACE-PLACED-pack-cancel-outcome: { status: pending, reason: "example results — no application to run the tests against" }
+  SC-001:
+    status: verified
+    controls:
+      - layer: integration
+        oracle: 'the order status shows "Delivered" after complete'
+        breakage: "expect status_canceled instead in the step definitions, regenerate"
+        observed_failure: "order-status: Expected \"Canceled\", Received \"Delivered\""
+        verified: "2026-10-28 local, generated product code in Chromium"
+  SC-002:
+    status: verified
+    controls:
+      - layer: integration
+        oracle: 'the order status shows "Canceled" after cancel'
+        breakage: "expect status_packed instead in the step definitions, regenerate"
+        observed_failure: "order-status: Expected \"Packed\", Received \"Canceled\""
+        verified: "2026-10-28 local, generated product code in Chromium"
+  SC-003:
+    status: verified
+    controls:
+      - layer: integration
+        oracle: "the cancellation fee notice is shown after cancel from PACKED"
+        breakage: "assert the notice is hidden instead in the step definitions, regenerate"
+        observed_failure: "cancellation-fee-notice: Expected hidden (the notice was shown)"
+        verified: "2026-10-28 local, generated product code in Chromium"
+  RACE-PLACED-pack-cancel-outcome:
+    status: verified
+    controls:
+      # Inverting the assertion was not a control: an absence check passes before the click's
+      # response renders. Withholding the race's fixture is
+      - layer: integration
+        oracle: 'the packing screen shows the "Canceled" notice when pack is rejected'
+        breakage: "remove the fake's conflict rejection of pack from the test"
+        observed_failure: "canceled-notice: Expected \"Canceled\", element(s) not found"
+        verified: "2026-10-28 local, generated product code in Chromium"

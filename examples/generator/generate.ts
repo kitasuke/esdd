@@ -1,5 +1,6 @@
 // Example generator: resolves an approved IR + bindings + step definitions into scenario files,
-// then renders those into Playwright tests (integration, E2E) and a vitest unit test.
+// then renders those into Playwright tests (integration, E2E) and a vitest unit test. The product
+// code (product.ts) comes from the same inputs plus the pattern registry, through a decision record.
 // It is example-only: a project writes its renderer for its own test framework. What carries
 // over is the step definitions check (`--steps`, src/steps.ts), which loadInputs() runs first:
 // every phrase a test needs must resolve, or generation stops.
@@ -14,19 +15,21 @@ import { parse, stringify } from "yaml";
 import { parseIR } from "../../src/parse.ts";
 import { outcomeText, parseSteps, runStepsChecks, type StepsDoc } from "../../src/steps.ts";
 import { cellKey, type Model, type OutcomeItem } from "../../src/types.ts";
+import { generateProduct, loadRegistry, type ProductBindings } from "./product.ts";
 
 // ---- inputs ---------------------------------------------------------------------------
 
 type Call = { expect: string; not?: string; args?: string[] };
 type Unresolved = { unresolved: string };
 
-interface Bindings {
+interface Bindings extends ProductBindings {
   bindings: string;
-  events?: Record<string, { operation: string }>;
 }
 
 export interface Inputs {
   irPath: string;
+  bindingsPath: string;
+  stepsPath: string;
   model: Model;
   bindings: Bindings;
   steps: StepsDoc;
@@ -46,7 +49,7 @@ export function loadInputs(irPath: string, bindingsPath: string, stepsPath: stri
   if (!parsed.doc || errors.length > 0) {
     throw new Error(`${stepsPath}:\n${errors.map((f) => `  - [${f.check}] ${f.message}`).join("\n")}`);
   }
-  return { irPath, model, bindings, steps: parsed.doc };
+  return { irPath, bindingsPath, stepsPath, model, bindings, steps: parsed.doc };
 }
 
 // ---- resolve: IR + bindings + step definitions → scenario files -------------------------
@@ -301,7 +304,7 @@ function renderUnit(inputs: Inputs): Map<string, string> {
 }
 
 /** Every generated file, keyed by its path relative to the output directory. */
-export function generate(inputs: Inputs): Map<string, string> {
+export function generate(inputs: Inputs, registryPath = EXAMPLE.registry): Map<string, string> {
   const files = resolve(inputs);
   const out = new Map<string, string>();
   for (const f of files) {
@@ -312,6 +315,7 @@ export function generate(inputs: Inputs): Map<string, string> {
   out.set(`${stem}.integration.ts`, renderPlaywright(inputs, files, "integration"));
   out.set(`${stem}.e2e.ts`, renderPlaywright(inputs, files, "e2e"));
   for (const [path, body] of renderUnit(inputs)) out.set(path, body);
+  for (const [path, body] of generateProduct(inputs, inputs.bindings, loadRegistry(registryPath))) out.set(path, body);
   return out;
 }
 
@@ -321,6 +325,7 @@ export const EXAMPLE = {
   ir: "examples/order-cancel.usecase.yaml",
   bindings: "examples/order-cancel.bindings.yaml",
   steps: "examples/order-cancel.steps.yaml",
+  registry: "examples/pattern-registry.yaml",
   out: "examples/order-cancel.generated",
 };
 

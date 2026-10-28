@@ -33,13 +33,15 @@ export function orderDriver(page: Page): OrderDriver {
     pack: () => locate(page, "pack_button").click(),
     handOver: () => locate(page, "hand_over_button").click(),
     cancel: () => locate(page, "cancel_button").click(),
+    // The screen marks its root data-ready once it has read the entity (pattern registry ruling)
     refresh: async () => {
       await page.reload();
+      await page.locator("[data-ready]").waitFor();
     },
     expectStatus: (key) => expect(status()).toHaveText(literal(key)),
     expectStatusNot: (key) => expect(status()).not.toHaveText(literal(key)),
-    expectFeeNotice: () => expect(locate(page, "fee_notice")).toHaveText(literal("cancellation_fee_notice")),
-    expectNoFeeNotice: () => expect(locate(page, "fee_notice")).toBeHidden(),
+    expectFeeNotice: () => expect(locate(page, "cancellation_fee_notice")).toHaveText(literal("cancellation_fee_notice")),
+    expectNoFeeNotice: () => expect(locate(page, "cancellation_fee_notice")).toBeHidden(),
     expectCanceledNotice: () => expect(locate(page, "canceled_notice")).toHaveText(literal("canceled_notice")),
     expectNoCanceledNotice: () => expect(locate(page, "canceled_notice")).toBeHidden(),
   };

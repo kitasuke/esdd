@@ -15,7 +15,7 @@ elements:
   pack_button: { role: button, name: "Mark as packed" }
   hand_over_button: { role: button, name: "Hand to carrier" }
   cancel_button: { role: button, name: "Cancel order" }
-  fee_notice: { testid: cancellation-fee-notice }
+  cancellation_fee_notice: { testid: cancellation-fee-notice }
   canceled_notice: { testid: canceled-notice }
 
 literals:

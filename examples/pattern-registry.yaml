@@ -1,0 +1,32 @@
+# Example pattern registry — the product-code counterpart of the step definitions
+# (docs/generation.md "Pattern registry"). A project builds its own from a census of its
+# codebase, and each pattern points at a real exemplar file. In this example the renderers of
+# examples/generator/product.ts embody the patterns, so the rulings below are what they follow.
+# Selection is mechanical: an IR shape that matches no pattern stops generation, and the
+# registry is extended first.
+registry: example-shop
+
+api: # house rulings per bindings graph — what the IR and the bindings do not say
+  orders:
+    endpoint: /graphql
+    read: Order # the entity read a screen starts from: { data: { order: { id, status } } }
+    conflict_code: CONFLICT # the error code a race loser's operation is rejected with
+
+patterns:
+  pure_rule_function:
+    selects_on: "a rules entry whose step-definition cases each take one argument, a state of the IR"
+    rulings:
+      - "one exported function per rule: a switch over the state, cases in IR order"
+      - "a rule that shows copy returns the bindings literal key under `notice`"
+
+  entity_status_with_actions:
+    selects_on: >-
+      a states-mode IR whose transition outcomes read 'the <entity> status shows "<literal>"',
+      with events driven by actors other than system
+    status_outcome: 'the {entity} status shows "{literal}"'
+    rulings:
+      - "status: the {entity}_status element shows the literal of the current state; a state no outcome names shows nothing"
+      - "actions: an event's control is the {event}_button element, offered to the event's actor in every state where the event is possible"
+      - "reads: the screen reads the entity once on load and marks its root data-ready; actor: system events show on the next load"
+      - "rules: a rule cited by the outcomes of an event's transitions is called on that event with the state before it; a returned notice shows in the element named after its literal key"
+      - "races: when the loser's operation is rejected with the conflict code, the screen shows the element whose literal the race outcome quotes"
