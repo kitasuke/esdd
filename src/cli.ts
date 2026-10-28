@@ -23,6 +23,7 @@
 // (one item per line, input coverage and assumptions as tables — docs/approval.md).
 // --prd checks a PRD frame together with the IRs it links (docs/prd.md); with --render it prints the
 // PRD as Markdown instead, laid out by the profile (the default profile when --profile is omitted).
+// With --approved, the frame's status has to be approved (every warn is then an error).
 //
 // Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
@@ -263,6 +264,10 @@ function runPrd(args: Args, framePath: string): void {
   }
   const profile = mergeProfile(args.profile ? parseYaml(readOrExit(args.profile)) : undefined);
   const prdFindings = [...checkPrd(frame, linked.map((l) => l.model)), ...checkProfile(frame, profile)];
+  // --approved: a frame committed as approved has to say so
+  if (args.approved && frame.status !== "approved") {
+    prdFindings.push({ level: "error", check: "prd-approval", message: `${frame.prd}: status is ${frame.status}; a frame checked with --approved must be approved` });
+  }
   if (args.render) {
     process.stdout.write(renderPrd(frame, linked, prdFindings, profile));
     return;

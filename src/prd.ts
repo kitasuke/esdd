@@ -6,7 +6,7 @@
 // checker's findings rather than a list someone remembered to keep.
 
 import { parse as parseYaml } from "yaml";
-import { findPendingMarker, runChecks } from "./checks.ts";
+import { checkRaceDeclarations, findPendingMarker, runChecks, undeclaredCells, undeclaredRaces } from "./checks.ts";
 import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
 import { type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
 
@@ -15,6 +15,8 @@ const STATUSES = ["draft", "in_review", "approved"] as const;
 
 export interface PrdUser {
   id: string;
+  /** The name the rendered PRD uses for this actor (the id when omitted) */
+  label?: string;
   description: string;
 }
 
@@ -177,6 +179,10 @@ export interface PrdProfile {
     impossible: string;
     race: string;
     race_first: string;
+    /** An open question for an undeclared cell. Placeholders: {state} {event} {actor} */
+    undeclared: string;
+    /** An open question for an undeclared race. Placeholders: {state} {a} {a_actor} {b} {b_actor} */
+    unraced: string;
     /** Replaces an ASSUMED(<id>) marker in IR texts. Placeholder: {id} */
     assumed: string;
   };
@@ -221,6 +227,9 @@ export const DEFAULT_PROFILE: PrdProfile = {
     impossible: "While {state}, “{event}” does not occur: {reason}.",
     race: "While {state}, if “{a}” and “{b}” happen at the same time, “{winner}” wins.",
     race_first: "While {state}, if “{a}” and “{b}” happen at the same time, whichever arrives first wins.",
+    undeclared: "While {state}, what happens when {actor} does “{event}”?",
+    unraced:
+      "While {state}, if {a_actor} does “{a}” and {b_actor} does “{b}” at the same time, which one wins, and what does each side see?",
     assumed: " (assumed: {id})",
   },
   labels: {
@@ -303,7 +312,18 @@ function outcomeLines(outcome: OutcomeItem[] | undefined): string[] {
   });
 }
 
-function useCaseSection(uc: LinkedUseCase, p: PrdProfile, level: number): string[] {
+/** The names a reader sees: state and event labels, and the users' labels for actors */
+function namer(model: Model, frame: PrdFrame) {
+  const actors = new Map(frame.users.map((u) => [u.id, u.label ?? u.id]));
+  return {
+    state: (id: string) => model.states.get(id)?.label ?? id,
+    event: (id: string) => model.events.get(id)?.label ?? id,
+    actor: (id: string) => actors.get(id) ?? id,
+  };
+}
+
+function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level: number): string[] {
+  const name = namer(uc.model, frame);
   const h = (below: number) => "#".repeat(level + below);
   const { model, file } = uc;
   const { ir } = model;
@@ -320,7 +340,7 @@ function useCaseSection(uc: LinkedUseCase, p: PrdProfile, level: number): string
       for (const [eid, ev] of model.events) {
         const c = model.cells.get(cellKey(sid, eid))?.[0];
         if (!c) continue;
-        const values = { state: stateName(sid), event: eventName(eid), actor: ev.actor, to: c.to ? stateName(c.to) : "", reason: c.reason ?? "" };
+        const values = { state: stateName(sid), event: eventName(eid), actor: name.actor(ev.actor), to: c.to ? stateName(c.to) : "", reason: c.reason ?? "" };
         if (c.ignored) reqs.push(`- ${fill(p.phrases.ignored, values)}`);
         else if (c.impossible) {
           const d = na.get(c.entryIndex) ?? { states: new Set(), events: new Set(), reason: c.reason ?? "" };
@@ -402,6 +422,33 @@ function irPending(model: Model): { where: string; text: string }[] {
   return out;
 }
 
+/**
+ * The IR's findings as questions to the reader. Undeclared cells and races are worded with the
+ * profile's phrases from the labels; the other findings keep the checker's words, with ids replaced
+ * by labels. Pending markers are shown by irPending instead
+ */
+function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
+  const name = namer(model, frame);
+  const cells = undeclaredCells(model).map(({ state, event }) =>
+    fill(p.phrases.undeclared, { state: name.state(state), event: name.event(event), actor: name.actor(model.events.get(event)!.actor) }),
+  );
+  const races = undeclaredRaces(model).map(({ state, a, b }) =>
+    fill(p.phrases.unraced, { state: name.state(state), a: name.event(a.id), a_actor: name.actor(a.actor), b: name.event(b.id), b_actor: name.actor(b.actor) }),
+  );
+  // ids are ASCII words; \b keeps NO_MATCH from matching inside MATCHING and the like
+  const ids = [
+    ...[...model.states.keys()].map((id) => [id, name.state(id)]),
+    ...[...model.events.keys()].map((id) => [id, name.event(id)]),
+    ...frame.users.map((u) => [u.id, name.actor(u.id)]),
+  ].sort(([a], [b]) => b!.length - a!.length);
+  const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), label!), text);
+  const others = [
+    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races"].includes(f.check)),
+    ...checkRaceDeclarations(model),
+  ].map((f) => labeled(f.message));
+  return [...cells, ...races, ...others];
+}
+
 function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Finding[], p: PrdProfile): string[] {
   // a marker is shown as the text the owner has to complete, under the heading the reader sees it in
   const heading = (id: string) => p.sections.find((s) => s.id === id)?.heading ?? id;
@@ -414,11 +461,7 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
     }),
     ...frameFindings.filter((f) => f.check !== "prd-pending").map((f) => `- ${f.message}`),
     ...ucs.flatMap((uc) => irPending(uc.model).map((x) => `- **${uc.model.ir.name}: ${x.where}**: ${x.text}`)),
-    ...ucs.flatMap((uc) =>
-      runChecks(uc.model)
-        .filter((f) => f.check !== "pending")
-        .map((f) => `- ${uc.model.ir.usecase}: ${f.message}`),
-    ),
+    ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];
   const assumed = ucs.flatMap((uc) => (uc.model.ir.assumptions ?? []).map((a) => [a.id, a.question, a.proposal, a.basis]));
   if (questions.length === 0 && assumed.length === 0) return [p.labels.open_questions_none, ""];
@@ -453,7 +496,7 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
         out.push(...frame.problem.map((x) => `- ${x}`), "");
         break;
       case "users":
-        out.push(...frame.users.map((u) => `- **${u.id}**: ${u.description}`), "");
+        out.push(...frame.users.map((u) => `- **${u.label ?? u.id}**: ${u.description}`), "");
         break;
       case "goals":
         out.push(...table(p.labels.goal_table, frame.goals.map((g) => [g.id, g.statement, g.metric, g.target ?? ""])), "");
@@ -470,7 +513,7 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
         out.push("");
         break;
       case "use_cases":
-        for (const uc of ucs) out.push(...useCaseSection(uc, p, level));
+        for (const uc of ucs) out.push(...useCaseSection(uc, frame, p, level));
         break;
       case "open_questions":
         out.push(...openQuestions(frame, ucs, frameFindings, p));
