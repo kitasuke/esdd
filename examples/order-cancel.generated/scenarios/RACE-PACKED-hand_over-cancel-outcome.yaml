@@ -1,0 +1,25 @@
+# Resolved by examples/generator/generate.ts from examples/order-cancel.usecase.yaml, its bindings and step definitions.
+# Do not edit: regenerate.
+node: RACE-PACKED-hand_over-cancel-outcome
+name: cancel loses to hand_over
+layers:
+  - integration
+start:
+  state: PACKED
+  fixture: packedOrder
+race:
+  winner:
+    event: hand_over
+    to: HANDED_OVER
+  loser:
+    event: cancel
+    actor: customer
+    from: PACKED
+    do:
+      screen: cancel
+    operation: CancelOrder
+    outcomes:
+      - node: RACE-PACKED-hand_over-cancel-outcome
+        text: a cancellation request after hand-over is committed is rejected, and the returns flow is offered
+        unresolved: the IR names no returns-flow control and the bindings have no element for it — on the question list
+questions: []

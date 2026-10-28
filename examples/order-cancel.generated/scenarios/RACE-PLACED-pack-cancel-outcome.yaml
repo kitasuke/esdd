@@ -1,0 +1,26 @@
+# Resolved by examples/generator/generate.ts from examples/order-cancel.usecase.yaml, its bindings and step definitions.
+# Do not edit: regenerate.
+node: RACE-PLACED-pack-cancel-outcome
+name: pack loses to cancel
+layers:
+  - integration
+start:
+  state: PLACED
+  fixture: paidOrder
+race:
+  winner:
+    event: cancel
+    to: CANCELED
+  loser:
+    event: pack
+    actor: staff
+    from: PLACED
+    do:
+      screen: pack
+    operation: PackOrder
+    outcomes:
+      - node: RACE-PLACED-pack-cancel-outcome
+        text: the operation that commits first wins. The packing screen shows a "Canceled" notice
+        expect: expectCanceledNotice
+        not: expectNoCanceledNotice
+questions: []

@@ -47,16 +47,55 @@ could not be written at the state-machine level.
 
 ## Generation rules — from the approved IR to code
 
-The rest of this document explains why; this section is the conversion itself. The
-input is an **approved** IR ([approval.md](approval.md)) and its bindings. Product code
-also reads the project's pattern registry. A worked example generated from
-`examples/order-cancel.usecase.yaml` is in
-[examples/order-cancel.generated/](../examples/order-cancel.generated/).
+The rest of this document explains why; this section is the conversion itself. Tests are
+generated in two stages:
 
-Each generated artifact comes with a record of the decisions the IR could not make,
-written before the code: a [target IR](pipeline.md#target-irs--decisions-only-never-behavior)
-for tests (layer routing, fixtures, environment) and a
-[generation decision record](#generation-decision-records) for product code.
+```
+approved IR + bindings + step definitions
+   ↓ resolve — every phrase must have a step definition, or generation stops
+scenario files (one per scenario and per race outcome: the walked path, resolved)
+   ↓ render — no decisions left to make
+test code
+```
+
+Product code reads the IR, the bindings and the project's pattern registry, and records
+its decisions in a [generation decision record](#generation-decision-records) before the
+code. A worked example of both is in
+[examples/order-cancel.generated/](../examples/order-cancel.generated/), with an example
+generator in [examples/generator/](../examples/generator/) whose test regenerates every
+file and compares it with the committed one.
+
+### Step definitions and scenario files
+
+The IR says *what* happens in prose ("the order status shows "Packed""), and the bindings
+say what the screen's elements and copy are. Neither says which test operation a phrase
+is. Without that, every generation run interprets the prose again, and two runs can
+interpret it differently. Two artifacts close that gap:
+
+- **Step definitions** (`<usecase>.steps.yaml`, reviewed with the IR and the bindings) — the
+  step vocabulary. Every phrase a test has to set up, perform or check maps to a driver
+  or harness call: start states to fixtures, `given` texts to the state they describe,
+  events to a screen method (or a fixture for `actor: system`), and outcome texts to an
+  assertion and its negation. A rule case maps to the pure function's arguments and return
+  value. A phrase nothing can observe yet is written down as `unresolved: <reason>`, never
+  left out
+- **Scenario files** — the resolved form of one scenario: the start fixture, each step
+  with its transition, actor, call and operation, and each outcome with its node ID and
+  assertion, plus the questions resolution raised. They are generated, never edited, and
+  they are the diff to read in review: a change in the IR or the step definitions shows
+  up here before it shows up in code
+
+Resolution is the check that makes generation reliable. A phrase with no step definition
+stops generation and is reported. A `given` that describes a different state than the
+path starts from goes on the question list. An `unresolved` outcome is rendered as a
+comment rather than an assertion, so its trace node stays visible as untested. A race
+outcome that cannot be asserted produces no test at all, because a test with nothing to
+assert would be a false green.
+
+The names and shapes in the example are one choice, not a format this repository checks.
+What matters is the split: vocabulary that people review (the step definitions), a
+resolved intermediate that a machine produces (the scenario files), and rendering that
+makes no decisions.
 
 ### What each IR element becomes in tests
 
@@ -69,7 +108,7 @@ for tests (layer routing, fixtures, environment) and a
 | a transition's `outcome` items | — | assert before the event that it does not hold yet, assert after, then print the `[ESDD-OUTCOME]` marker | the same |
 | the event's operation (bindings `events`) | — | assert the fake recorded the call | — |
 | `actor: system` events | — | the fake's state changes; the driver re-reads the screen | the real system's own entry point |
-| `races` | the winner (backend) | the loser's view ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration)) | — |
+| `races` | the winner (backend) | the loser's view: the fake holds the winner's `to` state and rejects the loser's operation ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration)) | — |
 | `impossible: true` cells | nothing | nothing | nothing |
 
 The steps of a test are what walking the path produces. When a scenario's `given` or
@@ -89,7 +128,7 @@ question list.
   literal keys. Locators, copy, routes and widget quirks live in the adapter, which reads
   the bindings file instead of retyping it
 - **Fixture values are not oracles**: values the `given` does not name (an item, a price)
-  are fixture choices recorded in the target IR, and no assertion may read them
+  are fixture choices behind the step definitions' fixtures, and no assertion may read them
 
 ### What the generator may add, and what it may not
 
