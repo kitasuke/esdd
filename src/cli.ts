@@ -175,19 +175,21 @@ function loadResults(specs: Args["results"]): TestCaseResult[] {
   return results;
 }
 
-function matrixStats(model: Model): { total: number; transitions: number; impossible: number } {
+function matrixStats(model: Model): { total: number; transitions: number; impossible: number; ignored: number } {
   const nonTerminal = [...model.states.values()].filter((s) => !s.terminal).length;
   const total = nonTerminal * model.events.size;
   let transitions = 0;
   let impossible = 0;
+  let ignored = 0;
   for (const list of model.cells.values()) {
     for (const c of list) {
       if (model.states.get(c.from)?.terminal) continue;
-      if (c.impossible) impossible++;
+      if (c.ignored) ignored++;
+      else if (c.impossible) impossible++;
       else transitions++;
     }
   }
-  return { total, transitions, impossible };
+  return { total, transitions, impossible, ignored };
 }
 
 function coverageStats(model: Model): { covered: number; total: number } {
@@ -299,8 +301,10 @@ function main(): void {
       const cov = coverageStats(model);
       console.log(
         `state machine: states=${model.states.size} events=${model.events.size} ` +
-          `cells ${m.transitions + m.impossible}/${m.total} declared ` +
-          `(transitions ${m.transitions} / impossible ${m.impossible})`,
+          `cells ${m.transitions + m.impossible + m.ignored}/${m.total} declared ` +
+          `(transitions ${m.transitions} / impossible ${m.impossible}` +
+          (m.ignored > 0 ? ` / ignored ${m.ignored}` : "") +
+          ")",
       );
       console.log(`transition coverage: ${cov.covered}/${cov.total} exercised by scenarios`);
     }

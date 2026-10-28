@@ -3,7 +3,7 @@
 // Check failures are worded so they read as questions back to the spec.
 
 import { checkAssumptions } from "./assumptions.ts";
-import { outcomeTexts } from "./text.ts";
+import { outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
 import {
   cellKey,
   type Cell,
@@ -167,11 +167,11 @@ export function checkRaces(model: Model): Finding[] {
         }
       }
     }
-    if (!r.between.includes(r.winner)) {
+    if (r.winner !== RACE_WINNER_FIRST && !r.between.includes(r.winner)) {
       findings.push({
         level: "error",
         check: "races",
-        message: `${at}: winner (${r.winner}) must be one of the between events`,
+        message: `${at}: winner (${r.winner}) must be one of the between events, or first when arrival order decides it`,
       });
     }
   });
@@ -231,7 +231,7 @@ export function checkPaths(model: Model): Finding[] {
           check: "paths",
           message:
             `${sc.id}: path[${i}] ${event} cannot be executed from ${current} ` +
-            (cell?.impossible ? `(impossible: ${cell.reason})` : "(no transition declared)"),
+            (cell?.impossible ? `(${cell.ignored ? "ignored" : "impossible"}: ${cell.reason})` : "(no transition declared)"),
         });
         break;
       }

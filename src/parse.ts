@@ -105,11 +105,18 @@ export function parseIR(source: string): ParseResult {
     const ons = toArray(t.on);
     if (froms.length === 0) err(`${at}: from is required`);
     if (ons.length === 0) err(`${at}: on is required`);
-    if (t.impossible) {
-      if (!t.reason) err(`${at}: impossible requires a reason`);
-      if (t.to || t.outcome) err(`${at}: impossible cannot be combined with to/outcome`);
+    if (t.impossible && t.ignored) {
+      err(`${at}: impossible and ignored cannot be combined`);
+    } else if (t.impossible || t.ignored) {
+      const kind = t.impossible ? "impossible" : "ignored";
+      if (!t.reason) err(`${at}: ${kind} requires a reason`);
+      if (t.to || t.outcome) err(`${at}: ${kind} cannot be combined with to/outcome`);
     } else {
-      if (!t.to) err(`${at}: to (the target state) is required (declare impossible: true if the transition cannot happen)`);
+      if (!t.to)
+        err(
+          `${at}: to (the target state) is required (declare impossible: true if the transition cannot happen, ` +
+            `or ignored: true if the event arrives but changes nothing)`,
+        );
       if (!t.outcome || t.outcome.length === 0) {
         err(`${at}: outcome (the observable expected result) is required`);
       }
@@ -125,7 +132,8 @@ export function parseIR(source: string): ParseResult {
           on: o,
           to: t.to,
           outcome: t.outcome,
-          impossible: t.impossible === true,
+          impossible: t.impossible === true || t.ignored === true,
+          ignored: t.ignored === true,
           reason: t.reason,
           entryIndex: i,
         });
