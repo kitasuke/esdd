@@ -14,8 +14,8 @@ describe("example generator", () => {
 
   it("stops on a phrase with no step definition, naming every one", () => {
     const i = inputs();
-    delete i.steps.outcomes['the order status shows "Packed"'];
-    delete i.steps.events.complete;
+    delete i.steps.outcomes?.['the order status shows "Packed"'];
+    delete i.steps.events?.complete;
     expect(() => resolve(i)).toThrow(/outcome: the order status shows "Packed"[\s\S]*event: complete/);
   });
 

@@ -59,8 +59,9 @@ npm install   # or pnpm install
 # states-mode example: state machine exhaustiveness checks + path suggestions for uncovered transitions
 npm run check -- examples/order-cancel.usecase.yaml --suggest-paths
 
-# states mode + bindings (the example the generated code in examples/order-cancel.generated/ is built from)
-npm run check -- examples/order-cancel.usecase.yaml --bindings examples/order-cancel.bindings.yaml
+# states mode + bindings + step definitions (the inputs examples/order-cancel.generated/ is built from)
+npm run check -- examples/order-cancel.usecase.yaml --bindings examples/order-cancel.bindings.yaml \
+  --steps examples/order-cancel.steps.yaml
 
 # form mode (no states) + cross-check against bindings (the locator/literal contract)
 npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
@@ -91,6 +92,14 @@ npm test
 | uniqueness | two elements with the same addressing = a warn forecasting a locator mix-up |
 | naming derivation | an event's `called_api` matches the name mechanically derived from operation/kind |
 | literal_coverage | **every rule in the IR** has a UI-copy stance (`literal: <key>` / `ui_text: none` / `TBD`) |
+
+**step definitions** (`docs/generation.md#checking-step-definitions`):
+
+| Check | What it enforces |
+| --- | --- |
+| schema | each phrase maps to exactly one kind of call (a screen method, a fixture, an assertion) or to an `unresolved` reason |
+| coverage | **every IR event, given, outcome and rule case** resolves, and no definition names something the IR lacks |
+| unresolved / given-state | outcomes that cannot be asserted yet and givens that disagree with the path, as warns for the question list |
 
 ## Why literal_coverage
 
@@ -123,7 +132,7 @@ discovery after generation.
 
 v0.2 — includes the IR checker, the bindings checker (web/Playwright profile), the
 approved-IR check (`--approved`, including accepted assumptions), declared assumptions
-(`ASSUMED(<id>)`) and the behavior trace (`--results`).
+(`ASSUMED(<id>)`), the step definitions check (`--steps`) and the behavior trace (`--results`).
 Platform profiles are designed as an extension point (for mobile and the like, each
 project swaps in its own locator vocabulary). A production generator is not included —
 generation is run per project, following the rules in `docs/generation.md`, together

@@ -85,17 +85,52 @@ interpret it differently. Two artifacts close that gap:
   they are the diff to read in review: a change in the IR or the step definitions shows
   up here before it shows up in code
 
-Resolution is the check that makes generation reliable. A phrase with no step definition
-stops generation and is reported. A `given` that describes a different state than the
-path starts from goes on the question list. An `unresolved` outcome is rendered as a
+Resolution is the check that makes generation reliable, and the checker runs it before any
+generator does (`--steps`, below). A phrase with no step definition stops generation and is
+reported. A `given` that describes a different state than the path starts from goes on the
+question list. An `unresolved` outcome is rendered as a
 comment rather than an assertion, so its trace node stays visible as untested. A race
 outcome that cannot be asserted produces no test at all, because a test with nothing to
 assert would be a false green.
 
-The names and shapes in the example are one choice, not a format this repository checks.
 What matters is the split: vocabulary that people review (the step definitions), a
 resolved intermediate that a machine produces (the scenario files), and rendering that
-makes no decisions.
+makes no decisions. The scenario file shape is the example generator's choice; the step
+definitions format is checked.
+
+#### Checking step definitions
+
+```bash
+npm run check -- examples/order-cancel.usecase.yaml --steps examples/order-cancel.steps.yaml
+```
+
+```yaml
+steps: UC-ORDER-CANCEL-001 # target usecase id (must match the IR)
+states:   # start state → fixture
+  PLACED: { fixture: paidOrder }
+givens:   # given text → the state it describes, or a fixture
+  "one paid order exists": { state: PLACED }
+events:   # event → a screen method, or a fixture for actor: system
+  pack: { screen: pack }
+  complete: { fixture: completeDelivery }
+outcomes: # outcome text → assertion (+ negation, args), or why it cannot be asserted yet
+  'the order status shows "Packed"': { expect: expectStatus, not: expectStatusNot, args: [status_packed] }
+  "no cancellation fee is charged (RULE-001)": { unresolved: "nothing shows the fee charged" }
+rules:    # rule → the pure function and one entry per IR case, in IR order
+  RULE-001:
+    function: { name: cancellationTerms, from: ./cancellation-terms.ts }
+    cases: [{ args: [PLACED], returns: { kind: free, feeCents: 0 } }, …]
+```
+
+With the target IR passed alongside, the check covers the full population the IR declares:
+
+| check | level | what it enforces |
+| --- | --- | --- |
+| steps-schema | error | the target id; known sections only; a state names its fixture; a given names a state or a fixture; an event a screen method or a fixture (exactly one); an outcome an assertion or a non-empty `unresolved` reason; a rule its function and a case list |
+| steps-coverage | error | every IR event, every scenario given, every outcome (states mode: transition and race outcomes; form mode: scenario `then` items) and every rule has a definition; the initial state and every race state have a fixture; a rule has exactly as many cases as the IR; a given's state exists. A definition naming something the IR does not have is also an error — editing an outcome's text in the IR shows up as one missing and one stale entry |
+| steps-usecase | error | the target does not match the IR, or the IR is not among the inputs |
+| steps-unresolved | warn | an outcome that cannot be asserted yet — it is on the question list |
+| steps-given-state | warn | a given describes a state other than the initial one, while every path starts there |
 
 ### What each IR element becomes in tests
 

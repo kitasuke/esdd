@@ -2,13 +2,15 @@
 //
 // Usage:
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] [--definitions <definitions.yaml>]
-//                   [--bindings <bindings.yaml>] [--suggest-paths] [--json] [--strict]
+//                   [--bindings <bindings.yaml>] [--steps <steps.yaml>] [--suggest-paths] [--json] [--strict]
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
 //
 // --bindings checks a locator/literal contract (docs/bindings.md).
 // When the target usecase's IR is passed alongside, the full-population
 // cross-check of literal_coverage also runs.
+// --steps checks step definitions (docs/generation.md "Step definitions and scenario files").
+// With the target IR passed alongside, every IR event / given / outcome / rule case must resolve.
 // --results cross-checks that every behavior node of the IR is confirmed by a test that
 // actually ran (the behavior trace — docs/trace.md). --trace holds the untested / owned_by /
 // negative_controls declarations. --scenarios reads negative_control.controls[].nodes from
@@ -26,6 +28,7 @@ import { coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
 import { checkApproved, escalatePending } from "./approval.ts";
 import { parseIR } from "./parse.ts";
+import { parseSteps, runStepsChecks } from "./steps.ts";
 import { suggestPaths } from "./paths.ts";
 import {
   collectScenarioControls,
@@ -48,6 +51,7 @@ import { cellKey, type Finding, type Model } from "./types.ts";
 interface Args {
   files: string[];
   bindings: string[];
+  steps: string[];
   results: { layer: Layer; path: string }[];
   scenarios?: string;
   traces: string[];
@@ -69,6 +73,7 @@ function parseArgs(argv: string[]): Args {
   const args: Args = {
     files: [],
     bindings: [],
+    steps: [],
     results: [],
     traces: [],
     suggest: false,
@@ -87,6 +92,9 @@ function parseArgs(argv: string[]): Args {
     } else if (a === "--bindings") {
       const p = argv[++i];
       if (p) args.bindings.push(p);
+    } else if (a === "--steps") {
+      const p = argv[++i];
+      if (p) args.steps.push(p);
     } else if (a === "--results") {
       const v = argv[++i] ?? "";
       const eq = v.indexOf("=");
@@ -198,9 +206,9 @@ function coverageStats(model: Model): { covered: number; total: number } {
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
-  if (args.files.length === 0 && args.bindings.length === 0) {
+  if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--suggest-paths] [--json] [--strict] [--approved] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
     );
     process.exit(2);
   }
@@ -397,6 +405,54 @@ function main(): void {
         matched ? `IR cross-check: ${matched}` : "IR cross-check: none",
       ].filter((s) => s !== undefined);
       console.log(`bindings: ${stats.join(" / ")}`);
+    }
+    for (const f of errors) console.log(`  ERROR [${f.check}] ${f.message}`);
+    for (const f of warns) console.log(`  WARN  [${f.check}] ${f.message}`);
+    if (errors.length === 0 && warns.length === 0) {
+      console.log("  ✓ all checks passed");
+    } else {
+      console.log(`  → ERROR ${errors.length} / WARN ${warns.length}`);
+    }
+  }
+
+  for (const file of args.steps) {
+    let source: string;
+    try {
+      source = readFileSync(resolveInput(file), "utf8");
+    } catch (e) {
+      console.error(`cannot read ${file}: ${(e as Error).message}`);
+      process.exit(2);
+    }
+    const { doc, findings: parseFindings } = parseSteps(source);
+    const findings: Finding[] = [...parseFindings];
+    const model = doc ? models.get(doc.steps) : undefined;
+    if (doc) {
+      if (!model && args.files.length > 0) {
+        findings.push({
+          level: "error",
+          check: "steps-usecase",
+          message: `the IR of the target usecase ${doc.steps} is not among the inputs (pass the corresponding IR alongside)`,
+        });
+      }
+      findings.push(...runStepsChecks(doc, { model }));
+    }
+
+    const errors = findings.filter((f) => f.level === "error");
+    const warns = findings.filter((f) => f.level === "warn");
+    if (errors.length > 0) hasError = true;
+    if (warns.length > 0) hasWarn = true;
+
+    if (args.json) {
+      jsonOut.push({ file, ok: errors.length === 0, findings });
+      continue;
+    }
+
+    console.log(`\n=== ${file} (steps) ===`);
+    if (doc) {
+      const counts = (["states", "givens", "events", "outcomes", "rules"] as const)
+        .map((k) => `${k} ${Object.keys(doc[k] ?? {}).length}`)
+        .join(" / ");
+      console.log(`steps: ${counts} / IR cross-check: ${model ? doc.steps : "none"}`);
     }
     for (const f of errors) console.log(`  ERROR [${f.check}] ${f.message}`);
     for (const f of warns) console.log(`  WARN  [${f.check}] ${f.message}`);
