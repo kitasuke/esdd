@@ -247,6 +247,98 @@ regenerated, and tests for removed nodes are deleted. A leftover tag fails `trac
 Do not hand-edit a generated test body; change the IR, or the adapter for implementation
 vocabulary.
 
+## Test data, side effects, and tests ahead of the implementation
+
+Steps and assertions derive mechanically from the IR. Three things around them do not,
+and each needs a rule of its own.
+
+### Test data lifetime
+
+How long test data lives depends on the target resource's API, not on the IR. Pick one
+named strategy per resource:
+
+| Strategy | When | What |
+| --- | --- | --- |
+| **full-cycle** | the resource has a delete API | each run creates, verifies, and deletes. Nothing accumulates, and every run exercises the create path |
+| **create-once fixture + per-run update** | no delete API (often by design, e.g. records that must be retained) | a marked fixture is created through the UI on the first run only (that run verifies the create path); later runs find it and verify the update path. Accumulation stops at the number of fixtures |
+| **idempotent seed** | the test needs reference data (people, accounts) | upsert or assign-once into records reserved for tests |
+
+Decide by checking for a delete API first; without one, use create-once. When a
+scenario needs a subject in several states (a filter needs both "answered" and
+"unanswered" items), keep one fixture per state, record in the scenario file which
+fixture permanently holds which state, and never let a per-run update break that state.
+Without a natural key, find a fixture by a marker at the start of a free-text field
+that the list view shows, so people can recognize it too.
+
+### External side effects
+
+Before running generated tests in a shared environment, check whether any IR outcome
+causes a side effect outside that environment: calls, messages, emails, push
+notifications, payments, writes to an external service — anything cleanup cannot undo.
+
+1. Go through the outcomes one by one and list each side effect and its recipient.
+   Check whether the recipient falls back to an environment default; defaults are
+   sometimes real people or businesses
+2. Send side effects only to recipients the testing team owns. Without such a fixture,
+   generate and compile the test but do not run it, and hold its promotion
+3. Declare the side effects in the scenario file. The test fails fast, before the
+   action that causes the side effect, when the fixture is not configured — it never
+   falls back to the default silently
+
+### Tests before the implementation exists
+
+Tests can be generated before the feature is implemented. Until it lands, prove the
+test code itself (locators, flow, waits) against a **throwaway generated frontend**:
+
+1. Locators cannot be measured, so the bindings are the source of locators — check
+   them (including literal_coverage) before generating
+2. Generate the scaffold with the pattern registry. When the API has not landed, a
+   **temporary schema** shaped exactly like the contract lets it run locally: add the
+   contract's fields, inputs, payloads and errors to a local copy of the schema,
+   regenerate the client, and wire the scaffold to it. The temporary schema is never
+   committed; the real API lands through the backend's own change, and if its shape
+   matches the contract, only the one call site that invokes it moves
+3. Run the tests against the scaffold until they are Green and have negative controls.
+   This verifies the tests, not the product
+4. Throw the scaffold away. Only the tests are delivered
+5. The delivered tests are Red detectors until the implementation lands. Mark them as
+   waiting in the scenario file and keep them out of gating CI lanes until they have
+   been seen Green against the implementation
+
+**Simulated backend.** When a given creates data through a backend path (a webhook, a
+callback), the scaffold has no backend, so a throwaway stub stands in. Derive the stub
+from the helper contracts instead of improvising it: list each helper's preconditions
+from its definition and from the step order of existing scenarios that use it, and
+enforce them in the stub (a call that skips a precondition creates nothing, or fails).
+Reuse helpers in the same order existing scenarios call them, not just by name. A stub
+whose preconditions could not be derived is low confidence: say so, and run against the
+real system before trusting a Green. In one trial, a stub that did not require an
+earlier webhook let a generated test pass against the scaffold that failed against the
+real system.
+
+**Blind runs against an existing feature** use the same scaffold, temporarily placed on
+the real route, and must then run against the implementation; classify its Reds as in
+[Handling Red](#handling-red).
+
+### Givens against a fake server
+
+When the fake server synthesizes responses for operations nothing registered, a
+scenario's default given is "register nothing":
+
+- **Success paths** need no registration
+- **Rejections by the server** register an error response that fills every field the
+  operation selects; its message is the contract literal from the IR. When the screen
+  shows a heading and the message together, match the message as contained text, not as
+  the whole text
+- **Lists whose content is asserted** (empty state, counts, row content) register a
+  fixture, because synthesized values are arbitrary
+- **Required selections whose value does not matter** pick the first option through the
+  driver, so a required field never leaves the submit silently invalid
+
+Verify sends by matching the recorded request, and non-sends by a call count of zero
+(a negative oracle). Business decisions stay in backend tests; integration verifies
+only how their responses are displayed.
+
 ## Acceptance-first
 
 For a new feature, integration tests can be made to "work" with zero implementation.
