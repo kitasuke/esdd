@@ -114,6 +114,7 @@ sections:              # the order and headings; replaces the default list when 
   - { id: rollout, heading: Rollout, required: true }   # any id other than the built-ins is read from frame.sections
   - { id: notes, heading: Notes, always: true }        # kept as an empty heading when the frame leaves it empty
   - { id: open_questions, heading: Decisions still needed }
+fold: [not_applicable, inputs]   # sub-sections rendered as a folded <details> block (see below)
 phrases:               # sentence patterns; placeholders {state} {event} {actor} {to} {a} {b} {winner} {reason}
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
   assumed: " (assumed: {id})"   # replaces ASSUMED(<id>) in the rendered text
@@ -126,6 +127,11 @@ per usecase with its critical scenarios), `use_cases` (each usecase one heading 
 `open_questions`.
 To follow a template a team already uses, copy its headings, order and levels into the profile and add
 only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`.
+`fold` names the usecase sub-sections a reader opens only when checking the machine's work —
+the impossible declarations and the input matrix are the usual ones; `requirements`, `races`,
+`rules` and `acceptance` can be folded too. A folded sub-section is rendered as an HTML
+`<details>` block with the label as its summary, which Markdown renderers and wiki importers
+show collapsed. Folding changes nothing about what is checked.
 A profile for a team that writes specs in another language translates `phrases` and `labels`;
 the IR texts stay in the language they were written in.
 [examples/prd-profile.yaml](../examples/prd-profile.yaml) is a complete profile.

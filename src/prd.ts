@@ -182,6 +182,8 @@ export function checkPrd(frame: PrdFrame, models: Model[]): Finding[] {
 // Profile: the parts of a PRD that differ between companies — section order and headings, the
 // sentence patterns requirements are written in, and labels. Everything else is the method.
 
+export type FoldableSection = "requirements" | "not_applicable" | "races" | "rules" | "inputs" | "acceptance";
+
 export interface PrdProfile {
   /** false leaves out the title line and the id/status line (when the destination shows the title itself) */
   title: boolean;
@@ -192,6 +194,12 @@ export interface PrdProfile {
    * always renders the heading with an empty body when the frame leaves it empty (for a template that keeps every heading)
    */
   sections: { id?: string; heading: string; level?: number; required?: boolean; always?: boolean }[];
+  /**
+   * Usecase sub-sections rendered folded (an HTML <details> block with the label as its summary), for
+   * sections a reader opens only when checking the machine's work: the impossible declarations, the
+   * input matrix. Keys are the labels below that name a sub-section
+   */
+  fold: FoldableSection[];
   /**
    * Sentence patterns (EARS style). Placeholders: {state} {event} {actor} {to} {a} {b} {winner} {reason}.
    * Outcomes are listed under the sentence, one per line
@@ -239,6 +247,7 @@ export const BUILT_IN_SECTIONS = ["summary", "problem", "users", "goals", "non_g
 
 export const DEFAULT_PROFILE: PrdProfile = {
   title: true,
+  fold: [],
   sections: [
     { id: "summary", heading: "Summary" },
     { id: "problem", heading: "Problem" },
@@ -289,6 +298,7 @@ export function mergeProfile(override: unknown): PrdProfile {
   return {
     title: typeof o.title === "boolean" ? o.title : DEFAULT_PROFILE.title,
     sections: Array.isArray(o.sections) ? o.sections : DEFAULT_PROFILE.sections,
+    fold: Array.isArray(o.fold) ? o.fold : DEFAULT_PROFILE.fold,
     phrases: { ...DEFAULT_PROFILE.phrases, ...(o.phrases ?? {}) },
     labels: { ...DEFAULT_PROFILE.labels, ...(o.labels ?? {}) },
   };
@@ -358,6 +368,11 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
   const { ir } = model;
   const stateName = (id: string) => model.states.get(id)?.label ?? id;
   const eventName = (id: string) => model.events.get(id)?.label ?? id;
+  // A sub-section: its heading and body, or — when the profile folds it — a <details> block the reader opens on demand
+  const sub = (key: FoldableSection, body: string[]): string[] =>
+    p.fold.includes(key)
+      ? ["<details>", `<summary>${p.labels[key]}</summary>`, "", ...body, "", "</details>", ""]
+      : [`${h(2)} ${p.labels[key]}`, "", ...body, ""];
   const out: string[] = [`${h(1)} ${ir.name} (${ir.usecase})`, "", `${p.labels.source}: \`${file}\``, ""];
 
   if (model.hasStateMachine) {
@@ -389,34 +404,31 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
       if (c.ignored) return [`- ${fill(p.phrases.ignored, values)}`];
       return [`- ${fill(c.to === states[0] ? p.phrases.stay : p.phrases.transition, values)}`, ...outcomeLines(c.outcome)];
     });
-    out.push(`${h(2)} ${p.labels.requirements}`, "", ...reqLines, "");
+    out.push(...sub("requirements", reqLines));
     if (na.size > 0) {
-      out.push(`${h(2)} ${p.labels.not_applicable}`, "");
       // several events in one declaration are joined with the quotes the phrase puts around {event}
       const join = quoteJoin(p.phrases.impossible, "event");
-      for (const d of [...na.entries()].sort(([a], [b]) => a - b).map(([, v]) => v)) {
+      const lines = [...na.entries()].sort(([a], [b]) => a - b).map(([, d]) => {
         const values = { state: [...d.states].join(" / "), event: [...d.events].join(join), reason: d.reason };
-        out.push(`- ${fill(p.phrases.impossible, values)}`);
-      }
-      out.push("");
+        return `- ${fill(p.phrases.impossible, values)}`;
+      });
+      out.push(...sub("not_applicable", lines));
     }
     const races = ir.races ?? [];
     if (races.length > 0) {
-      out.push(`${h(2)} ${p.labels.races}`, "");
-      for (const r of races) {
+      const lines = races.flatMap((r) => {
         const values = { state: stateName(r.state), a: eventName(r.between[0]), b: eventName(r.between[1]), winner: eventName(r.winner) };
-        out.push(`- ${fill(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, values)}`, ...outcomeLines(r.outcome));
-      }
-      out.push("");
+        return [`- ${fill(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, values)}`, ...outcomeLines(r.outcome)];
+      });
+      out.push(...sub("races", lines));
     }
   }
 
   const rules = ir.rules ?? [];
   if (rules.length > 0) {
-    out.push(`${h(2)} ${p.labels.rules}`, "");
-    for (const rule of rules) {
-      out.push(`**${rule.name}** (${rule.id})`, "", ...table(p.labels.rule_table, rule.cases.map((c) => [cell(c.input), cell(c.expected)])), "");
-    }
+    const lines = rules.flatMap((rule) => [`**${rule.name}** (${rule.id})`, "", ...table(p.labels.rule_table, rule.cases.map((c) => [cell(c.input), cell(c.expected)])), ""]);
+    lines.pop();
+    out.push(...sub("rules", lines));
   }
 
   const inputs = ir.inputs ?? [];
@@ -427,17 +439,17 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
     for (const sc of ir.scenarios) for (const k of [sc.covers ?? []].flat()) add(k, sc.id);
     const rows = [...by.entries()].map(([k, v]) => [...k.split("×"), v.join(", ")]);
     for (const inp of inputs) for (const [cond, reason] of Object.entries(inp.na ?? {})) rows.push([inp.id, cond, `n/a: ${reason}`]);
-    out.push(`${h(2)} ${p.labels.inputs}`, "", ...table(p.labels.input_table, rows), "");
+    out.push(...sub("inputs", table(p.labels.input_table, rows)));
   }
 
-  out.push(`${h(2)} ${p.labels.acceptance}`, "");
+  const acceptance: string[] = [];
   for (const sc of ir.scenarios) {
-    out.push(`- **${sc.name}** (${sc.id}${sc.critical ? `, ${p.labels.critical}` : ""})`);
+    acceptance.push(`- **${sc.name}** (${sc.id}${sc.critical ? `, ${p.labels.critical}` : ""})`);
     for (const [kw, list] of [[p.labels.given, sc.given], [p.labels.when, sc.when], [p.labels.then, sc.then]] as const) {
-      (list ?? []).forEach((line, i) => out.push(`  - ${i === 0 ? kw : p.labels.and} ${line}`));
+      (list ?? []).forEach((line, i) => acceptance.push(`  - ${i === 0 ? kw : p.labels.and} ${line}`));
     }
   }
-  out.push("");
+  out.push(...sub("acceptance", acceptance));
   return out;
 }
 
