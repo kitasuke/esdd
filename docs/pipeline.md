@@ -91,7 +91,7 @@ used to hold.
 ## Running a review round
 
 A review round turns check results into questions, collects answers, and repeats until
-the IR can be approved. Four rules keep the rounds short:
+the IR can be approved. These rules keep the rounds short:
 
 - **Every finding becomes a question in the first round.** Map each error and each
   pending marker to some question (aggregating is fine — one question per decision),
@@ -125,6 +125,11 @@ the IR can be approved. Four rules keep the rounds short:
 - **Override in bulk.** Let the owner reply with ranges — `OK: W1–W8` confirms, `W4: "…"`
   replaces one. A reply that matches neither form is not counted; ask again. In an
   interactive session, a form with the proposals pre-selected does the same job
+- **Ask where the run is tracked.** Send the question list to the place that tracks this
+  run (the issue that will also hold its approval; a comment on the spec document when
+  nothing else tracks the run), take the answers there, and do not move the conversation
+  mid-run. A tool never writes into the spec document — a comment or an edit — without
+  the operator confirming the content first
 - **Keep an answer ledger.** Record every question, its proposal, the answer, who
   answered and when, and which IR cells or rules it changed. Chat and comments are
   only how answers arrive; the ledger is the source of truth. Answers normally have to

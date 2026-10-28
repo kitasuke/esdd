@@ -8,12 +8,13 @@ first-shot Green demonstrated on several internal features).
 
 ## Test layers — route each scenario to the cheapest layer that can catch it
 
-One IR feeds three test layers. The routing is part of the method, not a per-project
-choice:
+One IR feeds four test layers (the same names the behavior trace uses, [trace.md](trace.md)).
+The routing is part of the method, not a per-project choice:
 
 | Layer | Source in the IR | Scope | Backend | Role |
 | --- | --- | --- | --- | --- |
 | **Unit** | `rules` case tables | every rule case | none (pure functions) | rules are extracted into pure functions; the function and its tests come from the same case table, so unit tests are **Green from birth** (a Red here is a generator bug) |
+| **Backend** | race winners, server-side decisions (filtering by permission or region, first-to-arrive), mechanism scenarios | what the server decides | **real database** | the state is built directly with fixtures, so windows an E2E test cannot reach become testable. Races go here and to integration as two nodes ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration)) |
 | **Integration** | **all** `scenarios` | full scenario set | **fake server** (deterministic) | the main body of coverage and the acceptance-first layer below. Givens are registered on the fake; side effects are verified by asserting the recorded API calls (and their absence, as a negative oracle) |
 | **E2E** | only scenarios marked `critical: true` | the few must-not-break paths | real environment | **drift detector**: it runs against the real system, so a Red means the spec and reality diverged — a human adjudicates which side is right |
 
@@ -340,9 +341,25 @@ general rule. Tests of the general rule alone can be Green on the unfixed code a
 never catch the bug again. Then route the mechanism scenario to the layer that can
 reach its state: an E2E test that waits for a terminal state cannot observe a window
 that closes in milliseconds, so such mechanisms usually belong in a backend test that
-builds the state directly. Confirm the generated test **fails on the code before the
-fix** — that is the evidence it detects the bug. If nothing describes the mechanism,
-put that on the question list.
+builds the state directly. If nothing describes the mechanism, put that on the question
+list.
+
+Confirm each generated test **fails on the code before the fix** — a Green alone is no
+evidence that it detects the bug:
+
+1. **Check that the mechanism still exists.** If a later change removed it (the window
+   no longer opens), no test can catch the bug in the current code — report that and
+   stop. Do the same when no layer can build the mechanism at all (a misconfigured
+   external service, outside the app's own paths), and propose a configuration checklist
+   or monitoring of the symptom instead of a test
+2. **Use evidence from the shared environment first.** Run the generated test there once
+   and read the target record's state and timestamps from the environment's data and
+   logs. If they settle whether the run was inside the mechanism's state, the old code's
+   behavior follows from that
+3. Only otherwise, replay the old decision in a backend test with the fix temporarily
+   removed, then restore it
+4. A test that does not fail on the old code is a guard for the general rule; never
+   report it as a detector of the bug
 
 ## No false greens
 
@@ -353,8 +370,11 @@ happened. Guard against it while writing and after running:
   asserts that the outcome does **not** hold yet ("before the assignment arrives, the
   order is not confirmed" → "after, it is"). Otherwise a test passes on an
   implementation that was already in the end state. Outcomes that cannot have a "before"
-  (something is not shown) need a contrast instead: show that the same path does
-  display other data
+  (something is not shown) need two contrasts instead: the same path does display other
+  data created at the same time (the path worked), and the hidden data itself exists
+  (someone allowed to see it sees it, or the API returns it). Without the second, the
+  oracle also passes when the data was never created — say so in the scenario and do not
+  promote the test
 - **Put fake values where the implementation reads them.** Before injecting an error
   message or a displayed value into a fake, check which field the implementation
   actually displays. A value in the wrong field fails a correct implementation, or
@@ -373,6 +393,11 @@ happened. Guard against it while writing and after running:
 - **A generated test going Red against an existing implementation = detection of
   drift between spec and implementation.** A human adjudicates which side is right.
   Quietly fixing the test to Green destroys the detector
+- **A Red in a deliberate blind run** (generated without reading an existing
+  implementation) is classified before anyone acts on it: missed lowering, spec drift, or
+  environment — decided with **one-variable A/B probes** (run an existing similar test as
+  the control and revert the differences one at a time). Fix a missed lowering and record
+  why in the scenario; send spec drift to a human like any other drift
 - Unit tests immediately after generation are expected Green (the function and the
   test come from the same case table). Red there means a generator bug
 - Under co-generation (implementation and tests generated from the same contract)

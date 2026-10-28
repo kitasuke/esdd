@@ -28,8 +28,9 @@ approved contract
 test code / implementation code (all quality concentrates in the upstream contract)
 ```
 
-One IR feeds three test layers (see [docs/generation.md](docs/generation.md)):
-`rules` become pure functions + unit tests, **all** `scenarios` become integration
+One IR feeds four test layers (see [docs/generation.md](docs/generation.md)):
+`rules` become pure functions + unit tests, race winners and other server-side decisions
+become backend tests against a real database, **all** `scenarios` become integration
 tests against a fake backend (the main body of coverage), and only scenarios marked
 `critical: true` become E2E tests against the real environment — kept small and
 independent, as the drift detector between spec and reality.
@@ -79,10 +80,10 @@ npm test
 | Check | What it enforces |
 | --- | --- |
 | structure | schema shape, ID formats and required fields; also text split by an ASCII comma in a flow sequence `[...]` / flow mapping `{...}` in scenario given/when/then, transitions/races outcome and rules expected (e.g. `[shows $9,000]` parsed as `shows $9` and `000`: a trailing digit followed by a 3-digit item, an unclosed bracket pair, or a key with no value) |
-| exhaustiveness | every non-terminal state × event cell is declared as a transition or `impossible: true` + reason |
+| exhaustiveness | every non-terminal state × event cell is declared as a transition, `impossible: true` + reason (the event never arrives) or `ignored: true` + reason (it arrives and changes nothing) |
 | determinism | no duplicate declarations for the same cell |
 | reachability / escapability | no state unreachable from the initial state, no state that cannot reach a terminal |
-| race obligation | if events of different actors are both possible in a state, a `races` winner declaration is required |
+| race obligation | if events of different actors are both possible in a state, a `races` winner declaration is required (one of the two events, or `first` when arrival order decides) |
 | path validity / coverage | every scenario `path` is executable, and every transition is exercised by a scenario |
 | input axis matrix | every `inputs` field/option × condition cell takes a stance via `covers` or `na` + reason |
 | pending | tracks unanswered markers such as `TBD` / `TODO` as warns |
