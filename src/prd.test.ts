@@ -81,6 +81,14 @@ describe("checkPrd", () => {
     ]);
   });
 
+  it("keeps an unanswered question of the frame open", () => {
+    const asked = frame(`${FRAME}questions:\n  - { question: "Who may cancel?", proposal: the operator }\n`);
+    expect(checkPrd(asked, []).filter((f) => f.check === "prd-questions").map((f) => f.message)).toEqual([
+      "an open question remains: Who may cancel?. Ask the PRD owner",
+    ]);
+    expect(parsePrd(`${FRAME}questions:\n  - { proposal: x }\n`).findings.map((f) => f.message)).toEqual(["questions[0]: question is required"]);
+  });
+
   it("rejects the same usecase linked twice", () => {
     const m = model(IR);
     expect(checkPrd(frame(), [m, m]).filter((f) => f.level === "error").map((f) => f.check)).toEqual(["prd-usecases"]);
@@ -190,6 +198,7 @@ states:
   - { id: OPEN, label: open }
   - { id: OPEN_LATE, label: open late }
   - { id: CLOSED, label: closed, terminal: true }
+  - { id: OPEN_LATE_ARCHIVED, label: archived, terminal: true }
 events:
   - { id: close, label: close it, actor: operator }
   - { id: expire, label: let it expire, actor: system }
@@ -207,8 +216,74 @@ scenarios:
       "- **Ticket**: While open, if the clerk does “close it” and system does “let it expire” at the same time, which one wins, and what does each side see?",
     );
     // the other findings keep the checker's words, with labels for ids
-    expect(md).toContain("- **Ticket**: open × let it expire → open late:");
+    expect(md).toContain("- **Ticket**: archived: cannot be reached from initial (open)");
     expect(md).not.toMatch(/\bOPEN_LATE\b/);
+    // coverage is the author's to fill, not a question for the owner
+    expect(md).not.toContain("not exercised by any scenario");
+  });
+
+  it("words a transition back to the same state as staying there", () => {
+    const retry = model(`
+usecase: UC-TEST-004
+name: Retry
+source: { spec: "https://example.com/spec" }
+initial: FAILED
+states:
+  - { id: FAILED, label: failed }
+  - { id: DONE, label: done, terminal: true }
+events:
+  - { id: retry_fails, label: retry and fail again, actor: operator }
+  - { id: retry, label: retry, actor: operator }
+transitions:
+  - { from: FAILED, on: retry_fails, to: FAILED, outcome: ["an error is shown"] }
+  - { from: FAILED, on: retry, to: DONE, outcome: ["done is shown"] }
+scenarios:
+  - { id: SC-001, name: retry, path: [retry_fails, retry] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: retry }], []);
+    expect(md).toContain("- While failed, when operator does “retry and fail again”, the system shall stay in failed.");
+    expect(md).toContain("- While failed, when operator does “retry”, the system shall move to done.");
+  });
+
+  it("writes a transition declared from several states once, naming every state", () => {
+    const abort = model(`
+usecase: UC-TEST-005
+name: Trip
+source: { spec: "https://example.com/spec" }
+initial: GOING
+states:
+  - { id: GOING, label: going }
+  - { id: THERE, label: there }
+  - { id: WAITING, label: waiting }
+  - { id: DONE, label: done, terminal: true }
+events:
+  - { id: arrive, label: arrive, actor: operator }
+  - { id: abort, label: abort, actor: operator }
+  - { id: finish, label: finish, actor: operator }
+transitions:
+  - { from: GOING, on: arrive, to: THERE, outcome: ["there is shown"] }
+  - { from: [GOING, THERE], on: abort, to: WAITING, outcome: ["waiting is shown"] }
+  - { from: [THERE, WAITING], on: finish, to: DONE, outcome: ["done is shown"] }
+  - { from: [THERE, WAITING], on: arrive, impossible: true, reason: "already there" }
+  - { from: WAITING, on: abort, impossible: true, reason: "nothing to abort" }
+scenarios:
+  - { id: SC-001, name: abort, path: [abort, finish] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: abort }], [], mergeProfile({ phrases: { impossible: "In {state}, 「{event}」 does not occur: {reason}." } }));
+    expect(md.match(/the system shall move to waiting/g)).toHaveLength(1);
+    expect(md).toContain("- While going / there, when operator does “abort”, the system shall move to waiting.");
+    // events in one impossible declaration keep the quotes the profile's phrase uses
+    expect(md).toContain("- In there / waiting, 「arrive」 does not occur: already there.");
+  });
+
+  it("shows only the lines that carry a marker of a long section, and the frame's open questions", () => {
+    const f = frame(FRAME.replace("rollout: all at once", "ui: |\n    - a tab is added\n    - Figma: TBD\n    - the label is renamed") + "questions:\n  - { question: Who may cancel?, proposal: the operator }\n");
+    const md = renderPrd(f, [{ file: "test.usecase.yaml", model: model(IR) }], checkPrd(f, [model(IR)]), mergeProfile({ sections: [{ id: "ui", heading: "UI" }, { id: "open_questions", heading: "Open questions" }] }));
+    const open = md.slice(md.indexOf("## Open questions"));
+    expect(open).toContain("- **UI**: Figma: TBD\n");
+    expect(open).not.toContain("a tab is added");
+    expect(open).toContain("- Who may cancel? (proposed: the operator)");
+    expect(open.match(/Who may cancel\?/g)).toHaveLength(1);
   });
 
   it("keeps a label with replacement patterns such as $& literal", () => {
@@ -221,6 +296,7 @@ states:
   - { id: OPEN, label: "open ($& due)" }
   - { id: OPEN_LATE, label: "late ($1 fee)" }
   - { id: CLOSED, label: closed, terminal: true }
+  - { id: VOID, label: "void ($& gone)", terminal: true }
 events:
   - { id: close, label: close it, actor: operator }
   - { id: expire, label: let it expire, actor: system }
@@ -232,7 +308,7 @@ scenarios:
   - { id: SC-001, name: close, path: [close] }
 `);
     const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: open }], []);
-    expect(md).toContain("- **Fee**: open ($& due) × let it expire → late ($1 fee):");
+    expect(md).toContain("- **Fee**: void ($& gone): cannot be reached from initial (open ($& due))");
   });
 
   it("is deterministic", () => {

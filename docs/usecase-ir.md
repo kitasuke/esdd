@@ -68,6 +68,16 @@ cover ("it arrived, and nothing changed").
 would state the wrong behavior for the order in which the other one arrives first; write an outcome that
 holds either way.
 
+An event's `actor` is who acts, not who reports the result. When an action can fail (the request is
+rejected, the network drops), its failure is another event of the same actor — `redispatch` and
+`redispatch_fails`, both by the operator — usually a transition back to the state it starts from.
+Giving the failure to `system` makes the checker ask how the action races its own failure, which cannot
+happen. Keep `system` for what happens with nobody acting: a timer running out, an expiry.
+
+`races` pairs events of different actors. The same event arriving twice (a double press, two people doing
+the same thing at once) is not a race between two events; write it as a rule with one case per way it can
+arrive ([scenarios / rules](#scenarios--rules)), with what the user sees as `expected`.
+
 State ids are UPPER_SNAKE_CASE and event ids lower_snake_case, both ASCII; scenario ids
 start with `SC-` and rule ids with `RULE-`. An event's `actor` is required, and `to` and
 `outcome` are required on every transition that is not `impossible` or `ignored`. A

@@ -12,5 +12,6 @@ sections:
   - { id: open_questions, heading: Decisions still needed }
 phrases:
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
+  stay: "In “{state}”, when {actor} chooses “{event}”, the order stays “{state}”."
 labels:
   acceptance: Acceptance tests
