@@ -183,7 +183,9 @@ export function checkRaceDeclarations(model: Model): Finding[] {
 
   // Validity of the declarations themselves
   races.forEach((r, i) => {
-    const at = `races[${i}]`;
+    // a declaration expanded into several races names the state and pair it is about
+    const expanded = r.declaration !== undefined && races.filter((x) => x.declaration === r.declaration).length > 1;
+    const at = `races[${r.declaration ?? i}]${expanded ? ` (${r.state}: ${r.between.join(" vs ")})` : ""}`;
     if (!model.states.has(r.state)) {
       findings.push({ level: "error", check: "races", message: `${at}: undefined state: ${r.state}` });
       return;
@@ -207,6 +209,15 @@ export function checkRaceDeclarations(model: Model): Finding[] {
         level: "error",
         check: "races",
         message: `${at}: winner (${r.winner}) must be one of the between events, or first when arrival order decides it`,
+      });
+    }
+    // two declarations (or one that names several states or events) can cover the same race
+    const earlier = races.findIndex((x, j) => j < i && x.state === r.state && x.between.every((e) => r.between.includes(e)));
+    if (earlier >= 0) {
+      findings.push({
+        level: "error",
+        check: "races",
+        message: `${at}: ${r.between.join(" vs ")} in ${r.state} is already declared in races[${races[earlier]!.declaration ?? earlier}]`,
       });
     }
   });

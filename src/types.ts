@@ -36,9 +36,28 @@ export interface TransitionEntry {
   reason?: string;
 }
 
+/**
+ * One race: in state, the two events between happen at almost the same time. After parsing, every
+ * race in the model is in this form; a declaration that names several states, or one event against
+ * every event of another actor, is expanded into one RaceDef per state and pair (see RaceDecl)
+ */
 export interface RaceDef {
   state: string;
   between: [string, string];
+  winner: string;
+  outcome: OutcomeItem[];
+  /** Index of the races declaration this race was expanded from (for messages and rendering) */
+  declaration?: number;
+}
+
+/**
+ * A races declaration as written. state may list several states; between may name one event, which
+ * then races every event of another actor (only of against, when given) possible in each state
+ */
+export interface RaceDecl {
+  state: string | string[];
+  between: [string] | [string, string];
+  against?: string;
   winner: string;
   outcome: OutcomeItem[];
 }

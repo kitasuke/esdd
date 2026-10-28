@@ -147,6 +147,65 @@ scenarios:`,
     expect(errorsOf(check(declared), "races")).toEqual([]);
   });
 
+  it("races: one declaration can name several states, and one event against every event of another actor", () => {
+    const src = `
+usecase: UC-TEST-008
+name: trip
+source: { spec: "https://example.com" }
+initial: GOING
+states:
+  - { id: GOING }
+  - { id: THERE }
+  - { id: DONE, terminal: true }
+  - { id: CANCELED, terminal: true }
+events:
+  - { id: arrive, actor: driver }
+  - { id: finish, actor: driver }
+  - { id: expire, actor: system }
+  - { id: cancel, actor: operator }
+transitions:
+  - { from: GOING, on: arrive, to: THERE, outcome: ["there"] }
+  - { from: THERE, on: finish, to: DONE, outcome: ["done"] }
+  - { from: GOING, on: expire, to: CANCELED, outcome: ["expired"] }
+  - { from: [GOING, THERE], on: cancel, to: CANCELED, outcome: ["canceled"] }
+  - { from: GOING, on: finish, impossible: true, reason: "not there yet" }
+  - { from: THERE, on: [arrive, expire], impossible: true, reason: "already there" }
+races:
+RACES
+scenarios:
+  - { id: SC-001, name: trip, path: [arrive, finish] }
+`;
+    const run = (races: string) => {
+      const { model, findings } = parseIR(src.replace("RACES", races));
+      return { model, errors: errorsOf([...findings, ...(model ? runChecks(model) : [])]) };
+    };
+    // cancel vs every driver event: arrive in GOING, finish in THERE. expire is the system's, left out by against
+    const driver = run(`  - { state: [GOING, THERE], between: [cancel], against: driver, winner: cancel, outcome: ["canceled"] }
+  - { state: GOING, between: [arrive, expire], winner: first, outcome: ["first wins"] }`);
+    expect(driver.model!.ir.races!.map((r) => `${r.state} ${r.between.join("×")} ${r.declaration}`)).toEqual([
+      "GOING cancel×arrive 0",
+      "THERE cancel×finish 0",
+      "GOING arrive×expire 1",
+    ]);
+    expect(driver.errors.map((f) => f.message)).toEqual([
+      'GOING: system\'s expire and operator\'s cancel can race. Declare in races "if they happen almost simultaneously, which one wins, and what does the user see?"',
+    ]);
+    // without against, cancel races the system's expire too, and nothing is left undeclared
+    expect(
+      run(`  - { state: [GOING, THERE], between: [cancel], winner: cancel, outcome: ["canceled"] }
+  - { state: GOING, between: [arrive, expire], winner: first, outcome: ["first wins"] }`).errors,
+    ).toEqual([]);
+    // the same race declared twice, and a winner outside the one event
+    expect(
+      run(`  - { state: [GOING, THERE], between: [cancel], winner: cancel, outcome: ["canceled"] }
+  - { state: GOING, between: [arrive, cancel], winner: cancel, outcome: ["canceled"] }
+  - { state: GOING, between: [arrive, expire], winner: first, outcome: ["first wins"] }`).errors.map((f) => f.message),
+    ).toEqual(["races[1]: arrive vs cancel in GOING is already declared in races[0]"]);
+    expect(run(`  - { state: GOING, between: [cancel], winner: arrive, outcome: ["x"] }`).errors.map((f) => f.message)).toEqual([
+      "races[0]: winner must be cancel or first",
+    ]);
+  });
+
   it("races: winner: first declares a race decided by arrival order; an event outside between cannot win", () => {
     const src = `
 usecase: UC-TEST-003
