@@ -1,0 +1,38 @@
+# Example PRD frame: the "why" of the order cancellation feature, linked to its UseCase IR.
+# The PRD document is rendered from this frame and the IR (docs/prd.md):
+#   npm run check -- --prd examples/order-cancel.prd.yaml            # check frame + IRs
+#   npm run check -- --prd examples/order-cancel.prd.yaml --render   # print the PRD
+prd: PRD-ORDER-CANCEL
+title: Self-service order cancellation
+owner: "@product-owner"
+status: in_review
+summary: Customers cancel their own orders until the order is handed to the carrier, without contacting support.
+
+problem:
+  - "Customers can only cancel by contacting support, which takes a day on average to answer"
+  - "Support spends a large share of its time on cancellation requests that need no judgment"
+
+users:
+  - { id: customer, description: "the person who placed the order" }
+  - { id: staff, description: "warehouse staff who pack orders and hand them to the carrier" }
+  - { id: system, description: "the delivery tracking integration" }
+
+goals:
+  - id: G1
+    statement: Customers cancel without contacting support
+    metric: share of cancellations done in the app
+    target: "80% within three months of release"
+  - id: G2
+    statement: Fewer support tickets about cancellation
+    metric: weekly support tickets tagged "cancel"
+    target: TBD
+
+non_goals:
+  - "Cancellation after the order is handed to the carrier (that is the returns flow)"
+  - "Partial cancellation of some items in an order"
+
+usecases:
+  - order-cancel.usecase.yaml
+
+sections:
+  rollout: "Released to all customers at once; support keeps the manual flow for two weeks as a fallback."

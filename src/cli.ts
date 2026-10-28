@@ -6,6 +6,7 @@
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest
+//   node src/cli.ts --prd <frame.prd.yaml> [--profile <profile.yaml>] [--render]
 //
 // --bindings checks a locator/literal contract (docs/bindings.md).
 // When the target usecase's IR is passed alongside, the full-population
@@ -20,18 +21,22 @@
 // are required, the file name must match the usecase id, and pending markers become errors.
 // --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
 // (one item per line, input coverage and assumptions as tables — docs/approval.md).
+// --prd checks a PRD frame together with the IRs it links (docs/prd.md); with --render it prints the
+// PRD as Markdown instead, laid out by the profile (the default profile when --profile is omitted).
 //
 // Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { parse as parseYaml } from "yaml";
 import { parseBindings, runBindingsChecks } from "./bindings.ts";
 import { coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
 import { renderDigest } from "./digest.ts";
 import { checkApproved, escalatePending } from "./approval.ts";
 import { parseIR } from "./parse.ts";
+import { checkPrd, checkProfile, type LinkedUseCase, mergeProfile, parsePrd, renderPrd } from "./prd.ts";
 import { parseSteps, runStepsChecks } from "./steps.ts";
 import { suggestPaths } from "./paths.ts";
 import {
@@ -65,6 +70,9 @@ interface Args {
   strict: boolean;
   approved: boolean;
   digest: boolean;
+  prd?: string;
+  profile?: string;
+  render: boolean;
 }
 
 // When run via `pnpm --filter`, cwd is the package directory, so resolve
@@ -86,6 +94,7 @@ function parseArgs(argv: string[]): Args {
     strict: false,
     approved: false,
     digest: false,
+    render: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -125,6 +134,12 @@ function parseArgs(argv: string[]): Args {
       args.approved = true;
     } else if (a === "--digest") {
       args.digest = true;
+    } else if (a === "--prd") {
+      args.prd = argv[++i];
+    } else if (a === "--profile") {
+      args.profile = argv[++i];
+    } else if (a === "--render") {
+      args.render = true;
     } else if (a.startsWith("--")) {
       console.error(`unknown option: ${a}`);
       process.exit(2);
@@ -214,11 +229,68 @@ function coverageStats(model: Model): { covered: number; total: number } {
   return { covered: hit, total };
 }
 
+function readOrExit(file: string): string {
+  try {
+    return readFileSync(resolveInput(file), "utf8");
+  } catch (e) {
+    console.error(`cannot read ${file}: ${(e as Error).message}`);
+    process.exit(2);
+  }
+}
+
+/** --prd: the frame and its IRs are checked together; --render prints the PRD instead of the findings */
+function runPrd(args: Args, framePath: string): void {
+  const printFindings = (findings: Finding[]) => {
+    for (const f of findings) console.log(`${f.level === "error" ? "ERROR" : "WARN "} [${f.check}] ${f.message}`);
+  };
+  const { frame, findings: frameParse } = parsePrd(readOrExit(framePath));
+  if (!frame) {
+    printFindings(frameParse);
+    process.exit(args.render ? 2 : 1);
+  }
+  const dir = dirname(resolveInput(framePath));
+  const linked: LinkedUseCase[] = [];
+  const irParse: Finding[] = [];
+  for (const file of frame.usecases) {
+    const { model, findings } = parseIR(readOrExit(resolve(dir, file)));
+    irParse.push(...findings.map((f) => ({ ...f, message: `${file}: ${f.message}` })));
+    if (model) linked.push({ file, model });
+  }
+  if (irParse.some((f) => f.level === "error")) {
+    // an IR that does not parse cannot be rendered or cross-checked
+    printFindings(irParse);
+    process.exit(args.render ? 2 : 1);
+  }
+  const profile = mergeProfile(args.profile ? parseYaml(readOrExit(args.profile)) : undefined);
+  const prdFindings = [...checkPrd(frame, linked.map((l) => l.model)), ...checkProfile(frame, profile)];
+  if (args.render) {
+    process.stdout.write(renderPrd(frame, linked, prdFindings, profile));
+    return;
+  }
+  const all = [
+    ...prdFindings,
+    ...linked.flatMap((l) => runChecks(l.model).map((f) => ({ ...f, message: `${l.model.ir.usecase}: ${f.message}` }))),
+  ];
+  // an approved PRD has no open questions left
+  if (frame.status === "approved") {
+    for (const f of all.filter((x) => x.level === "warn")) f.level = "error";
+  }
+  printFindings(all);
+  const errors = all.filter((f) => f.level === "error").length;
+  const warns = all.length - errors;
+  console.log(`${frame.prd}: ${errors} error(s), ${warns} warn(s) across ${linked.length} usecase(s)`);
+  if (errors > 0 || (args.strict && warns > 0)) process.exit(1);
+}
+
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
+  if (args.prd) {
+    runPrd(args, args.prd);
+    return;
+  }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
     );
     process.exit(2);
   }

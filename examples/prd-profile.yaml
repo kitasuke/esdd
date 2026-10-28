@@ -1,0 +1,16 @@
+# Example PRD profile: what one team changes about the rendered PRD (docs/prd.md "Profiles").
+# Keys left out keep the default. sections, when given, replace the whole list and set the order.
+#   npm run check -- --prd examples/order-cancel.prd.yaml --profile examples/prd-profile.yaml --render
+sections:
+  - { id: summary, heading: TL;DR }
+  - { id: problem, heading: Why we are building this }
+  - { id: goals, heading: How we will know it worked }
+  - { id: users, heading: Who it is for }
+  - { id: use_cases, heading: What it does }
+  - { id: non_goals, heading: Out of scope }
+  - { id: rollout, heading: Rollout, required: true }
+  - { id: open_questions, heading: Decisions still needed }
+phrases:
+  transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
+labels:
+  acceptance: Acceptance tests
