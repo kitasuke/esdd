@@ -6,6 +6,7 @@
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest
+//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --questions [--profile <profile.yaml>]
 //   node src/cli.ts --prd <frame.prd.yaml> [--profile <profile.yaml>] [--render]
 //   any of the above with --config <config.ts> (the project configuration, src/config.ts)
 //
@@ -21,6 +22,8 @@
 // --approved checks the IRs as approved IRs (docs/approval.md): the approval record and spec version
 // are required, the file name must match the usecase id, and pending markers become errors.
 // --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
+// --questions prints the IRs' open questions as the rendered PRD words them (docs/prd.md), for a
+// review that has no PRD frame; --profile localizes the phrases
 // (one item per line, input coverage and assumptions as tables — docs/approval.md).
 // --prd checks a PRD frame together with the IRs it links (docs/prd.md); with --render it prints the
 // PRD as Markdown instead, laid out by the profile (the default profile when --profile is omitted).
@@ -40,7 +43,7 @@ import { renderDigest } from "./digest.ts";
 import { checkApproved, escalatePending } from "./approval.ts";
 import { configure, type EsddConfig } from "./config.ts";
 import { parseIR } from "./parse.ts";
-import { checkPrd, checkProfile, type LinkedUseCase, mergeProfile, parsePrd, renderPrd } from "./prd.ts";
+import { checkPrd, checkProfile, type LinkedUseCase, mergeProfile, parsePrd, renderPrd, renderQuestions } from "./prd.ts";
 import { parseSteps, runStepsChecks } from "./steps.ts";
 import { suggestPaths } from "./paths.ts";
 import {
@@ -74,6 +77,7 @@ interface Args {
   strict: boolean;
   approved: boolean;
   digest: boolean;
+  questions: boolean;
   prd?: string;
   profile?: string;
   render: boolean;
@@ -99,6 +103,7 @@ function parseArgs(argv: string[]): Args {
     strict: false,
     approved: false,
     digest: false,
+    questions: false,
     render: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -139,6 +144,8 @@ function parseArgs(argv: string[]): Args {
       args.approved = true;
     } else if (a === "--digest") {
       args.digest = true;
+    } else if (a === "--questions") {
+      args.questions = true;
     } else if (a === "--prd") {
       args.prd = argv[++i];
     } else if (a === "--profile") {
@@ -311,7 +318,7 @@ async function main(): Promise<void> {
   }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
     );
     process.exit(2);
   }
@@ -335,6 +342,28 @@ async function main(): Promise<void> {
       pages.push(renderDigest(model));
     }
     process.stdout.write(pages.join("\n---\n\n"));
+    return;
+  }
+
+  if (args.questions) {
+    // the question list of IRs reviewed without a frame; an unparsable IR is invalid input
+    const models: Model[] = [];
+    for (const file of args.files) {
+      let source: string;
+      try {
+        source = readFileSync(resolveInput(file), "utf8");
+      } catch (e) {
+        console.error(`cannot read: ${file}: ${(e as Error).message}`);
+        process.exit(2);
+      }
+      const { model, findings } = parseIR(source);
+      if (!model) {
+        console.error(`cannot list questions (the IR does not parse): ${file}: ${findings.map((f) => f.message).join(" / ")}`);
+        process.exit(2);
+      }
+      models.push(model);
+    }
+    process.stdout.write(renderQuestions(models, mergeProfile(args.profile ? parseYaml(readOrExit(args.profile)) : undefined)));
     return;
   }
 

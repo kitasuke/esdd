@@ -546,7 +546,7 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
   // a marker is shown as the text the owner has to complete, under the heading the reader sees it in
   const heading = (id: string) => p.sections.find((s) => s.id === id)?.heading ?? id;
   const questions = [
-    ...framePending(frame).map((f) => {
+    ...(frame.problem ? framePending(frame) : []).map((f) => {
       const where = f.goal ? `${heading(f.section)} ${f.goal.id} ${p.labels.goal_table[f.goal.column]}` : heading(f.section);
       // a metric or target alone ("TBD") does not say which goal it belongs to
       const of = f.goal && f.goal.column !== 1 ? ` (${f.goal.statement})` : "";
@@ -565,6 +565,19 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
   const out = [...questions, ""];
   if (assumed.length > 0) out.push(`**${p.labels.assumed}**`, "", ...table(p.labels.assumed_table, assumed), "");
   return out;
+}
+
+/**
+ * The open questions of IRs reviewed on their own, without a PRD frame: the same wording the rendered
+ * PRD uses (markers as the text to complete, undeclared cells and races as questions in the profile's
+ * phrases, the other findings in the checker's words, then the assumed answers). A review of an
+ * existing spec has no frame, but its owner should read questions, not finding codes
+ */
+export function renderQuestions(models: Model[], p: PrdProfile = DEFAULT_PROFILE): string {
+  // no frame: actors are named as the IRs write them
+  const frame = { users: [] } as unknown as PrdFrame;
+  const ucs: LinkedUseCase[] = models.map((model) => ({ file: "", model }));
+  return [...openQuestions(frame, ucs, [], p), ""].join("\n");
 }
 
 /**

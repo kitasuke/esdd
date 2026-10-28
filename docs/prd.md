@@ -98,6 +98,8 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
 - `ASSUMED(<id>)` markers stay in the IR for tracing; the rendered text shows the profile's
   `assumed` phrase in their place
+- The same open-questions list is available for IRs that have no frame — a review of an existing
+  spec — with `node src/cli.ts <ir.yaml> --questions [--profile <profile.yaml>]`
 
 ## Profiles
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseIR } from "./parse.ts";
-import { checkPrd, checkProfile, DEFAULT_PROFILE, mergeProfile, parsePrd, renderPrd } from "./prd.ts";
+import { checkPrd, checkProfile, DEFAULT_PROFILE, mergeProfile, parsePrd, renderPrd, renderQuestions } from "./prd.ts";
 import type { Model } from "./types.ts";
 
 function model(source: string): Model {
@@ -102,6 +102,41 @@ describe("checkProfile", () => {
       "sections.rollout is not placed by the profile, so the rendered PRD leaves it out",
       "sections.ui (UI) is required by the profile but missing",
     ]);
+  });
+});
+
+describe("renderQuestions", () => {
+  const OPEN = `
+usecase: UC-OPEN-001
+name: Open
+source: { spec: "https://example.com/spec" }
+initial: A
+states:
+  - { id: A, label: waiting }
+  - { id: B, label: done, terminal: true }
+events:
+  - { id: go, label: proceed, actor: operator }
+  - { id: cancel, label: cancel, actor: customer }
+transitions:
+  - { from: A, on: go, to: B, outcome: ["TBD(Q1: what is shown)"] }
+scenarios:
+  - { id: SC-001, name: proceed, path: [go] }
+assumptions:
+  - { id: W1, question: Is a mail sent?, proposal: No mail, basis: the spec lists no notification }
+`;
+  it("words an IR's findings as the PRD does, without a frame", () => {
+    const md = renderQuestions([model(OPEN)]);
+    expect(md).toContain("**Open: waiting × proceed**: TBD(Q1: what is shown)");
+    expect(md).toContain("While waiting, what happens when customer does “cancel”?");
+    expect(md).toContain("| W1 | Is a mail sent? | No mail | the spec lists no notification |");
+    expect(md).not.toContain("exhaustiveness");
+  });
+  it("uses the profile's phrases", () => {
+    const md = renderQuestions([model(OPEN)], mergeProfile({ phrases: { undeclared: "{state}: {event} by {actor}?" } }));
+    expect(md).toContain("- **Open**: waiting: cancel by customer?");
+  });
+  it("says so when nothing is open", () => {
+    expect(renderQuestions([model(IR)])).toContain(DEFAULT_PROFILE.labels.open_questions_none);
   });
 });
 
