@@ -75,6 +75,10 @@ npm test
 
 ## What the checker checks
 
+Every check is a plain graph traversal over the declared format; there is no model
+checker. The format is designed so the checks are trivial, and each failure message is
+phrased as a question for the author and the spec owner.
+
 **UseCase IR** (`docs/usecase-ir.md`):
 
 | Check | What it enforces |
@@ -82,6 +86,7 @@ npm test
 | structure | schema shape, ID formats and required fields; also text split by an ASCII comma in a flow sequence `[...]` / flow mapping `{...}` in scenario given/when/then, transitions/races outcome and rules expected (e.g. `[shows $9,000]` parsed as `shows $9` and `000`: a trailing digit followed by a 3-digit item, an unclosed bracket pair, or a key with no value) |
 | exhaustiveness | every non-terminal state × event cell is declared as a transition, `impossible: true` + reason (the event never arrives) or `ignored: true` + reason (it arrives and changes nothing) |
 | determinism | no duplicate declarations for the same cell |
+| terminals | no transition leaves a terminal state, and at least one terminal state exists |
 | reachability / escapability | no state unreachable from the initial state, no state that cannot reach a terminal |
 | race obligation | if events of different actors are both possible in a state, a `races` winner declaration is required (one of the two events, or `first` when arrival order decides) |
 | path validity / coverage | every scenario `path` is executable, and every transition is exercised by a scenario |
@@ -118,13 +123,14 @@ discovery after generation.
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
   two phases (drift detection vs co-generation), input modes, running review rounds
-  (proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
+  (questions and severity, proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
   IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
   acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
-  generation decision records, mechanism scenarios for bug tickets, no false greens).
+  generation decision records, test data and side effects, tests ahead of the implementation,
+  mechanism scenarios for bug tickets, no false greens, visual evidence, handling Red).
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
   the IR, its bindings, its step definitions and a pattern registry by the example generator in [examples/generator/](examples/generator/)
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, what the

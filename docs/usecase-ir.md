@@ -25,6 +25,10 @@ source:
   version: "v1"                # spec version (optional — used for drift tracking)
 ```
 
+`usecase`, `name`, `source.spec` and at least one scenario are always required.
+`states`, `events` and `transitions` are declared together or not at all, and
+`initial` is required whenever `states` is present.
+
 ## states mode
 
 ```yaml
@@ -64,9 +68,16 @@ cover ("it arrived, and nothing changed").
 would state the wrong behavior for the order in which the other one arrives first; write an outcome that
 holds either way.
 
+State ids are UPPER_SNAKE_CASE and event ids lower_snake_case, both ASCII; scenario ids
+start with `SC-` and rule ids with `RULE-`. An event's `actor` is required, and `to` and
+`outcome` are required on every transition that is not `impossible` or `ignored`. A
+terminal state may not be the `from` of any transition, and the IR must declare at least
+one terminal state.
+
 Checker checks: exhaustiveness (every cell declared) / determinism (no duplicates) /
-reachability / escapability / race declaration obligation / path validity / transition
-coverage. `--suggest-paths` proposes scenario paths that exercise uncovered transitions.
+terminals (no transition leaves a terminal state) / reachability / escapability / race
+declaration obligation / path validity / transition coverage. `--suggest-paths` proposes
+scenario paths that exercise uncovered transitions.
 
 ### Outcome items — plain or structured
 
@@ -114,26 +125,45 @@ inputs:
     na: { boundary: "fixed 7 digits, so no boundary exists" }
 ```
 
+The default conditions cover only edge cases: the valid-value happy path is owned by
+the scenarios. `required: true` on an input is optional metadata; the checker does not
+use it.
+
 On the scenario / rule case side, declare the exercised cell as
 `covers: "email×empty"`. The cell syntax is `<inputId>×<condition>` — the separator
 is the character `×` (U+00D7), which is part of the format (and is therefore
-forbidden inside input ids).
+forbidden inside input ids). Every `covers` reference is checked against the declared
+inputs and their conditions; an unknown input or condition is an error. When a cell's
+answer is still open, cover it with a rule case whose `expected` carries `TBD`, so the
+question stays visible as a pending warn.
 
-Note that ids throughout the IR (inputs, elements, event vocabulary) are
-spec-vocabulary ids (in the spec's language) — the format allows non-ASCII ids, so a
-team writing specs in another language can keep its own vocabulary.
+Limit: the checker cannot detect an input that was never declared, just as it cannot
+detect a missing event. Finding the universe is the job of the spec and its reviewers;
+the format only enforces closure over what is declared.
+
+Which ids must be ASCII: state ids, event ids and the `UC-` / `SC-` / `RULE-` ids
+follow the fixed formats above. Input ids, input conditions, and the element and
+literal keys in [bindings](bindings.md) are spec-vocabulary ids (in the spec's language)
+— the format allows non-ASCII there, so a team writing specs in another language can
+keep its own vocabulary. Bindings event keys name IR events: in states mode they are the
+ASCII event ids; in form mode, which has no IR events, they are spec vocabulary too.
 
 ## scenarios / rules
 
 ```yaml
 scenarios:
+  # states mode: the path; expected results come from the transitions it walks
   - id: SC-001
     name: an order progresses to delivered
     critical: true              # marks the most important paths to turn into E2E tests
-    path: [pack, hand_over, complete]  # states mode: an event sequence from initial
-    given: ["one paid order exists"]
-    when: ["…"]
-    then: ["…"]                 # observable results only. Write them as literals
+    path: [pack, hand_over, complete]  # an event sequence from initial
+    given: ["one paid order exists"]   # optional: the starting data
+  # form mode: given / when / then
+  - id: SC-002
+    name: saving a valid email address
+    given: ["the settings screen is open"]
+    when: ['enter "a@example.com" as the email address', "save"]
+    then: ['"Your email address has been updated" is shown']  # observable results only, as literals
 rules:
   - id: RULE-001
     name: cancellation fee
@@ -141,11 +171,24 @@ rules:
       - { input: "cancellation before packing", expected: "cancellation fee is $0" }
 ```
 
+- **States mode: a scenario is a path.** `path` is required, and its expected results
+  are the outcomes of the transitions it walks, so the scenario does not restate them.
+  `given` is allowed and describes the starting data (step definitions resolve it, and
+  warn when it describes a state other than the initial one). `when` / `then` belong to
+  form mode: in states mode the checker neither traces nor asserts them
+- **Form mode: `given`, `when` and `then` are all required** on every scenario. Write
+  each field's required / optional / boundary behavior as rule cases (one case per field
+  condition), constraints as error scenarios plus boundary cases, and settings options
+  as rules. Restate internal behavior such as asynchrony or idempotency as something
+  observable in a rule, and put postconditions in each scenario's `then`
 - **Write expected / then / outcome as literals** — "shows an appropriate error" is
-  forbidden. If the wording is not in the spec, leave a `TBD` and put it on the
-  question list
-- The checker tracks `TBD` / `TODO` / `FIXME` / `UNRESOLVED` as pending warns.
-  Zero warns = every question answered, which is the approval condition
+  forbidden. If expected stays abstract, the generated test and the implementation
+  cannot share the same text, and the wording is decided implicitly during
+  implementation (a blind generation trial showed exactly this). If the wording is not in
+  the spec, leave a `TBD` and put it on the question list
+- The checker tracks `TBD` / `TODO` / `FIXME` / `UNRESOLVED` as pending warns — in
+  transition and race outcomes, transition reasons, rule case `expected` and scenario
+  `then`. Zero warns = every question answered, which is the approval condition
 
 ## Assumptions and the question list
 

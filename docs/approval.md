@@ -16,7 +16,8 @@ when the spec changes.
 
 Commit only approved IRs. Then **the file's git history is the history of approved
 versions**: `git log -p <path>` shows every approved version and what changed between
-them, with no separate archive. Drafts stay disposable.
+them, with no separate archive. Drafts stay disposable. Example IRs kept as
+documentation are not approved IRs.
 
 ## Layout
 
@@ -30,6 +31,8 @@ them, with no separate archive. Drafts stay disposable.
   description
 - `<domain>` groups usecases the same way your test scenarios are grouped, so an IR
   and the tests generated from it can be found side by side
+- The step definitions (`<usecase-id>.steps.yaml`, [generation.md](generation.md#step-definitions-and-scenario-files))
+  sit next to the approved IR and are reviewed in the same change
 
 ## The approval record
 
@@ -48,9 +51,13 @@ source:
 ```
 
 Approval requires the same conditions as a passing review — no errors, no pending
-markers (every must-ask question answered) — plus an explicit approval by the spec owner.
+markers (every must-ask question answered, and the answer reflected in the IR) — plus an
+explicit approval by the spec owner. The approver must be a designated spec owner and
+must not be the person who produced the IR.
 Assumptions may remain: approving the IR accepts them, and `assumptions_accepted` must name
 exactly the assumptions the IR declares ([pipeline.md](pipeline.md#accept-by-default)).
+Note-tier questions do not block approval; keep them in the report and the change
+description.
 
 ## Checking an approved IR
 
@@ -87,6 +94,8 @@ each approval took about a minute. Ask for approval with:
    whole IR again
 3. **What to check**: three to five lines pointing at the assumptions and the cases that
    touch money, permissions or anything else that must not be wrong
+4. **How to approve**: the hash to name, and the ids of the assumptions the approval
+   will accept
 
 Count an approval only if it was posted after the request it answers, and record how
 long the approver took. Don't block a fast approval, but flag it: a fast approval
@@ -96,24 +105,34 @@ followed by a defect found downstream is the pattern to look for when reviewing 
 
 When a later step (test planning, test generation) finds a defect in an approved IR, do
 not fix the frozen IR in place and carry on — that sends a version nobody approved
-downstream. Void the approval (keep it, with the reason), fix the IR in review, and ask
-for approval again with the diff from the voided version. Record how often this
+downstream. Do not adjust the tests to work around it either. Void the approval (keep it,
+with the reason), fix the IR in review, and ask for approval again with the diff from the voided version. Record how often this
 happens and why; it measures how well the review catches problems before approval.
 
 ## Binding the approval to one exact IR
 
 Tie the approval to a hash of the IR text, and have the approver name that hash (for
-example by commenting `approve <hash>`). Two rules keep the hash meaningful:
+example by commenting `approve <hash>`). Once approved, the IR is frozen: any change,
+however small, needs a new approval. Two rules keep the hash meaningful:
 
 - **Format before hashing.** If a formatter runs on commit, run it on the draft before
-  taking the hash; otherwise the committed text differs from the approved text
+  taking the hash; otherwise the committed text differs from the approved text. When one
+  hash covers several IRs, record which files it covers and in what order
 - **Compare by parsed content when writing the approved file.** Adding the approval
   record is the only intended change. Diff the approved file against the frozen draft;
   if anything other than `source.version` and `source.approval` differs, parse both and
   compare the remaining content. Any real difference (a reordered list, a changed
-  value) means you would be committing a version nobody approved — stop
+  value) means you would be committing a version nobody approved — stop. A
+  formatting-only difference may proceed; say so in the change description
 
-Also record the spec's own version at approval time (e.g. its last-edited timestamp).
+Count an approval only if all of these hold:
+
+- it names the hash, and that hash matches the approval request
+- the approver is one of the designated approvers and not the operator who produced the IR
+- it was posted after the request it answers ([above](#what-the-approver-reads))
+- the spec is still at the version the IR was converted from
+
+So record the spec's own version at approval time (e.g. its last-edited timestamp).
 If the spec is edited after approval, the approval is void and review starts again.
 
 ## Partial approval
@@ -128,9 +147,12 @@ answer should not hold back a whole spec.
 When a revised spec is approved again, regenerate and check the IR, then rewrite the
 existing file **keeping its order**: existing entries in states, events, transitions,
 scenarios and rules stay where they are, new entries go at the end of their list, and
-only removed entries are deleted. Overwriting the file with a fresh conversion turns
-unchanged parts into reordering noise, and the diff no longer shows what changed in
-the spec. (This is the same stable-ID discipline as [pipeline.md](pipeline.md#editable-by-diff).)
+only removed entries are deleted. Overwriting the file with a fresh conversion (which
+orders states and events by definition and transitions by (from, on)) turns unchanged
+parts into reordering noise, and the diff no longer shows what changed in the spec.
+(This is the same stable-ID discipline as [pipeline.md](pipeline.md#editable-by-diff).)
+Keep the file where it is, and state in the change which spec revision each IR
+difference comes from.
 
 ## Downstream use
 
@@ -145,3 +167,8 @@ Approved IRs look like documentation, and many repositories auto-approve and
 auto-merge documentation changes. Make sure a person merges them — for example by
 excluding the approved-IR directory from auto-merge — and that whoever merges checks
 the diff against the approval record.
+
+Prefer committing the approved IR in the same change as the tests generated from it, so
+reviewers check together that the approval record matches the IR and that the tests
+follow the IR faithfully. An IR-only change (no tests to promote yet) is merged by a
+person who checks the diff against the approval record.
