@@ -9,12 +9,13 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "lib": ["ES2022", "DOM"]
   },
   "include": [
     "src",
     "examples/generator",
-    "examples/order-cancel.generated/cancellation-terms.ts",
-    "examples/order-cancel.generated/cancellation-terms.test.ts"
+    "examples/order-cancel.generated",
+    "examples/playwright.config.ts"
   ]
 }

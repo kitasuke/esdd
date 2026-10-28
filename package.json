@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "ESDD (Executable Spec-Driven Development) — a machine-checkable UseCase IR and contract checker for spec-to-test/code generation",
+  "description": "ESDD (Executable Spec-Driven Development) \u2014 a machine-checkable UseCase IR and contract checker for spec-to-test/code generation",
   "license": "MIT",
   "engines": {
     "node": ">=22.6"
@@ -11,12 +11,14 @@
   "scripts": {
     "check": "node src/cli.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "example:integration": "playwright test -c examples/playwright.config.ts"
   },
   "dependencies": {
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vitest": "^4.0.0"
