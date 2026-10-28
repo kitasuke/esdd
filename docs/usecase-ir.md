@@ -83,9 +83,24 @@ Fix the return to the state the spec talks about most, declare leaving from the 
 one assumption ("returns to the state it left from") and ask it. Either way the decision is
 visible in the IR, which a duplicated state machine hides.
 
+When the target of a transition is itself undecided (does an empty result hide the module or
+leave an empty frame?), `to` still has to name a state: use the state the spec comes closest
+to, and put the `TBD` in the outcome. The question stays visible, and the target is corrected
+when the answer arrives. Fixing a return target this way has a side effect on scenarios: every
+path that leaves and returns walks through that target, so a path written to cover another
+state after a return can read oddly; take the path `--suggest-paths` proposes rather than
+inventing a more natural-looking one.
+
 `races` pairs events of different actors. The same event arriving twice (a double press, two people doing
 the same thing at once) is not a race between two events; write it as a rule with one case per way it can
 arrive ([scenarios / rules](#scenarios--rules)), with what the user sees as `expected`.
+
+Races are declared one pair at a time: `state` and `between` take single values, not arrays. To
+estimate how many a usecase needs, count, per state, the events of one actor times the events
+of every other actor that can occur there; a transition back to the same state counts as an
+event that can occur, so a looping event (replay at the end of a video) adds a pair per
+user event in that state. Many pairs share one answer (the platform suspending the app wins
+over any tap); declare each pair, but let them share one assumption.
 
 State ids are UPPER_SNAKE_CASE and event ids lower_snake_case, both ASCII; scenario ids
 start with `SC-` and rule ids with `RULE-`. An event's `actor` is required, and `to` and
@@ -200,6 +215,9 @@ rules:
   condition), constraints as error scenarios plus boundary cases, and settings options
   as rules. Restate internal behavior such as asynchrony or idempotency as something
   observable in a rule, and put postconditions in each scenario's `then`
+- A plain YAML scalar that contains `: ` (a colon followed by a space) is read as a key, and the
+  parse fails or silently changes shape. Prose in another language can carry such a colon in the
+  middle of a sentence; quote the whole string, or use a different punctuation mark
 - **Write expected / then / outcome as literals** — "shows an appropriate error" is
   forbidden. If expected stays abstract, the generated test and the implementation
   cannot share the same text, and the wording is decided implicitly during
