@@ -164,8 +164,9 @@ export interface PrdProfile {
    * Rendered in this order. Built-in ids: see BUILT_IN_SECTIONS. Any other id is read from frame.sections.
    * An entry without an id is a heading only, to group the sections under it. level is the Markdown
    * heading level (default 2); a usecase inside use_cases is one level below it
+   * always renders the heading with an empty body when the frame leaves it empty (for a template that keeps every heading)
    */
-  sections: { id?: string; heading: string; level?: number; required?: boolean }[];
+  sections: { id?: string; heading: string; level?: number; required?: boolean; always?: boolean }[];
   /**
    * Sentence patterns (EARS style). Placeholders: {state} {event} {actor} {to} {a} {b} {winner} {reason}.
    * Outcomes are listed under the sentence, one per line
@@ -440,7 +441,7 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
   for (const s of p.sections) {
     const level = s.level ?? 2;
     // an optional free section the frame does not fill is left out; a required one shows TBD (checkProfile warns)
-    if (s.id && !builtIn.has(s.id) && !s.required && !nonEmptyString(frame.sections?.[s.id])) continue;
+    if (s.id && !builtIn.has(s.id) && !s.required && !s.always && !nonEmptyString(frame.sections?.[s.id])) continue;
     out.push(`${"#".repeat(level)} ${s.heading}`, "");
     switch (s.id) {
       case undefined:
@@ -475,7 +476,7 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
         out.push(...openQuestions(frame, ucs, frameFindings, p));
         break;
       default:
-        out.push(frame.sections?.[s.id] ?? "TBD", "");
+        out.push(frame.sections?.[s.id] ?? (s.required ? "TBD" : ""), "");
     }
   }
   // ASSUMED(<id>) is for tracing an assumption in the IR; the reader sees the profile's wording

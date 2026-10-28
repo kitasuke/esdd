@@ -174,6 +174,11 @@ describe("renderPrd", () => {
     expect(md).toContain("# Use cases\n\n- Order\n  - proceed\n");
   });
 
+  it("keeps the heading of an empty section marked always", () => {
+    const profile = mergeProfile({ sections: [{ id: "notes", heading: "Notes", always: true }, { id: "rollout", heading: "Rollout" }] });
+    expect(renderPrd(frame(), ucs, [], profile)).toBe("# Test feature\n\n`PRD-TEST` · draft\n\n## Notes\n\n## Rollout\n\nall at once\n");
+  });
+
   it("is deterministic", () => {
     expect(renderPrd(frame(), ucs, [])).toBe(renderPrd(frame(), ucs, []));
   });

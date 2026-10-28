@@ -102,6 +102,7 @@ sections:              # the order and headings; replaces the default list when 
   - { id: problem, heading: Problem, level: 2 }        # level: the Markdown heading level (default 2)
   - { id: use_cases, heading: What it does }
   - { id: rollout, heading: Rollout, required: true }   # any id other than the built-ins is read from frame.sections
+  - { id: notes, heading: Notes, always: true }        # kept as an empty heading when the frame leaves it empty
   - { id: open_questions, heading: Decisions still needed }
 phrases:               # sentence patterns; placeholders {state} {event} {actor} {to} {a} {b} {winner} {reason}
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
