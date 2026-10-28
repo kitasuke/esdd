@@ -59,6 +59,9 @@ npm install   # or pnpm install
 # states-mode example: state machine exhaustiveness checks + path suggestions for uncovered transitions
 npm run check -- examples/order-cancel.usecase.yaml --suggest-paths
 
+# states mode + bindings (the example the generated code in examples/order-cancel.generated/ is built from)
+npm run check -- examples/order-cancel.usecase.yaml --bindings examples/order-cancel.bindings.yaml
+
 # form mode (no states) + cross-check against bindings (the locator/literal contract)
 npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
 
@@ -108,9 +111,12 @@ discovery after generation.
   (proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
-- [docs/generation.md](docs/generation.md) — generation-side principles (test layers incl.
-  mobile, acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
-  generation decision records, mechanism scenarios for bug tickets, no false greens)
+- [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
+  IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
+  acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
+  generation decision records, mechanism scenarios for bug tickets, no false greens).
+  [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
+  the IR, its bindings and its step definitions by the example generator in [examples/generator/](examples/generator/)
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, what the
   approver reads (`--digest` and the diff from the last approval), binding the approval to one exact IR,
   sending an approval back, partial approval, and order-preserving updates
@@ -123,9 +129,10 @@ v0.2 — includes the IR checker, the bindings checker (web/Playwright profile),
 approved-IR check (`--approved`, including accepted assumptions), declared assumptions
 (`ASSUMED(<id>)`) and the behavior trace (`--results`).
 Platform profiles are designed as an extension point (for mobile and the like, each
-project swaps in its own locator vocabulary). The generator itself is not included —
-generation is run per project, following the principles in `docs/generation.md`,
-together with that project's vocabulary registries.
+project swaps in its own locator vocabulary). A production generator is not included —
+generation is run per project, following the rules in `docs/generation.md`, together
+with that project's vocabulary registries. `examples/generator/` is an example-only
+generator for the order-cancel example (Playwright + vitest).
 
 ## License
 

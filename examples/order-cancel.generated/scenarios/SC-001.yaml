@@ -1,0 +1,56 @@
+# Resolved by examples/generator/generate.ts from examples/order-cancel.usecase.yaml, its bindings and step definitions.
+# Do not edit: regenerate.
+node: SC-001
+name: an order progresses to delivered
+layers:
+  - integration
+  - e2e
+start:
+  state: PLACED
+  fixture: paidOrder
+steps:
+  - event: pack
+    actor: staff
+    transition: T-PLACED-pack
+    from: PLACED
+    to: PACKED
+    do:
+      screen: pack
+    operation: PackOrder
+    outcomes:
+      - node: T-PLACED-pack-o1
+        text: the order status shows "Packed"
+        expect: expectStatus
+        not: expectStatusNot
+        args:
+          - status_packed
+  - event: hand_over
+    actor: staff
+    transition: T-PACKED-hand_over
+    from: PACKED
+    to: HANDED_OVER
+    do:
+      screen: handOver
+    operation: HandOverOrder
+    outcomes:
+      - node: T-PACKED-hand_over-o1
+        text: the order status shows "Shipped"
+        expect: expectStatus
+        not: expectStatusNot
+        args:
+          - status_shipped
+  - event: complete
+    actor: system
+    transition: T-HANDED_OVER-complete
+    from: HANDED_OVER
+    to: COMPLETED
+    do:
+      fixture: completeDelivery
+    outcomes:
+      - node: T-HANDED_OVER-complete-o1
+        text: the order status shows "Delivered"
+        expect: expectStatus
+        not: expectStatusNot
+        args:
+          - status_delivered
+questions: []

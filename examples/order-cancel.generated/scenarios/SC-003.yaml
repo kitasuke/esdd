@@ -1,0 +1,46 @@
+# Resolved by examples/generator/generate.ts from examples/order-cancel.usecase.yaml, its bindings and step definitions.
+# Do not edit: regenerate.
+node: SC-003
+name: cancellation after packing completes with a fee notice
+layers:
+  - integration
+start:
+  state: PLACED
+  fixture: paidOrder
+steps:
+  - event: pack
+    actor: staff
+    transition: T-PLACED-pack
+    from: PLACED
+    to: PACKED
+    do:
+      screen: pack
+    operation: PackOrder
+    outcomes:
+      - node: T-PLACED-pack-o1
+        text: the order status shows "Packed"
+        expect: expectStatus
+        not: expectStatusNot
+        args:
+          - status_packed
+  - event: cancel
+    actor: customer
+    transition: T-PACKED-cancel
+    from: PACKED
+    to: CANCELED
+    do:
+      screen: cancel
+    operation: CancelOrder
+    outcomes:
+      - node: T-PACKED-cancel-o1
+        text: the order status shows "Canceled"
+        expect: expectStatus
+        not: expectStatusNot
+        args:
+          - status_canceled
+      - node: T-PACKED-cancel-o2
+        text: the cancellation fee notice is shown (RULE-001)
+        expect: expectFeeNotice
+        not: expectNoFeeNotice
+questions:
+  - given "one packed order exists" describes PACKED, but the path starts at PLACED — the path is walked

@@ -11,6 +11,17 @@ export function outcomeTexts(outcome: OutcomeItem[] | undefined): string[] {
 }
 
 /** A non-empty string. YAML does not enforce types (approved_by: 123 or {} still parse), so audit fields are type-checked */
+/**
+ * A special races winner: the winner is decided by arrival order (whichever arrives first wins), not by the kind of event.
+ * Fixing the winner to one of the between events would record the wrong behavior for the order where the other arrives first
+ */
+export const RACE_WINNER_FIRST = "first";
+
+/** Render a races winner as a phrase */
+export function raceWinnerText(winner: string): string {
+  return winner === RACE_WINNER_FIRST ? "whichever arrives first wins" : `${winner} wins`;
+}
+
 export function nonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }

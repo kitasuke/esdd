@@ -31,6 +31,8 @@ export interface TransitionEntry {
   to?: string;
   outcome?: OutcomeItem[];
   impossible?: true;
+  /** The event can arrive but changes nothing and is ignored (a duplicate notice, a timer that no longer applies). Requires a reason */
+  ignored?: true;
   reason?: string;
 }
 
@@ -116,7 +118,10 @@ export interface Cell {
   on: string;
   to?: string;
   outcome?: OutcomeItem[];
+  /** No transition in this cell (it cannot happen, or it is ignored). Such cells are skipped by paths, races and coverage */
   impossible: boolean;
+  /** The event can happen but is ignored (impossible is also true). Unlike a plain impossible cell, the trace asks for a test of it */
+  ignored: boolean;
   reason?: string;
   /** Index of the originating entry in the transitions array (for error reporting) */
   entryIndex: number;
