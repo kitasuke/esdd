@@ -150,6 +150,30 @@ describe("renderPrd", () => {
     expect(renderPrd(frame(), ucs, [], profile)).toMatch(/\n## UI\n\nTBD\n$/);
   });
 
+  it("follows a nested template: no title, heading-only groups, levels, and the usecase list", () => {
+    const profile = mergeProfile({
+      title: false,
+      sections: [
+        { heading: "Why", level: 1 },
+        { id: "goals", heading: "Goals", level: 2 },
+        { id: "use_case_list", heading: "Use cases", level: 1 },
+        { id: "use_cases", heading: "Spec", level: 1 },
+      ],
+    });
+    const md = renderPrd(frame(), ucs, [], profile);
+    expect(md.match(/^#+ .*/gm)).toEqual([
+      "# Why",
+      "## Goals",
+      "# Use cases",
+      "# Spec",
+      "## Order (UC-TEST-001)",
+      "### Requirements",
+      "### Cases that do not occur",
+      "### Acceptance criteria",
+    ]);
+    expect(md).toContain("# Use cases\n\n- Order\n  - proceed\n");
+  });
+
   it("is deterministic", () => {
     expect(renderPrd(frame(), ucs, [])).toBe(renderPrd(frame(), ucs, []));
   });

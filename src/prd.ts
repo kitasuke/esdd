@@ -158,8 +158,14 @@ export function checkPrd(frame: PrdFrame, models: Model[]): Finding[] {
 // sentence patterns requirements are written in, and labels. Everything else is the method.
 
 export interface PrdProfile {
-  /** Rendered in this order. Built-in ids: see BUILT_IN_SECTIONS. Any other id is read from frame.sections */
-  sections: { id: string; heading: string; required?: boolean }[];
+  /** false leaves out the title line and the id/status line (when the destination shows the title itself) */
+  title: boolean;
+  /**
+   * Rendered in this order. Built-in ids: see BUILT_IN_SECTIONS. Any other id is read from frame.sections.
+   * An entry without an id is a heading only, to group the sections under it. level is the Markdown
+   * heading level (default 2); a usecase inside use_cases is one level below it
+   */
+  sections: { id?: string; heading: string; level?: number; required?: boolean }[];
   /**
    * Sentence patterns (EARS style). Placeholders: {state} {event} {actor} {to} {a} {b} {winner} {reason}.
    * Outcomes are listed under the sentence, one per line
@@ -195,9 +201,10 @@ export interface PrdProfile {
   };
 }
 
-export const BUILT_IN_SECTIONS = ["summary", "problem", "users", "goals", "non_goals", "use_cases", "open_questions"] as const;
+export const BUILT_IN_SECTIONS = ["summary", "problem", "users", "goals", "non_goals", "use_case_list", "use_cases", "open_questions"] as const;
 
 export const DEFAULT_PROFILE: PrdProfile = {
+  title: true,
   sections: [
     { id: "summary", heading: "Summary" },
     { id: "problem", heading: "Problem" },
@@ -241,6 +248,7 @@ export const DEFAULT_PROFILE: PrdProfile = {
 export function mergeProfile(override: unknown): PrdProfile {
   const o = (override ?? {}) as Partial<PrdProfile>;
   return {
+    title: typeof o.title === "boolean" ? o.title : DEFAULT_PROFILE.title,
     sections: Array.isArray(o.sections) ? o.sections : DEFAULT_PROFILE.sections,
     phrases: { ...DEFAULT_PROFILE.phrases, ...(o.phrases ?? {}) },
     labels: { ...DEFAULT_PROFILE.labels, ...(o.labels ?? {}) },
@@ -249,7 +257,7 @@ export function mergeProfile(override: unknown): PrdProfile {
 
 /** Sections the profile requires that the frame does not provide, and frame sections the profile does not place */
 export function checkProfile(frame: PrdFrame, profile: PrdProfile): Finding[] {
-  const placed = new Set(profile.sections.map((s) => s.id));
+  const placed = new Set(profile.sections.flatMap((s) => (s.id ? [s.id] : [])));
   const unplaced = Object.keys(frame.sections ?? {})
     .filter((id) => !placed.has(id))
     .map((id) => ({
@@ -258,7 +266,7 @@ export function checkProfile(frame: PrdFrame, profile: PrdProfile): Finding[] {
       message: `sections.${id} is not placed by the profile, so the rendered PRD leaves it out`,
     }));
   return [...unplaced, ...profile.sections
-    .filter((s) => s.required && !(BUILT_IN_SECTIONS as readonly string[]).includes(s.id))
+    .flatMap((s) => (s.id && s.required && !(BUILT_IN_SECTIONS as readonly string[]).includes(s.id) ? [{ ...s, id: s.id }] : []))
     .filter((s) => !nonEmptyString(frame.sections?.[s.id]))
     .map((s) => ({
       level: "warn" as const,
@@ -294,12 +302,13 @@ function outcomeLines(outcome: OutcomeItem[] | undefined): string[] {
   });
 }
 
-function useCaseSection(uc: LinkedUseCase, p: PrdProfile): string[] {
+function useCaseSection(uc: LinkedUseCase, p: PrdProfile, level: number): string[] {
+  const h = (below: number) => "#".repeat(level + below);
   const { model, file } = uc;
   const { ir } = model;
   const stateName = (id: string) => model.states.get(id)?.label ?? id;
   const eventName = (id: string) => model.events.get(id)?.label ?? id;
-  const out: string[] = [`### ${ir.name} (${ir.usecase})`, "", `${p.labels.source}: \`${file}\``, ""];
+  const out: string[] = [`${h(1)} ${ir.name} (${ir.usecase})`, "", `${p.labels.source}: \`${file}\``, ""];
 
   if (model.hasStateMachine) {
     const reqs: string[] = [];
@@ -321,9 +330,9 @@ function useCaseSection(uc: LinkedUseCase, p: PrdProfile): string[] {
         else reqs.push(`- ${fill(p.phrases.transition, values)}`, ...outcomeLines(c.outcome));
       }
     }
-    out.push(`#### ${p.labels.requirements}`, "", ...reqs, "");
+    out.push(`${h(2)} ${p.labels.requirements}`, "", ...reqs, "");
     if (na.size > 0) {
-      out.push(`#### ${p.labels.not_applicable}`, "");
+      out.push(`${h(2)} ${p.labels.not_applicable}`, "");
       for (const d of [...na.entries()].sort(([a], [b]) => a - b).map(([, v]) => v)) {
         const values = { state: [...d.states].join(" / "), event: [...d.events].join("” / “"), reason: d.reason };
         out.push(`- ${fill(p.phrases.impossible, values)}`);
@@ -332,7 +341,7 @@ function useCaseSection(uc: LinkedUseCase, p: PrdProfile): string[] {
     }
     const races = ir.races ?? [];
     if (races.length > 0) {
-      out.push(`#### ${p.labels.races}`, "");
+      out.push(`${h(2)} ${p.labels.races}`, "");
       for (const r of races) {
         const values = { state: stateName(r.state), a: eventName(r.between[0]), b: eventName(r.between[1]), winner: eventName(r.winner) };
         out.push(`- ${fill(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, values)}`, ...outcomeLines(r.outcome));
@@ -343,7 +352,7 @@ function useCaseSection(uc: LinkedUseCase, p: PrdProfile): string[] {
 
   const rules = ir.rules ?? [];
   if (rules.length > 0) {
-    out.push(`#### ${p.labels.rules}`, "");
+    out.push(`${h(2)} ${p.labels.rules}`, "");
     for (const rule of rules) {
       out.push(`**${rule.name}** (${rule.id})`, "", ...table(p.labels.rule_table, rule.cases.map((c) => [cell(c.input), cell(c.expected)])), "");
     }
@@ -357,10 +366,10 @@ function useCaseSection(uc: LinkedUseCase, p: PrdProfile): string[] {
     for (const sc of ir.scenarios) for (const k of [sc.covers ?? []].flat()) add(k, sc.id);
     const rows = [...by.entries()].map(([k, v]) => [...k.split("×"), v.join(", ")]);
     for (const inp of inputs) for (const [cond, reason] of Object.entries(inp.na ?? {})) rows.push([inp.id, cond, `n/a: ${reason}`]);
-    out.push(`#### ${p.labels.inputs}`, "", ...table(p.labels.input_table, rows), "");
+    out.push(`${h(2)} ${p.labels.inputs}`, "", ...table(p.labels.input_table, rows), "");
   }
 
-  out.push(`#### ${p.labels.acceptance}`, "");
+  out.push(`${h(2)} ${p.labels.acceptance}`, "");
   for (const sc of ir.scenarios) {
     out.push(`- **${sc.name}** (${sc.id}${sc.critical ? `, ${p.labels.critical}` : ""})`);
     for (const [kw, list] of [[p.labels.given, sc.given], [p.labels.when, sc.when], [p.labels.then, sc.then]] as const) {
@@ -424,13 +433,18 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
  * with a stale question list
  */
 export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Finding[], p: PrdProfile = DEFAULT_PROFILE): string {
-  const out: string[] = [`# ${frame.title}`, "", `\`${frame.prd}\` · ${frame.status}${frame.owner ? ` · ${frame.owner}` : ""}`, ""];
+  const out: string[] = p.title
+    ? [`# ${frame.title}`, "", `\`${frame.prd}\` · ${frame.status}${frame.owner ? ` · ${frame.owner}` : ""}`, ""]
+    : [];
   const builtIn = new Set<string>(BUILT_IN_SECTIONS);
   for (const s of p.sections) {
+    const level = s.level ?? 2;
     // an optional free section the frame does not fill is left out; a required one shows TBD (checkProfile warns)
-    if (!builtIn.has(s.id) && !s.required && !nonEmptyString(frame.sections?.[s.id])) continue;
-    out.push(`## ${s.heading}`, "");
+    if (s.id && !builtIn.has(s.id) && !s.required && !nonEmptyString(frame.sections?.[s.id])) continue;
+    out.push(`${"#".repeat(level)} ${s.heading}`, "");
     switch (s.id) {
+      case undefined:
+        break;
       case "summary":
         out.push(frame.summary, "");
         break;
@@ -446,8 +460,16 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
       case "non_goals":
         out.push(...(frame.non_goals.length > 0 ? frame.non_goals.map((x) => `- ${x}`) : ["-"]), "");
         break;
+      case "use_case_list":
+        // one line per usecase, with its critical scenarios (all of them when none is marked) under it
+        for (const { model } of ucs) {
+          const critical = model.ir.scenarios.filter((sc) => sc.critical);
+          out.push(`- ${model.ir.name}`, ...(critical.length > 0 ? critical : model.ir.scenarios).map((sc) => `  - ${sc.name}`));
+        }
+        out.push("");
+        break;
       case "use_cases":
-        for (const uc of ucs) out.push(...useCaseSection(uc, p));
+        for (const uc of ucs) out.push(...useCaseSection(uc, p, level));
         break;
       case "open_questions":
         out.push(...openQuestions(frame, ucs, frameFindings, p));

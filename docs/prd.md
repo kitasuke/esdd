@@ -95,8 +95,11 @@ What differs between companies is the layout and the wording, not the method. A 
 that part; keys it leaves out keep the default.
 
 ```yaml
+title: false           # leave out the title line when the destination shows the title itself
 sections:              # the order and headings; replaces the default list when given
   - { id: summary, heading: TL;DR }
+  - { heading: Background, level: 1 }                  # no id: a heading only, grouping what follows
+  - { id: problem, heading: Problem, level: 2 }        # level: the Markdown heading level (default 2)
   - { id: use_cases, heading: What it does }
   - { id: rollout, heading: Rollout, required: true }   # any id other than the built-ins is read from frame.sections
   - { id: open_questions, heading: Decisions still needed }
@@ -107,8 +110,11 @@ labels:                # sub-headings and table headers
   acceptance: Acceptance tests
 ```
 
-Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_cases`,
-`open_questions`. Phrase keys: `transition`, `ignored`, `impossible`, `race`, `race_first`, `assumed`.
+Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_case_list` (one line
+per usecase with its critical scenarios), `use_cases` (each usecase one heading level below the section),
+`open_questions`.
+To follow a template a team already uses, copy its headings, order and levels into the profile and add
+only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `ignored`, `impossible`, `race`, `race_first`, `assumed`.
 A profile for a team that writes specs in another language translates `phrases` and `labels`;
 the IR texts stay in the language they were written in.
 [examples/prd-profile.yaml](../examples/prd-profile.yaml) is a complete profile.
