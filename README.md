@@ -59,6 +59,9 @@ npm install   # or pnpm install
 # states-mode example: state machine exhaustiveness checks + path suggestions for uncovered transitions
 npm run check -- examples/order-cancel.usecase.yaml --suggest-paths
 
+# states mode + bindings (the example the generated code in examples/order-cancel.generated/ is built from)
+npm run check -- examples/order-cancel.usecase.yaml --bindings examples/order-cancel.bindings.yaml
+
 # form mode (no states) + cross-check against bindings (the locator/literal contract)
 npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
 
@@ -105,9 +108,11 @@ discovery after generation.
   (proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
-- [docs/generation.md](docs/generation.md) — generation-side principles (test layers incl.
-  mobile, acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
-  generation decision records, mechanism scenarios for bug tickets, no false greens)
+- [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
+  IR-to-code conversion rules for tests and product code, test layers incl. mobile,
+  acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
+  generation decision records, mechanism scenarios for bug tickets, no false greens).
+  [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, binding the approval
   to one exact IR, partial approval, and order-preserving updates
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node

@@ -1,0 +1,28 @@
+# Example ESDD bindings: the locator / literal contract of UC-ORDER-CANCEL-001
+# The generated tests (examples/order-cancel.generated/) take their vocabulary from this file alone.
+# Check it: pnpm check examples/order-cancel.usecase.yaml --bindings examples/order-cancel.bindings.yaml
+bindings: UC-ORDER-CANCEL-001
+platform: web
+graph: orders
+
+events: # IR events the UI drives → API operations. complete (actor: system) has no UI operation
+  pack: { operation: PackOrder, kind: mutation, called_api: calledPackOrderMutation }
+  hand_over: { operation: HandOverOrder, kind: mutation, called_api: calledHandOverOrderMutation }
+  cancel: { operation: CancelOrder, kind: mutation, called_api: calledCancelOrderMutation }
+
+elements:
+  order_status: { testid: order-status }
+  pack_button: { role: button, name: "Mark as packed" }
+  hand_over_button: { role: button, name: "Hand to carrier" }
+  cancel_button: { role: button, name: "Cancel order" }
+  fee_notice: { testid: cancellation-fee-notice }
+
+literals:
+  status_packed: "Packed"
+  status_shipped: "Shipped"
+  status_delivered: "Delivered"
+  status_canceled: "Canceled"
+  cancellation_fee_notice: "Cancellations after packing incur a handling fee"
+
+literal_coverage:
+  RULE-001: { literal: cancellation_fee_notice }

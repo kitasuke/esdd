@@ -1,0 +1,29 @@
+# Target IR for the generated tests of UC-ORDER-CANCEL-001 (docs/pipeline.md#target-irs--decisions-only-never-behavior).
+# Decisions and references only: behavior stays in the UseCase IR, steps come from its paths.
+suite: TEST-GEN-UC-ORDER-CANCEL-001
+usecase: examples/order-cancel.usecase.yaml # approved at source.version "v1"
+bindings: examples/order-cancel.bindings.yaml
+driver: { interface: order-driver.ts, adapter: order-driver.playwright.ts }
+
+layers:
+  unit: { nodes: [RULE-001], output: cancellation-terms.test.ts }
+  integration: { scenarios: all, output: order-cancel.integration.ts }
+  e2e: { scenarios: critical, output: order-cancel.e2e.ts, environment: staging }
+
+fixtures: # given → data. Values chosen here are never asserted
+  "one paid order exists":
+    integration: "fake order in PLACED"
+    e2e: "seed.paidOrder()"
+  "one packed order exists":
+    integration: "fake order in PLACED, then the pack step of the path"
+
+system_events: # how an actor: system event reaches each layer
+  complete:
+    integration: "the fake's order changes to COMPLETED, then the driver re-reads the screen"
+    e2e: "seed.completeDelivery() — the real system's own entry point"
+
+unprescribed: # every decision no input prescribed
+  - decision: 'how "no cancellation fee is charged" (T-PLACED-cancel-o2) is observed — the IR and bindings name no fee display and no charge operation'
+    disposition: question-list
+  - decision: 'SC-003 says "one packed order exists" but its path starts with pack — the tests walk the whole path from PLACED'
+    disposition: question-list
