@@ -82,9 +82,9 @@ export function checkTerminals(model: Model): Finding[] {
 }
 
 /** Reachability: can every state be reached from initial? */
-export function checkReachability(model: Model): Finding[] {
-  const findings: Finding[] = [];
-  if (!model.initial) return findings;
+/** States no event sequence from initial leads to (shared by the check and the PRD renderer) */
+export function unreachableStates(model: Model): string[] {
+  if (!model.initial) return [];
   const reachable = new Set<string>([model.initial]);
   const queue = [model.initial];
   while (queue.length > 0) {
@@ -96,30 +96,21 @@ export function checkReachability(model: Model): Finding[] {
       }
     }
   }
-  for (const s of model.states.keys()) {
-    if (!reachable.has(s)) {
-      findings.push({
-        level: "error",
-        check: "reachability",
-        message: `${s}: cannot be reached from initial (${model.initial}) by any event sequence`,
-      });
-    }
-  }
-  return findings;
+  return [...model.states.keys()].filter((s) => !reachable.has(s));
 }
 
-/** Escapability: can every non-terminal state reach a terminal state? (no dead ends for the user) */
-export function checkEscapability(model: Model): Finding[] {
-  const findings: Finding[] = [];
+export function checkReachability(model: Model): Finding[] {
+  return unreachableStates(model).map((s) => ({
+    level: "error",
+    check: "reachability",
+    message: `${s}: cannot be reached from initial (${model.initial}) by any event sequence`,
+  }));
+}
+
+/** Non-terminal states from which no terminal state can be reached (shared by the check and the PRD renderer) */
+export function trappedStates(model: Model): string[] {
   const terminals = [...model.states.values()].filter((s) => s.terminal).map((s) => s.id);
-  if (terminals.length === 0) {
-    findings.push({
-      level: "error",
-      check: "escapability",
-      message: "there is no terminal state. At least one terminal state is required",
-    });
-    return findings;
-  }
+  if (terminals.length === 0) return [];
   const canEscape = new Set<string>(terminals);
   let changed = true;
   while (changed) {
@@ -131,16 +122,19 @@ export function checkEscapability(model: Model): Finding[] {
       }
     }
   }
-  for (const s of nonTerminalStates(model)) {
-    if (!canEscape.has(s)) {
-      findings.push({
-        level: "error",
-        check: "escapability",
-        message: `${s}: cannot reach any terminal state (a user who enters this state is stuck)`,
-      });
-    }
+  return nonTerminalStates(model).filter((s) => !canEscape.has(s));
+}
+
+/** Escapability: can every non-terminal state reach a terminal state? (no dead ends for the user) */
+export function checkEscapability(model: Model): Finding[] {
+  if (![...model.states.values()].some((s) => s.terminal)) {
+    return [{ level: "error", check: "escapability", message: "there is no terminal state. At least one terminal state is required" }];
   }
-  return findings;
+  return trappedStates(model).map((s) => ({
+    level: "error",
+    check: "escapability",
+    message: `${s}: cannot reach any terminal state (a user who enters this state is stuck)`,
+  }));
 }
 
 /**
@@ -395,6 +389,21 @@ function toCoversArray(v: string | string[] | undefined): string[] {
  * The stateless-mode counterpart of exhaustiveness — uncovered cells are reported
  * as questions back to the spec.
  */
+/** Input × condition cells that neither covers nor na takes a stance on (shared by the check and the PRD renderer) */
+export function uncoveredInputCells(model: Model): { input: string; condition: string }[] {
+  const conds = inputConditions(model);
+  const covered = new Set(
+    [...(model.ir.scenarios ?? []).map((sc) => sc.covers), ...(model.ir.rules ?? []).flatMap((r) => r.cases.map((c) => c.covers))]
+      .flatMap(toCoversArray)
+      .map((ref) => ref.split("×").map((x) => x.trim()).join("×")),
+  );
+  return (model.ir.inputs ?? []).flatMap((inp) =>
+    (conds.get(inp.id) ?? [])
+      .filter((cond) => !(inp.na !== undefined && cond in inp.na) && !covered.has(`${inp.id}×${cond}`))
+      .map((condition) => ({ input: inp.id, condition })),
+  );
+}
+
 export function checkInputs(model: Model): Finding[] {
   const inputs = model.ir.inputs ?? [];
   if (inputs.length === 0) return [];
@@ -467,14 +476,14 @@ export function checkInputs(model: Model): Finding[] {
           message: `${key}: has both an na declaration and covers (the na reason may be stale — keep exactly one)`,
         });
       }
-      if (!isNa && !isCovered) {
-        findings.push({
-          level: "error",
-          check: "inputs",
-          message: `${inp.id} × ${cond}: uncovered. Answer "what happens when ${inp.id} is ${cond}?" (link it via covers from a rule case / scenario, or declare a reason under the input's na)`,
-        });
-      }
     }
+  }
+  for (const { input, condition } of uncoveredInputCells(model)) {
+    findings.push({
+      level: "error",
+      check: "inputs",
+      message: `${input} × ${condition}: uncovered. Answer "what happens when ${input} is ${condition}?" (link it via covers from a rule case / scenario, or declare a reason under the input's na)`,
+    });
   }
   return findings;
 }
