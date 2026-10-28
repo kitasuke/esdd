@@ -6,7 +6,7 @@
 // previous approval's digest shows exactly what a re-approval changes (docs/approval.md).
 
 import { inputConditions } from "./checks.ts";
-import { outcomeTexts } from "./text.ts";
+import { outcomeTexts, raceWinnerText } from "./text.ts";
 import { type Model, type OutcomeItem, cellKey } from "./types.ts";
 
 const asList = (v: string | string[] | undefined): string[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
@@ -51,6 +51,8 @@ function stateMachine(model: Model): string[] {
       const evLabel = `${on}${ev.label ? ` (${ev.label})` : ""} [${ev.actor}]`;
       if (!cell) {
         out.push(`- **${evLabel}**: undefined`);
+      } else if (cell.ignored) {
+        out.push(`- ${evLabel}: ignored — ${cell.reason ?? "(no reason)"}`);
       } else if (cell.impossible) {
         out.push(`- ${evLabel}: impossible — ${cell.reason ?? "(no reason)"}`);
       } else {
@@ -63,7 +65,7 @@ function stateMachine(model: Model): string[] {
   if (races.length > 0) {
     out.push("## Races", "");
     for (const r of races) {
-      out.push(`- ${r.state}: when ${r.between.join(" and ")} overlap, ${r.winner} wins`, ...outcomeLines(r.outcome, "  "));
+      out.push(`- ${r.state}: when ${r.between.join(" and ")} overlap, ${raceWinnerText(r.winner)}`, ...outcomeLines(r.outcome, "  "));
     }
     out.push("");
   }

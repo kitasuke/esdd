@@ -20,6 +20,7 @@ states:
 events:
   - { id: go, label: proceed, actor: operator }
   - { id: back, actor: customer }
+  - { id: resend, actor: system }
 transitions:
   - from: A
     on: go
@@ -29,6 +30,10 @@ transitions:
     on: back
     impossible: true
     reason: a waiting order cannot go back
+  - from: A
+    on: resend
+    ignored: true
+    reason: a repeated notice is ignored
 scenarios:
   - { id: SC-001, name: proceed, path: [go], critical: true }
 `;
@@ -62,6 +67,7 @@ describe("renderDigest", () => {
     expect(digest).toContain("### A (waiting) — initial");
     expect(digest).toContain('- **go (proceed) [operator]** → B\n  - B is reached\n  - [WEB] "Done" is shown');
     expect(digest).toContain("- back [customer]: impossible — a waiting order cannot go back");
+    expect(digest).toContain("- resend [system]: ignored — a repeated notice is ignored");
   });
 
   it("puts each list item on its own line and never joins items with a comma", () => {
