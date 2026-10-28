@@ -123,13 +123,14 @@ discovery after generation.
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
   two phases (drift detection vs co-generation), input modes, running review rounds
-  (proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
+  (questions and severity, proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
   IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
   acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
-  generation decision records, mechanism scenarios for bug tickets, no false greens).
+  generation decision records, test data and side effects, tests ahead of the implementation,
+  mechanism scenarios for bug tickets, no false greens, visual evidence, handling Red).
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
   the IR, its bindings, its step definitions and a pattern registry by the example generator in [examples/generator/](examples/generator/)
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, what the
