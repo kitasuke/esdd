@@ -441,7 +441,8 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
     ...[...model.events.keys()].map((id) => [id, name.event(id)]),
     ...frame.users.map((u) => [u.id, name.actor(u.id)]),
   ].sort(([a], [b]) => b!.length - a!.length);
-  const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), label!), text);
+  // a function replacement keeps $& or $1 in a label literal
+  const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), () => label!), text);
   const others = [
     ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races"].includes(f.check)),
     ...checkRaceDeclarations(model),

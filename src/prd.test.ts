@@ -211,6 +211,30 @@ scenarios:
     expect(md).not.toMatch(/\bOPEN_LATE\b/);
   });
 
+  it("keeps a label with replacement patterns such as $& literal", () => {
+    const open = model(`
+usecase: UC-TEST-003
+name: Fee
+source: { spec: "https://example.com/spec" }
+initial: OPEN
+states:
+  - { id: OPEN, label: "open ($& due)" }
+  - { id: OPEN_LATE, label: "late ($1 fee)" }
+  - { id: CLOSED, label: closed, terminal: true }
+events:
+  - { id: close, label: close it, actor: operator }
+  - { id: expire, label: let it expire, actor: system }
+transitions:
+  - { from: OPEN, on: close, to: CLOSED, outcome: ["closed is shown"] }
+  - { from: OPEN, on: expire, to: OPEN_LATE, outcome: ["late is shown"] }
+  - { from: OPEN_LATE, on: close, to: CLOSED, outcome: ["closed is shown"] }
+scenarios:
+  - { id: SC-001, name: close, path: [close] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: open }], []);
+    expect(md).toContain("- **Fee**: open ($& due) × let it expire → late ($1 fee):");
+  });
+
   it("is deterministic", () => {
     expect(renderPrd(frame(), ucs, [])).toBe(renderPrd(frame(), ucs, []));
   });
