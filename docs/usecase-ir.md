@@ -43,12 +43,26 @@ transitions:
     on: [hand_over, complete]       # from/on accept arrays for bulk declarations
     impossible: true
     reason: "unpacked orders never reach hand-over"   # impossible requires a reason
+  - from: PLACED
+    on: resend_notice
+    ignored: true                   # the event arrives but changes nothing
+    reason: "a repeated notice for the same order is ignored"   # ignored requires a reason too
 races:
   - state: PLACED
     between: [pack, cancel]         # a pair of events with different actors
-    winner: cancel
+    winner: first                   # or one of the between events, when the kind of event decides it
     outcome: ["the operation that commits first wins"]
 ```
+
+`impossible` says the event never arrives; `ignored` says it arrives and changes neither the state nor
+the display (a duplicate notice, a timer that no longer applies). Declaring an event that does arrive as
+impossible drops the ignoring behavior from the IR, so nothing tests it. An ignored cell is not a
+transition, so it creates no race or coverage obligation, but the trace gives it a node that a test must
+cover ("it arrived, and nothing changed").
+
+`winner: first` declares that arrival order decides the race. Fixing the winner to one of the events
+would state the wrong behavior for the order in which the other one arrives first; write an outcome that
+holds either way.
 
 Checker checks: exhaustiveness (every cell declared) / determinism (no duplicates) /
 reachability / escapability / race declaration obligation / path validity / transition

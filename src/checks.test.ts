@@ -147,6 +147,59 @@ scenarios:`,
     expect(errorsOf(check(declared), "races")).toEqual([]);
   });
 
+  it("races: winner: first declares a race decided by arrival order; an event outside between cannot win", () => {
+    const src = `
+usecase: UC-TEST-003
+name: race
+source: { spec: "https://example.com" }
+initial: A
+states:
+  - { id: A }
+  - { id: B, terminal: true }
+  - { id: C, terminal: true }
+events:
+  - { id: accept, actor: driver }
+  - { id: cancel, actor: operator }
+transitions:
+  - { from: A, on: accept, to: B, outcome: ["B is reached"] }
+  - { from: A, on: cancel, to: C, outcome: ["C is reached"] }
+races:
+  - { state: A, between: [accept, cancel], winner: WINNER, outcome: ["the first to arrive decides"] }
+scenarios:
+  - { id: SC-001, name: accept, path: [accept] }
+  - { id: SC-002, name: cancel, path: [cancel] }
+`;
+    expect(errorsOf(check(src.replace("WINNER", "first")), "races")).toEqual([]);
+    expect(errorsOf(check(src.replace("WINNER", "other")), "races").length).toBe(1);
+  });
+
+  it("ignored: an event that arrives but changes nothing needs only a reason and creates no race or coverage obligation", () => {
+    const src = `
+usecase: UC-TEST-003
+name: ignore
+source: { spec: "https://example.com" }
+initial: A
+states:
+  - { id: A }
+  - { id: B, terminal: true }
+events:
+  - { id: accept, actor: driver }
+  - { id: resend, actor: system }
+transitions:
+  - { from: A, on: accept, to: B, outcome: ["B is reached"] }
+  - { from: A, on: resend, ignored: true, reason: a resent notice is ignored }
+scenarios:
+  - { id: SC-001, name: accept, path: [accept] }
+`;
+    expect(check(src).filter((f) => f.level === "error")).toEqual([]);
+    expect(check(src).filter((f) => f.check === "coverage")).toEqual([]);
+    const withOutcome = src.replace("ignored: true, reason: a resent notice is ignored", "ignored: true, to: A, outcome: [unchanged]");
+    expect(errorsOf(check(withOutcome), "structure").map((f) => f.message)).toEqual([
+      "transitions[1]: ignored requires a reason",
+      "transitions[1]: ignored cannot be combined with to/outcome",
+    ]);
+  });
+
   it("path validity: reports unexecutable paths as errors", () => {
     const src = MINIMAL.replace("path: [go]", "path: [go, go]");
     const findings = check(src);
