@@ -278,11 +278,12 @@ scenarios:
 
   it("shows only the lines that carry a marker of a long section, and the frame's open questions", () => {
     const f = frame(FRAME.replace("rollout: all at once", "ui: |\n    - a tab is added\n    - Figma: TBD\n    - the label is renamed") + "questions:\n  - { question: Who may cancel?, proposal: the operator }\n");
-    const md = renderPrd(f, [{ file: "test.usecase.yaml", model: model(IR) }], [], mergeProfile({ sections: [{ id: "ui", heading: "UI" }, { id: "open_questions", heading: "Open questions" }] }));
+    const md = renderPrd(f, [{ file: "test.usecase.yaml", model: model(IR) }], checkPrd(f, [model(IR)]), mergeProfile({ sections: [{ id: "ui", heading: "UI" }, { id: "open_questions", heading: "Open questions" }] }));
     const open = md.slice(md.indexOf("## Open questions"));
     expect(open).toContain("- **UI**: Figma: TBD\n");
     expect(open).not.toContain("a tab is added");
     expect(open).toContain("- Who may cancel? (proposed: the operator)");
+    expect(open.match(/Who may cancel\?/g)).toHaveLength(1);
   });
 
   it("keeps a label with replacement patterns such as $& literal", () => {

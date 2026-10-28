@@ -505,7 +505,8 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
       return `- **${where}**: ${lines.length > 0 ? lines.join(" / ") : f.text}${of}`;
     }),
     ...(frame.questions ?? []).map((q) => `- ${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`),
-    ...frameFindings.filter((f) => f.check !== "prd-pending").map((f) => `- ${f.message}`),
+    // prd-pending and prd-questions are shown above in the owner's words
+    ...frameFindings.filter((f) => !["prd-pending", "prd-questions"].includes(f.check)).map((f) => `- ${f.message}`),
     ...ucs.flatMap((uc) => irPending(uc.model).map((x) => `- **${uc.model.ir.name}: ${x.where}**: ${x.text}`)),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];
