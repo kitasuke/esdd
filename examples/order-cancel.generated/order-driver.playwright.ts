@@ -26,13 +26,10 @@ function locate(page: Page, id: string): Locator {
   return page.getByText(e.text ?? "", { exact: true });
 }
 
+// The harness opens the screen (route, sign-in) and hands the page over
 export function orderDriver(page: Page): OrderDriver {
   const status = () => locate(page, "order_status");
   return {
-    // The route is the application's, not the IR's
-    open: async (orderId, actor) => {
-      await page.goto(`/${actor}/orders/${orderId}`);
-    },
     pack: () => locate(page, "pack_button").click(),
     handOver: () => locate(page, "hand_over_button").click(),
     cancel: () => locate(page, "cancel_button").click(),
@@ -43,5 +40,7 @@ export function orderDriver(page: Page): OrderDriver {
     expectStatusNot: (key) => expect(status()).not.toHaveText(literal(key)),
     expectFeeNotice: () => expect(locate(page, "fee_notice")).toHaveText(literal("cancellation_fee_notice")),
     expectNoFeeNotice: () => expect(locate(page, "fee_notice")).toBeHidden(),
+    expectCanceledNotice: () => expect(locate(page, "canceled_notice")).toHaveText(literal("canceled_notice")),
+    expectNoCanceledNotice: () => expect(locate(page, "canceled_notice")).toBeHidden(),
   };
 }

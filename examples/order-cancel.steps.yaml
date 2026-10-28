@@ -1,0 +1,40 @@
+# Example ESDD step definitions: the step vocabulary of UC-ORDER-CANCEL-001
+# Maps every IR phrase a test has to set up, perform or check to a semantic-driver or harness
+# call, so generating a test is a lookup rather than an interpretation. Reviewed together with
+# the IR and the bindings: a phrase with no entry blocks generation.
+# Generate: node examples/generator/generate.ts
+steps: UC-ORDER-CANCEL-001
+
+states: # a state a test starts from → the harness fixture that builds it
+  PLACED: { fixture: paidOrder }
+  PACKED: { fixture: packedOrder }
+
+givens: # scenario given → the state it describes
+  "one paid order exists": { state: PLACED }
+  "one packed order exists": { state: PACKED }
+
+events: # a method on the actor's screen, or a harness fixture for an actor: system event
+  pack: { screen: pack }
+  hand_over: { screen: handOver }
+  cancel: { screen: cancel }
+  complete: { fixture: completeDelivery }
+
+outcomes: # outcome text → the assertion after the event, and its negation before it
+  'the order status shows "Packed"': { expect: expectStatus, not: expectStatusNot, args: [status_packed] }
+  'the order status shows "Shipped"': { expect: expectStatus, not: expectStatusNot, args: [status_shipped] }
+  'the order status shows "Delivered"': { expect: expectStatus, not: expectStatusNot, args: [status_delivered] }
+  'the order status shows "Canceled"': { expect: expectStatus, not: expectStatusNot, args: [status_canceled] }
+  "the cancellation fee notice is shown (RULE-001)": { expect: expectFeeNotice, not: expectNoFeeNotice }
+  "no cancellation fee is charged (RULE-001)":
+    unresolved: "the IR and the bindings name nothing that shows the fee charged — on the question list"
+  'the operation that commits first wins. The packing screen shows a "Canceled" notice':
+    { expect: expectCanceledNotice, not: expectNoCanceledNotice }
+  "a cancellation request after hand-over is committed is rejected, and the returns flow is offered":
+    unresolved: "the IR names no returns-flow control and the bindings have no element for it — on the question list"
+
+rules: # rule case (in IR order) → the pure function call and its return value
+  RULE-001:
+    function: { name: cancellationTerms, from: ./cancellation-terms.ts }
+    cases:
+      - { args: [PLACED], returns: { kind: free, feeCents: 0 } }
+      - { args: [PACKED], returns: { kind: fee_notice, notice: cancellation_fee_notice } }

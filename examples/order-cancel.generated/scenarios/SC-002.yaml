@@ -1,0 +1,30 @@
+# Resolved by examples/generator/generate.ts from examples/order-cancel.usecase.yaml, its bindings and step definitions.
+# Do not edit: regenerate.
+node: SC-002
+name: cancellation before packing completes free of charge
+layers:
+  - integration
+  - e2e
+start:
+  state: PLACED
+  fixture: paidOrder
+steps:
+  - event: cancel
+    actor: customer
+    transition: T-PLACED-cancel
+    from: PLACED
+    to: CANCELED
+    do:
+      screen: cancel
+    operation: CancelOrder
+    outcomes:
+      - node: T-PLACED-cancel-o1
+        text: the order status shows "Canceled"
+        expect: expectStatus
+        not: expectStatusNot
+        args:
+          - status_canceled
+      - node: T-PLACED-cancel-o2
+        text: no cancellation fee is charged (RULE-001)
+        unresolved: the IR and the bindings name nothing that shows the fee charged — on the question list
+questions: []
