@@ -209,7 +209,10 @@ note tier below, which decides how a question is handled.
 - **Reference both sides.** Give each question the spec location (heading or diagram
   name) and the IR reference (`STATE × event`, `input × condition`, rule or scenario
   id). The IR reference is the key for matching answers on re-review
-- **Keep question ids stable.** An id never changes between rounds
+- **Keep question ids stable.** An id never changes between rounds, and ids are unique across
+  every IR of one spec or PRD. An assumption used by two IRs is declared in the one that decides
+  the behavior; the other refers to the id in its text instead of declaring it again, so the
+  review lists it once
 - **Don't duplicate the owner's own list.** If the spec already lists an item as an open
   decision, reference it and name the cell it fills instead of raising a new question
 
@@ -221,7 +224,7 @@ rules, not from how confident the proposer feels:**
 | Tier | Which questions | Handling |
 | --- | --- | --- |
 | **Must ask** | contradictions in the spec; anything touching money, legal or compliance, personal data, or safety; a critical gap (undefined combination, dead end) whose proposal has no basis in the spec or in an existing feature | marked `TBD`; asked explicitly; blocks approval until answered |
-| **Assume** | everything else with a basis: text, format or empty/failed handling checked against the existing screen, behavior "the same as" a feature the spec names, races with an obvious winner, gaps the spec's own nearby rules settle | the proposal is applied to the IR as a declared assumption (`ASSUMED(<id>)`, [usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list)); listed for review |
+| **Assume** | everything else with a basis: text, format or empty/failed handling checked against the existing screen, behavior "the same as" a feature the spec names, races with an obvious winner, gaps the spec's own nearby rules settle, platform facts (the OS suspending the app wins over a tap; a result that arrives after the user left the screen is not shown) | the proposal is applied to the IR as a declared assumption (`ASSUMED(<id>)`, [usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list)); listed for review |
 | **Note** | suggestions (candidate events the spec does not mention, scope questions) | in the report only |
 
 At approval the owner sees two things: the answers to the must-ask questions, and the

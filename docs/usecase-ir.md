@@ -74,6 +74,15 @@ rejected, the network drops), its failure is another event of the same actor —
 Giving the failure to `system` makes the checker ask how the action races its own failure, which cannot
 happen. Keep `system` for what happens with nobody acting: a timer running out, an expiry.
 
+A state the usecase leaves and comes back to (the app in the background, another screen on top)
+needs one `to` for the return event. When where the user lands depends on the state they left
+from — playing resumes, an error stays an error — do not duplicate the state per origin
+(`BACKGROUND_FROM_PLAYING`, …): the matrix doubles and the questions get worse, not better.
+Fix the return to the state the spec talks about most, declare leaving from the other states
+`impossible` with the reason that this usecase covers leaving from that state only, or declare
+one assumption ("returns to the state it left from") and ask it. Either way the decision is
+visible in the IR, which a duplicated state machine hides.
+
 `races` pairs events of different actors. The same event arriving twice (a double press, two people doing
 the same thing at once) is not a race between two events; write it as a rule with one case per way it can
 arrive ([scenarios / rules](#scenarios--rules)), with what the user sees as `expected`.

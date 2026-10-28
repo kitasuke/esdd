@@ -130,6 +130,14 @@ describe("renderPrd", () => {
     expect(open).not.toContain("unanswered spec-question marker");
   });
 
+  it("folds the sub-sections the profile names into <details> blocks", () => {
+    const md = renderPrd(frame(), ucs, [], mergeProfile({ fold: ["not_applicable", "inputs"] }));
+    expect(md).toContain("<details>\n<summary>Cases that do not occur</summary>");
+    expect(md).toContain("a waiting order cannot go back");
+    expect(md).not.toContain("#### Cases that do not occur");
+    expect(md).toContain("#### Requirements");
+  });
+
   it("rewrites ASSUMED(<id>) with the profile's wording", () => {
     const assumed = IR.replace("a waiting order cannot go back", "a waiting order cannot go back ASSUMED(W1)").replace(
       "scenarios:",
