@@ -311,7 +311,7 @@ export interface CheckOptions {
 // them machine-visible. warn = a human must resolve them before approval.
 const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
 
-function findPendingMarker(text: string): string | undefined {
+export function findPendingMarker(text: string): string | undefined {
   return PENDING_MARKERS.find((m) => text.includes(m));
 }
 

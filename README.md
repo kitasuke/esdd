@@ -70,6 +70,10 @@ npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact
 # the approval digest: the IR as Markdown for the approver (no checks)
 npm run check -- examples/order-cancel.usecase.yaml --digest
 
+# a PRD: check the frame (why) together with the IRs it links (what), then render the PRD document
+npm run check -- --prd examples/order-cancel.prd.yaml
+npm run check -- --prd examples/order-cancel.prd.yaml --profile examples/prd-profile.yaml --render
+
 npm test
 ```
 
@@ -125,6 +129,9 @@ discovery after generation.
   two phases (drift detection vs co-generation), input modes, running review rounds
   (questions and severity, proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
+- [docs/prd.md](docs/prd.md) — writing the PRD itself from the IRs: the PRD frame (problem, users,
+  goals with metrics, non-goals), its checks, the rendered PRD (EARS-style requirements, acceptance
+  criteria, open questions from the checker), per-company profiles, and the authoring loop
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
   IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
