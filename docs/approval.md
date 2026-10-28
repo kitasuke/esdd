@@ -71,6 +71,35 @@ On top of the regular checks, `--approved`:
 
 Run it in CI over every approved IR, so a broken or half-answered IR cannot be merged.
 
+## What the approver reads
+
+Don't make approval possible from a hash alone. In trials, every defect in an approved IR
+— a sentence split by a flow-sequence comma, assumptions that contradicted the existing
+product, a screen the spec never mentioned — passed approval and was found later, and
+each approval took about a minute. Ask for approval with:
+
+1. **The digest**: `node src/cli.ts <ir.yaml> ... --digest` renders each IR as Markdown —
+   states and transitions, every input cell with what covers it, rule cases and scenario
+   steps one item per line, and the assumptions as a table. Keep it next to the hash
+   (`digest-<hash>.md`)
+2. **The diff from the last approval**: on re-approval, show `diff -u` against the
+   previous approval's digest first, so the approver reads what changed rather than the
+   whole IR again
+3. **What to check**: three to five lines pointing at the assumptions and the cases that
+   touch money, permissions or anything else that must not be wrong
+
+Count an approval only if it was posted after the request it answers, and record how
+long the approver took. Don't block a fast approval, but flag it: a fast approval
+followed by a defect found downstream is the pattern to look for when reviewing runs.
+
+## Sending an approval back
+
+When a later step (test planning, test generation) finds a defect in an approved IR, do
+not fix the frozen IR in place and carry on — that sends a version nobody approved
+downstream. Void the approval (keep it, with the reason), fix the IR in review, and ask
+for approval again with the diff from the voided version. Record how often this
+happens and why; it measures how well the review catches problems before approval.
+
 ## Binding the approval to one exact IR
 
 Tie the approval to a hash of the IR text, and have the approver name that hash (for
