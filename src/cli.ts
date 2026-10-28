@@ -7,6 +7,7 @@
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest
 //   node src/cli.ts --prd <frame.prd.yaml> [--profile <profile.yaml>] [--render]
+//   any of the above with --config <config.ts> (the project configuration, src/config.ts)
 //
 // --bindings checks a locator/literal contract (docs/bindings.md).
 // When the target usecase's IR is passed alongside, the full-population
@@ -29,6 +30,7 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import process from "node:process";
 import { parse as parseYaml } from "yaml";
 import { parseBindings, runBindingsChecks } from "./bindings.ts";
@@ -36,6 +38,7 @@ import { coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
 import { renderDigest } from "./digest.ts";
 import { checkApproved, escalatePending } from "./approval.ts";
+import { configure, type EsddConfig } from "./config.ts";
 import { parseIR } from "./parse.ts";
 import { checkPrd, checkProfile, type LinkedUseCase, mergeProfile, parsePrd, renderPrd } from "./prd.ts";
 import { parseSteps, runStepsChecks } from "./steps.ts";
@@ -74,6 +77,7 @@ interface Args {
   prd?: string;
   profile?: string;
   render: boolean;
+  config?: string;
 }
 
 // When run via `pnpm --filter`, cwd is the package directory, so resolve
@@ -141,6 +145,8 @@ function parseArgs(argv: string[]): Args {
       args.profile = argv[++i];
     } else if (a === "--render") {
       args.render = true;
+    } else if (a === "--config") {
+      args.config = argv[++i];
     } else if (a.startsWith("--")) {
       console.error(`unknown option: ${a}`);
       process.exit(2);
@@ -287,15 +293,25 @@ function runPrd(args: Args, framePath: string): void {
   if (errors > 0 || (args.strict && warns > 0)) process.exit(1);
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (args.config) {
+    // a TypeScript module whose default export is the EsddConfig (Node runs it directly)
+    try {
+      const mod = (await import(pathToFileURL(resolveInput(args.config)).href)) as { default?: EsddConfig };
+      configure(mod.default ?? {});
+    } catch (e) {
+      console.error(`cannot load --config ${args.config}: ${(e as Error).message}`);
+      process.exit(2);
+    }
+  }
   if (args.prd) {
     runPrd(args, args.prd);
     return;
   }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
     );
     process.exit(2);
   }
@@ -578,4 +594,4 @@ function main(): void {
   process.exit(hasError || (args.strict && hasWarn) ? 1 : 0);
 }
 
-main();
+await main();

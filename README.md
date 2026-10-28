@@ -146,13 +146,29 @@ discovery after generation.
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
   is confirmed by a test that actually ran (`--results`), with negative-control records
 
+## Configuration
+
+A project narrows or extends the checker without forking it: pass a TypeScript module with
+`--config <file>` whose default export is an `EsddConfig` (`src/config.ts`). Every field is optional.
+
+| Field | What it does |
+| --- | --- |
+| `actors` | closes the actor vocabulary; an event with another actor is a structure error |
+| `pendingMarkers` | more markers that count as unanswered, besides `TBD` / `TODO` / `FIXME` / `UNRESOLVED` |
+| `platforms` | bindings platforms besides `web`, by name ([docs/bindings.md](docs/bindings.md#extending-platform-profiles)) |
+| `digest` | the approval digest's fixed words (`DigestLabels` in `src/digest.ts`), for approvers who read another language |
+
+[examples/esdd.config.ts](examples/esdd.config.ts) uses every field. A project that copies `src/` into
+its own repository keeps the copy unchanged and puts what is its own in this module, so a later copy
+replaces `src/` without a merge.
+
 ## Status
 
 v0.2 — includes the IR checker, the bindings checker (web/Playwright profile), the
 approved-IR check (`--approved`, including accepted assumptions), declared assumptions
 (`ASSUMED(<id>)`), the step definitions check (`--steps`) and the behavior trace (`--results`).
-Platform profiles are designed as an extension point (for mobile and the like, each
-project swaps in its own locator vocabulary). A production generator is not included —
+Platform profiles are an extension point (for mobile and the like, each project adds its own
+locator vocabulary through the configuration). A production generator is not included —
 generation is run per project, following the rules in `docs/generation.md`, together
 with that project's vocabulary registries. `examples/generator/` is an example-only
 generator for the order-cancel example: it generates the tests and the product code, and

@@ -3,7 +3,9 @@
 // Check failures are worded so they read as questions back to the spec.
 
 import { checkAssumptions } from "./assumptions.ts";
-import { outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
+import { findPendingMarker, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
+
+export { findPendingMarker };
 import {
   cellKey,
   type Cell,
@@ -318,11 +320,6 @@ export interface CheckOptions {
 // Markers for unanswered spec questions. The convention (usecase-ir.md) of leaving
 // "TBD" etc. in outcome / reason / rules.expected when placing an ASSUMPTION makes
 // them machine-visible. warn = a human must resolve them before approval.
-const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
-
-export function findPendingMarker(text: string): string | undefined {
-  return PENDING_MARKERS.find((m) => text.includes(m));
-}
 
 function pendingInOutcome(outcome: OutcomeItem[] | undefined): string | undefined {
   for (const t of outcomeTexts(outcome)) {
@@ -358,6 +355,8 @@ export function checkPending(model: Model): Finding[] {
   });
   (model.ir.scenarios ?? []).forEach((sc) => {
     for (const t of sc.then ?? []) {
+      // a non-string is a structure error reported elsewhere; skip it here instead of throwing
+      if (typeof t !== "string") continue;
       const m = findPendingMarker(t);
       if (m) {
         push(`scenarios[${sc.id}].then`, m);

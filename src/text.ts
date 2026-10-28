@@ -1,6 +1,7 @@
 // Text extraction shared by several checks. Written once so the checks cannot drift apart
 // (e.g. a new outcome field showing up in pending but not in the assumption-marker scan).
 
+import { config } from "./config.ts";
 import type { OutcomeItem } from "./types.ts";
 
 /** The human-readable texts of outcome items (the string itself, or ui / observation) */
@@ -24,4 +25,11 @@ export function raceWinnerText(winner: string): string {
 
 export function nonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
+}
+
+const PENDING_MARKERS = ["TBD", "TODO", "FIXME", "UNRESOLVED"];
+
+/** The unanswered-question marker in a text, if any (the defaults plus the project's pendingMarkers) */
+export function findPendingMarker(text: string): string | undefined {
+  return [...PENDING_MARKERS, ...(config().pendingMarkers ?? [])].find((m) => text.includes(m));
 }
