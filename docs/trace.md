@@ -63,7 +63,11 @@ goes to E2E — E2E cannot create the timing of two operations deterministically
 
 A race confirmed only at other layers, or declared `untested`, is a `trace-race` warn.
 Existing backend tests often already cover "winner's state × loser's operation" — point at
-them with `owned_by` instead of writing new ones, and pass their results.
+them with `owned_by` instead of writing new ones, and pass their results. When none
+does, add a row to the existing table-driven test instead of creating a parallel file.
+The concurrent variant sends both requests at once and asserts that exactly one
+succeeds. Declare a race `untested` only while the backend is not implemented, and close
+the declaration once it lands.
 
 ### Outcomes — walking a path is not asserting its outcomes
 
