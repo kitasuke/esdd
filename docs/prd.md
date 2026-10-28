@@ -149,7 +149,10 @@ assumption — never filled in silently.
 
 1. **Frame first.** Ask the owner for the problem, the users, the goals with a metric each, and
    what is left out. Write what they say; a goal without a metric gets `metric: TBD`, not a
-   plausible-sounding metric
+   plausible-sounding metric. Ask too for the context a reader needs that no field holds, and keep
+   it in free sections the profile places: the premises and terms the behavior rests on (what one
+   item is, such as a request and its attempts), the effect on other channels or products, and
+   the changes to screens that already exist (a renamed button, a new tab in an existing list)
 2. **Split into usecases.** One IR per thing that has its own lifecycle (states mode) or its own
    form (form mode). Name the actors with the `users` ids
 3. **Draft each IR** from what the owner described ([pipeline.md](pipeline.md) input modes). The
@@ -170,6 +173,10 @@ assumption — never filled in silently.
    - a `non_goals` entry that a usecase's behavior contradicts
    - races across usecases (a cancel against the other side's progress), which an IR cannot
      express: ask anyway and note the limit
+   - several causes that lead into one state: does anything later depend on which cause it was
+     (a message, a recorded reason)? If so, it is a rule keyed by the cause
+   - screens built over the states (a list, a tab, a filter, a count, a notification): what each
+     shows, and when an item leaves it
 
    These are candidates, asked with a proposal like any question
    ([pipeline.md](pipeline.md#questions-and-severity)). A candidate the owner keeps is declared,
@@ -179,7 +186,9 @@ assumption — never filled in silently.
    not ask again. A candidate the owner has not answered yet goes into the frame's `questions`, so
    it stays on the open questions instead of being lost
 5. **Check** with `--prd`. The findings are the question list. Ask them, or apply a proposed answer
-   as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Repeat until no
+   as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Write an answer
+   into the frame or the IR as the behavior itself; which question it answered belongs in the
+   answer ledger, not in the text the PRD renders (only `ASSUMED(<id>)` markers stay). Repeat until no
    error is left; an answer that adds an event or a state brings its own candidates and cells
 6. **Render** and share the document for review. Comments on it are answers: fold them into the
    frame or the IRs and render again — never edit the rendered document by hand
