@@ -117,7 +117,7 @@ Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_
 per usecase with its critical scenarios), `use_cases` (each usecase one heading level below the section),
 `open_questions`.
 To follow a template a team already uses, copy its headings, order and levels into the profile and add
-only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`.
+only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`.
 A profile for a team that writes specs in another language translates `phrases` and `labels`;
 the IR texts stay in the language they were written in.
 [examples/prd-profile.yaml](../examples/prd-profile.yaml) is a complete profile.
@@ -145,7 +145,9 @@ assumption — never filled in silently.
    ([usecase-ir.md](usecase-ir.md#inputs-input-axis-matrix--usable-in-both-modes), Limit).
    A review has the prose spec to read for these; an author has only the owner, so ask for them:
    - events similar features usually have: cancel, timeout, network failure, no permission,
-     the same operation twice, empty input
+     the same operation twice, empty input. A failure of an action belongs to the actor of that
+     action, and the same operation twice is a rule
+     ([usecase-ir.md](usecase-ir.md#states-mode))
    - a user in `users` who acts in no usecase, and for each actor, what it can do in each state
    - outcomes the owner gave as internal behavior ("it is saved"): what does the user see?
    - displayed text left abstract ("an error is shown"): the text itself

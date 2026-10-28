@@ -211,6 +211,29 @@ scenarios:
     expect(md).not.toMatch(/\bOPEN_LATE\b/);
   });
 
+  it("words a transition back to the same state as staying there", () => {
+    const retry = model(`
+usecase: UC-TEST-004
+name: Retry
+source: { spec: "https://example.com/spec" }
+initial: FAILED
+states:
+  - { id: FAILED, label: failed }
+  - { id: DONE, label: done, terminal: true }
+events:
+  - { id: retry_fails, label: retry and fail again, actor: operator }
+  - { id: retry, label: retry, actor: operator }
+transitions:
+  - { from: FAILED, on: retry_fails, to: FAILED, outcome: ["an error is shown"] }
+  - { from: FAILED, on: retry, to: DONE, outcome: ["done is shown"] }
+scenarios:
+  - { id: SC-001, name: retry, path: [retry_fails, retry] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: retry }], []);
+    expect(md).toContain("- While failed, when operator does “retry and fail again”, the system shall stay in failed.");
+    expect(md).toContain("- While failed, when operator does “retry”, the system shall move to done.");
+  });
+
   it("keeps a label with replacement patterns such as $& literal", () => {
     const open = model(`
 usecase: UC-TEST-003

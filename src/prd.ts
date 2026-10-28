@@ -175,6 +175,8 @@ export interface PrdProfile {
    */
   phrases: {
     transition: string;
+    /** A transition back to the state it starts from: the outcomes happen, the state does not change */
+    stay: string;
     ignored: string;
     impossible: string;
     race: string;
@@ -223,6 +225,7 @@ export const DEFAULT_PROFILE: PrdProfile = {
   ],
   phrases: {
     transition: "While {state}, when {actor} does “{event}”, the system shall move to {to}.",
+    stay: "While {state}, when {actor} does “{event}”, the system shall stay in {state}.",
     ignored: "While {state}, when {actor} does “{event}”, the system shall change nothing ({reason}).",
     impossible: "While {state}, “{event}” does not occur: {reason}.",
     race: "While {state}, if “{a}” and “{b}” happen at the same time, “{winner}” wins.",
@@ -348,7 +351,7 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
           d.events.add(values.event);
           na.set(c.entryIndex, d);
         }
-        else reqs.push(`- ${fill(p.phrases.transition, values)}`, ...outcomeLines(c.outcome));
+        else reqs.push(`- ${fill(c.to === sid ? p.phrases.stay : p.phrases.transition, values)}`, ...outcomeLines(c.outcome));
       }
     }
     out.push(`${h(2)} ${p.labels.requirements}`, "", ...reqs, "");
