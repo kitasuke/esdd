@@ -259,3 +259,9 @@ npm run check -- <ir.yaml> [--suggest-paths] [--bindings <bindings.yaml>] [--jso
 - `--definitions <registry.yaml>`: cross-checks the `observation:` names in outcomes
   against a vocabulary registry (a YAML of the form `observations.<name>.keys.<key>`)
   (optional)
+- `--questions [--profile <profile.yaml>]`: prints the IRs' open questions instead of the
+  findings — markers as the text to complete, undeclared cells and races as questions in the
+  profile's phrases (races that share one event against the same actor as one question), the
+  other findings in the checker's words, then the assumed answers as a table. The same list the
+  rendered PRD puts under its open questions ([prd.md](prd.md#the-rendered-prd)), for a review of
+  a spec that has no PRD frame; a profile localizes the wording

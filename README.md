@@ -70,6 +70,9 @@ npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact
 # the approval digest: the IR as Markdown for the approver (no checks)
 npm run check -- examples/order-cancel.usecase.yaml --digest
 
+# the open questions of an IR, worded for the spec owner (the PRD's open-questions list without a frame)
+npm run check -- examples/order-cancel.usecase.yaml --questions --profile examples/prd-profile.yaml
+
 # a PRD: check the frame (why) together with the IRs it links (what), then render the PRD document
 npm run check -- --prd examples/order-cancel.prd.yaml
 npm run check -- --prd examples/order-cancel.prd.yaml --profile examples/prd-profile.yaml --render
