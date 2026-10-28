@@ -140,10 +140,29 @@ assumption — never filled in silently.
    frame is the spec these IRs are converted from, so each IR's `source.spec` names the frame file;
    there is no separate PRD document until it is rendered. Cells the owner did not talk about stay
    undeclared — the checker will ask about them
-4. **Check** with `--prd`. The findings are the question list. Ask them, or apply a proposed answer
+4. **Ask what nobody declared.** The checker only closes over what is declared: an event, an
+   input or an actor the owner never mentioned produces no finding
+   ([usecase-ir.md](usecase-ir.md#inputs-input-axis-matrix--usable-in-both-modes), Limit).
+   A review has the prose spec to read for these; an author has only the owner, so ask for them:
+   - events similar features usually have: cancel, timeout, network failure, no permission,
+     the same operation twice, empty input
+   - a user in `users` who acts in no usecase, and for each actor, what it can do in each state
+   - outcomes the owner gave as internal behavior ("it is saved"): what does the user see?
+   - displayed text left abstract ("an error is shown"): the text itself
+   - a `non_goals` entry that a usecase's behavior contradicts
+   - races across usecases (a cancel against the other side's progress), which an IR cannot
+     express: ask anyway and note the limit
+
+   These are candidates, asked with a proposal like any question
+   ([pipeline.md](pipeline.md#questions-and-severity)). A candidate the owner keeps is declared,
+   and the checker then asks for its cells. A candidate the owner rejects is written down too: as
+   a `non_goals` entry when it is out of scope, or as an `impossible` declaration with the reason
+   when it cannot occur. That way the rendered PRD records the decision, and the next reader does
+   not ask again
+5. **Check** with `--prd`. The findings are the question list. Ask them, or apply a proposed answer
    as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Repeat until no
-   error is left
-5. **Render** and share the document for review. Comments on it are answers: fold them into the
+   error is left; an answer that adds an event or a state brings its own candidates and cells
+6. **Render** and share the document for review. Comments on it are answers: fold them into the
    frame or the IRs and render again — never edit the rendered document by hand
-6. **Approve** the IRs ([approval.md](approval.md)) and set `status: approved`; the `--prd` check
+7. **Approve** the IRs ([approval.md](approval.md)) and set `status: approved`; the `--prd` check
    then refuses any open question
