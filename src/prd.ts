@@ -210,6 +210,11 @@ export interface PrdProfile {
    */
   fold: FoldableSection[];
   /**
+   * Names for actors the IRs' events use, when the frame's users do not name them (an IR reviewed
+   * without a frame, `--questions`): actor id → the name the reader sees
+   */
+  actors: Record<string, string>;
+  /**
    * Sentence patterns (EARS style). Placeholders: {state} {event} {actor} {to} {a} {b} {winner} {reason}.
    * Outcomes are listed under the sentence, one per line
    */
@@ -265,6 +270,7 @@ export const BUILT_IN_SECTIONS = ["summary", "problem", "users", "goals", "non_g
 export const DEFAULT_PROFILE: PrdProfile = {
   title: true,
   fold: [],
+  actors: {},
   sections: [
     { id: "summary", heading: "Summary" },
     { id: "problem", heading: "Problem" },
@@ -320,6 +326,7 @@ export function mergeProfile(override: unknown): PrdProfile {
     title: typeof o.title === "boolean" ? o.title : DEFAULT_PROFILE.title,
     sections: Array.isArray(o.sections) ? o.sections : DEFAULT_PROFILE.sections,
     fold: Array.isArray(o.fold) ? o.fold : DEFAULT_PROFILE.fold,
+    actors: o.actors && typeof o.actors === "object" ? { ...o.actors } : DEFAULT_PROFILE.actors,
     phrases: { ...DEFAULT_PROFILE.phrases, ...(o.phrases ?? {}) },
     labels: { ...DEFAULT_PROFILE.labels, ...(o.labels ?? {}) },
   };
@@ -373,8 +380,9 @@ function outcomeLines(outcome: OutcomeItem[] | undefined): string[] {
 }
 
 /** The names a reader sees: state and event labels, and the users' labels for actors */
-function namer(model: Model, frame: PrdFrame) {
-  const actors = new Map(frame.users.map((u) => [u.id, u.label ?? u.id]));
+function namer(model: Model, frame: PrdFrame, p?: PrdProfile) {
+  // the frame's users name the actors; the profile fills in for actors the frame does not list (or when there is no frame)
+  const actors = new Map([...Object.entries(p?.actors ?? {}), ...frame.users.map((u) => [u.id, u.label ?? u.id] as [string, string])]);
   return {
     state: (id: string) => model.states.get(id)?.label ?? id,
     event: (id: string) => model.events.get(id)?.label ?? id,
@@ -383,7 +391,7 @@ function namer(model: Model, frame: PrdFrame) {
 }
 
 function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level: number): string[] {
-  const name = namer(uc.model, frame);
+  const name = namer(uc.model, frame, p);
   const h = (below: number) => "#".repeat(level + below);
   const { model, file } = uc;
   const { ir } = model;
@@ -544,7 +552,7 @@ function groupRaces(races: { state: string; a: EventDef; b: EventDef }[], eventO
  * by labels. Pending markers are shown by irPending instead
  */
 function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
-  const name = namer(model, frame);
+  const name = namer(model, frame, p);
   const cells = undeclaredCells(model).map(({ state, event }) =>
     fill(p.phrases.undeclared, { state: name.state(state), event: name.event(event), actor: name.actor(model.events.get(event)!.actor) }),
   );
@@ -562,6 +570,7 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
     ...[...model.states.keys()].map((id) => [id, name.state(id)]),
     ...[...model.events.keys()].map((id) => [id, name.event(id)]),
     ...frame.users.map((u) => [u.id, name.actor(u.id)]),
+    ...Object.keys(p.actors).map((id) => [id, name.actor(id)]),
   ].sort(([a], [b]) => b!.length - a!.length);
   // a function replacement keeps $& or $1 in a label literal
   const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), () => label!), text);

@@ -119,6 +119,7 @@ sections:              # the order and headings; replaces the default list when 
   - { id: notes, heading: Notes, always: true }        # kept as an empty heading when the frame leaves it empty
   - { id: open_questions, heading: Decisions still needed }
 fold: [not_applicable, inputs]   # sub-sections rendered as a folded <details> block (see below)
+actors: { customer: the customer, system: the app }   # names for actors the frame's users do not list (and for --questions)
 phrases:               # sentence patterns; placeholders {state} {event} {actor} {to} {a} {b} {winner} {reason}
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
   assumed: " (assumed: {id})"   # replaces ASSUMED(<id>) in the rendered text

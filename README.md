@@ -149,6 +149,19 @@ discovery after generation.
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
   is confirmed by a test that actually ran (`--results`), with negative-control records
 
+## Single-file build
+
+To run the checker where `npm install` is not an option (a locked-down machine, a tool that
+bundles its own copy), build it into one file:
+
+```bash
+npm run bundle   # writes dist/esdd-check.mjs
+node dist/esdd-check.mjs examples/order-cancel.usecase.yaml --suggest-paths
+```
+
+The file carries the YAML parser and needs only Node 18 or later. `--config` still loads a
+TypeScript module at run time, so it keeps the Node 22.6+ requirement.
+
 ## Configuration
 
 A project narrows or extends the checker without forking it: pass a TypeScript module with

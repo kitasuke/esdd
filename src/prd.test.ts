@@ -131,6 +131,10 @@ assumptions:
     expect(md).toContain("| W1 | Is a mail sent? | No mail | the spec lists no notification |");
     expect(md).not.toContain("exhaustiveness");
   });
+  it("names actors from the profile when there is no frame", () => {
+    const md = renderQuestions([model(OPEN)], mergeProfile({ actors: { customer: "the shopper" } }));
+    expect(md).toContain("what happens when the shopper does “cancel”?");
+  });
   it("uses the profile's phrases", () => {
     const md = renderQuestions([model(OPEN)], mergeProfile({ phrases: { undeclared: "{state}: {event} by {actor}?" } }));
     expect(md).toContain("- **Open**: waiting: cancel by customer?");
