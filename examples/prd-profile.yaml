@@ -10,11 +10,10 @@ sections:
   - { id: non_goals, heading: Out of scope }
   - { id: rollout, heading: Rollout, required: true }
   - { id: open_questions, heading: Decisions still needed }
-fold: [not_applicable, inputs]
-actors: { system: the delivery integration }   # names actors the frame does not list; the only names --questions has   # the reader opens these only to check the machine's work
+fold: [not_applicable, inputs]   # the reader opens these only to check the machine's work
+actors: { system: the delivery integration }   # names actors the frame does not list; the only names --questions has
 phrases:
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
-  uncovered: "When {input} is {condition}, what does the customer see?"
   stay: "In “{state}”, when {actor} chooses “{event}”, the order stays “{state}”."
 labels:
   acceptance: Acceptance tests

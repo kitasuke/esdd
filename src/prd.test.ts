@@ -139,21 +139,6 @@ assumptions:
     const md = renderQuestions([model(OPEN)], mergeProfile({ phrases: { undeclared: "{state}: {event} by {actor}?" } }));
     expect(md).toContain("- **Open**: waiting: cancel by customer?");
   });
-  it("words an uncovered input cell with the profile's phrase", () => {
-    const FORM = `
-usecase: UC-FORM-001
-name: Email
-source: { spec: "https://example.com/spec" }
-inputs:
-  - { id: email, kind: field }
-scenarios:
-  - { id: SC-001, name: save, covers: ["email×empty"], given: [a form], when: [save], then: ['"Saved" is shown'] }
-`;
-    const md = renderQuestions([model(FORM)], mergeProfile({ phrases: { uncovered: "{input} = {condition}: then what?" } }));
-    expect(md).toContain("- **Email**: email = boundary: then what?");
-    expect(md).not.toContain("uncovered.");
-  });
-
   it("says so when nothing is open", () => {
     expect(renderQuestions([model(IR)])).toContain(DEFAULT_PROFILE.labels.open_questions_none);
   });
@@ -174,7 +159,8 @@ describe("renderPrd", () => {
     const open = md.slice(md.indexOf("## Open questions"));
     expect(open).toContain("- **Goals and metrics G1 Target**: TBD (faster)");
     expect(open).not.toContain("goals[G1].target");
-    expect(open).toContain('- UC-TEST-001: the actor "customer" of event back is not among users');
+    expect(open).toContain("- **Order**: Who is customer, who does “back”?");
+    expect(open).not.toContain("is not among users");
   });
 
   it("puts the IR's open markers and its other findings in the open questions", () => {
@@ -270,6 +256,7 @@ transitions:
   - { from: OPEN_LATE, on: close, to: CLOSED, outcome: ["closed is shown"] }
 scenarios:
   - { id: SC-001, name: close, path: [close] }
+  - { id: SC-002, name: expire twice, path: [expire, expire] }
 `);
     const md = renderPrd(labeled, [{ file: "t.usecase.yaml", model: open }], []);
     expect(md).toContain("- While open, when the clerk does “close it”, the system shall move to closed.");
@@ -277,8 +264,11 @@ scenarios:
     expect(md).toContain(
       "- **Ticket**: While open, if the clerk does “close it” and system does “let it expire” at the same time, which one wins, and what does each side see?",
     );
+    // a state nothing leads to is asked in the profile's words
+    expect(md).toContain("- **Ticket**: Nothing leads to archived. How does it get there, or is it not needed?");
+    expect(md).not.toContain("cannot be reached from initial");
     // the other findings keep the checker's words, with labels for ids
-    expect(md).toContain("- **Ticket**: archived: cannot be reached from initial (open)");
+    expect(md).toContain("- **Ticket**: SC-002: path[1] let it expire cannot be executed from open late (no transition declared)");
     expect(md).not.toMatch(/\bOPEN_LATE\b/);
     // coverage is the author's to fill, not a question for the owner
     expect(md).not.toContain("not exercised by any scenario");
@@ -385,6 +375,69 @@ scenarios:
     expect(open.match(/at the same time/g)).toHaveLength(3);
   });
 
+  it("asks in the profile's words about a state nothing leads out of and an input cell nothing covers", () => {
+    const stuck = model(`
+usecase: UC-TEST-007
+name: Stuck
+source: { spec: "https://example.com/spec" }
+initial: OPEN
+states:
+  - { id: OPEN, label: open }
+  - { id: LIMBO, label: limbo }
+  - { id: DONE, label: done, terminal: true }
+events:
+  - { id: park, label: park, actor: operator }
+  - { id: finish, label: finish, actor: operator }
+transitions:
+  - { from: OPEN, on: park, to: LIMBO, outcome: ["parked"] }
+  - { from: OPEN, on: finish, to: DONE, outcome: ["done"] }
+  - { from: LIMBO, on: [park, finish], impossible: true, reason: "nothing to do" }
+inputs:
+  - { id: note, kind: field }
+scenarios:
+  - { id: SC-001, name: finish, path: [finish] }
+  - { id: SC-002, name: park, path: [park] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: stuck }], [], mergeProfile({ phrases: { uncovered: "{input}: {condition}?" } }));
+    const open = md.slice(md.indexOf("## Open questions"));
+    expect(open).toContain("- **Stuck**: Once in limbo, nothing leads out. How does it end?");
+    expect(open).not.toContain("cannot reach any terminal state");
+    expect(open).toMatch(/- \*\*Stuck\*\*: note: [^\n]+\?/);
+    expect(open).not.toContain("uncovered.");
+  });
+
+  it("writes a race declaration that names several states and events as one sentence", () => {
+    const trip = model(`
+usecase: UC-TEST-009
+name: Trip
+source: { spec: "https://example.com/spec" }
+initial: GOING
+states:
+  - { id: GOING, label: going }
+  - { id: THERE, label: there }
+  - { id: DONE, label: done, terminal: true }
+  - { id: CANCELED, label: canceled, terminal: true }
+events:
+  - { id: arrive, label: arrive, actor: driver }
+  - { id: finish, label: finish, actor: driver }
+  - { id: cancel, label: cancel, actor: operator }
+transitions:
+  - { from: GOING, on: arrive, to: THERE, outcome: ["there is shown"] }
+  - { from: THERE, on: finish, to: DONE, outcome: ["done is shown"] }
+  - { from: [GOING, THERE], on: cancel, to: CANCELED, outcome: ["canceled is shown"] }
+  - { from: GOING, on: finish, impossible: true, reason: "not there yet" }
+  - { from: THERE, on: arrive, impossible: true, reason: "already there" }
+races:
+  - { state: [GOING, THERE], between: [cancel], against: driver, winner: cancel, outcome: ["canceled is shown"] }
+scenarios:
+  - { id: SC-001, name: trip, path: [arrive, finish] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: trip }], []);
+    expect(md).toContain("- While going / there, if “cancel” and “arrive” / “finish” happen at the same time, “cancel” wins.\n  - canceled is shown");
+    expect(md.match(/happen at the same time/g)).toHaveLength(1);
+    expect(md).not.toContain("which one wins");
+  });
+
   it("keeps a label with replacement patterns such as $& literal", () => {
     const open = model(`
 usecase: UC-TEST-003
@@ -405,9 +458,11 @@ transitions:
   - { from: OPEN_LATE, on: close, to: CLOSED, outcome: ["closed is shown"] }
 scenarios:
   - { id: SC-001, name: close, path: [close] }
+  - { id: SC-002, name: expire twice, path: [expire, expire] }
 `);
     const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: open }], []);
-    expect(md).toContain("- **Fee**: void ($& gone): cannot be reached from initial (open ($& due))");
+    expect(md).toContain("- **Fee**: Nothing leads to void ($& gone).");
+    expect(md).toContain("- **Fee**: SC-002: path[1] let it expire cannot be executed from late ($1 fee)");
   });
 
   it("is deterministic", () => {
