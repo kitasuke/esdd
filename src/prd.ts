@@ -6,9 +6,18 @@
 // checker's findings rather than a list someone remembered to keep.
 
 import { parse as parseYaml } from "yaml";
-import { checkRaceDeclarations, findPendingMarker, runChecks, undeclaredCells, undeclaredRaces } from "./checks.ts";
+import {
+  checkRaceDeclarations,
+  findPendingMarker,
+  runChecks,
+  trappedStates,
+  uncoveredInputCells,
+  undeclaredCells,
+  undeclaredRaces,
+  unreachableStates,
+} from "./checks.ts";
 import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
-import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, cellKey } from "./types.ts";
+import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, type RaceDef, cellKey } from "./types.ts";
 
 const PRD_ID = /^PRD-[A-Z0-9-]+$/;
 const STATUSES = ["draft", "in_review", "approved"] as const;
@@ -218,6 +227,14 @@ export interface PrdProfile {
     unraced: string;
     /** Replaces an ASSUMED(<id>) marker in IR texts. Placeholder: {id} */
     assumed: string;
+    /** An open question for a state nothing leads to. Placeholder: {state} */
+    unreachable: string;
+    /** An open question for a non-terminal state nothing leads out of. Placeholder: {state} */
+    trapped: string;
+    /** An open question for an input × condition cell nothing covers. Placeholders: {input} {condition} */
+    uncovered: string;
+    /** An open question for an actor of an event that users does not name. Placeholders: {actor} {event} */
+    unknown_actor: string;
   };
   labels: {
     requirements: string;
@@ -268,6 +285,10 @@ export const DEFAULT_PROFILE: PrdProfile = {
     unraced:
       "While {state}, if {a_actor} does “{a}” and {b_actor} does “{b}” at the same time, which one wins, and what does each side see?",
     assumed: " (assumed: {id})",
+    unreachable: "Nothing leads to {state}. How does it get there, or is it not needed?",
+    trapped: "Once in {state}, nothing leads out. How does it end?",
+    uncovered: "What happens when {input} is {condition}?",
+    unknown_actor: "Who is {actor}, who does “{event}”?",
   },
   labels: {
     requirements: "Requirements",
@@ -416,8 +437,18 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
     }
     const races = ir.races ?? [];
     if (races.length > 0) {
-      const lines = races.flatMap((r) => {
-        const values = { state: stateName(r.state), a: eventName(r.between[0]), b: eventName(r.between[1]), winner: eventName(r.winner) };
+      // a declaration that names several states or events is one decision: one sentence for it
+      const decls = new Map<number, RaceDef[]>();
+      races.forEach((r, i) => decls.set(r.declaration ?? i, [...(decls.get(r.declaration ?? i) ?? []), r]));
+      const uniq = (xs: string[]) => [...new Set(xs)];
+      const lines = [...decls.values()].flatMap((rs) => {
+        const r = rs[0]!;
+        const values = {
+          state: uniq(rs.map((x) => x.state)).map(stateName).join(" / "),
+          a: eventName(r.between[0]),
+          b: uniq(rs.map((x) => x.between[1])).map(eventName).join(quoteJoin(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, "b")),
+          winner: eventName(r.winner),
+        };
         return [`- ${fill(r.winner === RACE_WINNER_FIRST ? p.phrases.race_first : p.phrases.race, values)}`, ...outcomeLines(r.outcome)];
       });
       out.push(...sub("races", lines));
@@ -534,12 +565,21 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
   ].sort(([a], [b]) => b!.length - a!.length);
   // a function replacement keeps $& or $1 in a label literal
   const labeled = (text: string) => ids.reduce((t, [id, label]) => t.replace(new RegExp(`\\b${id}\\b`, "g"), () => label!), text);
+  const unreachable = unreachableStates(model).map((st) => fill(p.phrases.unreachable, { state: name.state(st) }));
+  const trapped = trappedStates(model).map((st) => fill(p.phrases.trapped, { state: name.state(st) }));
+  const uncovered = uncoveredInputCells(model);
+  const uncoveredQuestions = uncovered.map((c) => fill(p.phrases.uncovered, { input: c.input, condition: c.condition }));
+  // findings the questions above already word for the owner
+  const phrased = (f: Finding) =>
+    f.check === "reachability" ||
+    (f.check === "escapability" && trappedStates(model).some((st) => f.message.startsWith(`${st}: `))) ||
+    (f.check === "inputs" && uncovered.some((c) => f.message.startsWith(`${c.input} × ${c.condition}: uncovered`)));
   const others = [
     // coverage is filled by the author (--suggest-paths), not decided by the owner
-    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races", "coverage"].includes(f.check)),
+    ...runChecks(model).filter((f) => !["pending", "exhaustiveness", "races", "coverage"].includes(f.check) && !phrased(f)),
     ...checkRaceDeclarations(model),
   ].map((f) => labeled(f.message));
-  return [...cells, ...races, ...others];
+  return [...cells, ...races, ...unreachable, ...trapped, ...uncoveredQuestions, ...others];
 }
 
 function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Finding[], p: PrdProfile): string[] {
@@ -555,8 +595,13 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
       return `- **${where}**: ${lines.length > 0 ? lines.join(" / ") : f.text}${of}`;
     }),
     ...(frame.questions ?? []).map((q) => `- ${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`),
-    // prd-pending and prd-questions are shown above in the owner's words
-    ...frameFindings.filter((f) => !["prd-pending", "prd-questions"].includes(f.check)).map((f) => `- ${f.message}`),
+    // prd-pending, prd-questions and prd-actors are shown in the owner's words
+    ...(frameFindings.some((f) => f.check === "prd-actors") ? ucs : []).flatMap(({ model }) =>
+      [...model.events.values()]
+        .filter((ev) => !frame.users.some((u) => u.id === ev.actor))
+        .map((ev) => `- **${model.ir.name}**: ${fill(p.phrases.unknown_actor, { actor: ev.actor, event: model.events.get(ev.id)?.label ?? ev.id })}`),
+    ),
+    ...frameFindings.filter((f) => !["prd-pending", "prd-questions", "prd-actors"].includes(f.check)).map((f) => `- ${f.message}`),
     ...ucs.flatMap((uc) => irPending(uc.model).map((x) => `- **${uc.model.ir.name}: ${x.where}**: ${x.text}`)),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];

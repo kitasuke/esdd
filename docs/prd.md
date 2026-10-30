@@ -91,9 +91,11 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   frame or an IR is shown as the text to complete, under the heading or usecase the reader finds it
   in, not as the checker's location; a long section is shown by its lines that carry the marker.
   The frame's `questions` come next, with their proposals. The other findings follow as the checker words them (they are
-  already questions; ids in them are replaced by labels). An undeclared cell or race is worded with
-  the profile's `undeclared` / `unraced` phrase instead; races that share one event against the same
-  actor (the operator's cancel against whatever the driver does, in any state) are one question. Coverage is left out: filling it is the
+  already questions; ids in them are replaced by labels). An undeclared cell or race, a state nothing leads to or out of, an input cell nothing covers and an
+  actor `users` does not name are worded with the profile's `undeclared` / `unraced` / `unreachable` /
+  `trapped` / `uncovered` / `unknown_actor` phrase instead; races that share one event against the same
+  actor (the operator's cancel against whatever the driver does, in any state) are one question,
+  and one `races` declaration answers it ([usecase-ir.md](usecase-ir.md#states-mode)). Coverage is left out: filling it is the
   author's job (`--suggest-paths`), not a decision for the owner. Then come the assumed answers, which become final when the IRs are approved
   ([usecase-ir.md](usecase-ir.md#assumptions-and-the-question-list))
 - `ASSUMED(<id>)` markers stay in the IR for tracing; the rendered text shows the profile's
@@ -128,7 +130,7 @@ Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_
 per usecase with its critical scenarios), `use_cases` (each usecase one heading level below the section),
 `open_questions`.
 To follow a template a team already uses, copy its headings, order and levels into the profile and add
-only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`.
+only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`, `unreachable`, `trapped`, `uncovered`, `unknown_actor`.
 `fold` names the usecase sub-sections a reader opens only when checking the machine's work —
 the impossible declarations and the input matrix are the usual ones; `requirements`, `races`,
 `rules` and `acceptance` can be folded too. A folded sub-section is rendered as an HTML
@@ -149,7 +151,10 @@ assumption — never filled in silently.
 
 1. **Frame first.** Ask the owner for the problem, the users, the goals with a metric each, and
    what is left out. Write what they say; a goal without a metric gets `metric: TBD`, not a
-   plausible-sounding metric
+   plausible-sounding metric. Ask too for the context a reader needs that no field holds, and keep
+   it in free sections the profile places: the premises and terms the behavior rests on (what one
+   item is, such as a request and its attempts), the effect on other channels or products, and
+   the changes to screens that already exist (a renamed button, a new tab in an existing list)
 2. **Split into usecases.** One IR per thing that has its own lifecycle (states mode) or its own
    form (form mode). Name the actors with the `users` ids
 3. **Draft each IR** from what the owner described ([pipeline.md](pipeline.md) input modes). The
@@ -170,6 +175,10 @@ assumption — never filled in silently.
    - a `non_goals` entry that a usecase's behavior contradicts
    - races across usecases (a cancel against the other side's progress), which an IR cannot
      express: ask anyway and note the limit
+   - several causes that lead into one state: does anything later depend on which cause it was
+     (a message, a recorded reason)? If so, it is a rule keyed by the cause
+   - screens built over the states (a list, a tab, a filter, a count, a notification): what each
+     shows, and when an item leaves it
 
    These are candidates, asked with a proposal like any question
    ([pipeline.md](pipeline.md#questions-and-severity)). A candidate the owner keeps is declared,
@@ -179,7 +188,9 @@ assumption — never filled in silently.
    not ask again. A candidate the owner has not answered yet goes into the frame's `questions`, so
    it stays on the open questions instead of being lost
 5. **Check** with `--prd`. The findings are the question list. Ask them, or apply a proposed answer
-   as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Repeat until no
+   as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Write an answer
+   into the frame or the IR as the behavior itself; which question it answered belongs in the
+   answer ledger, not in the text the PRD renders (only `ASSUMED(<id>)` markers stay). Repeat until no
    error is left; an answer that adds an event or a state brings its own candidates and cells
 6. **Render** and share the document for review. Comments on it are answers: fold them into the
    frame or the IRs and render again — never edit the rendered document by hand

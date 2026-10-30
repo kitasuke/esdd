@@ -95,12 +95,27 @@ inventing a more natural-looking one.
 the same thing at once) is not a race between two events; write it as a rule with one case per way it can
 arrive ([scenarios / rules](#scenarios--rules)), with what the user sees as `expected`.
 
-Races are declared one pair at a time: `state` and `between` take single values, not arrays. To
-estimate how many a usecase needs, count, per state, the events of one actor times the events
-of every other actor that can occur there; a transition back to the same state counts as an
-event that can occur, so a looping event (replay at the end of a video) adds a pair per
-user event in that state. Many pairs share one answer (the platform suspending the app wins
-over any tap); declare each pair, but let them share one assumption.
+One answer often settles many races ("the operator's cancel wins over whatever the driver does, in any
+state"), so one declaration can cover them. `state` may list states, and `between` may name one event,
+which then races every event of another actor that is possible in each listed state; `against` limits
+that to one actor. The checker expands the declaration into one race per state and pair, so every
+check and the trace see the same races as if they were written out, and a race declared twice is an
+error:
+
+```yaml
+races:
+  - state: [PLACED, PACKED]
+    between: [cancel]               # cancel against every event of another actor possible in each state
+    against: warehouse              # optional: only that actor's events
+    winner: cancel                  # the one event, or first
+    outcome: ["the order is canceled"]
+```
+
+To estimate how many races a usecase has before declaring them, count, per state, the events of
+one actor times the events of every other actor that can occur there; a transition back to the
+same state counts as an event that can occur, so a looping event (replay at the end of a video)
+adds a race per user event in that state. A grouped declaration covers the pairs that share one
+answer.
 
 State ids are UPPER_SNAKE_CASE and event ids lower_snake_case, both ASCII; scenario ids
 start with `SC-` and rule ids with `RULE-`. An event's `actor` is required, and `to` and
