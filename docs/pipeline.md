@@ -151,7 +151,9 @@ converting; it never decides answers (no invention). These rules keep the rounds
 
   If what X does today contradicts another rule in the spec (X fills with zero; the
   spec says "never show zero for a failure"), the question is must-ask, not an
-  assumption. An unchecked "same as existing" is a guess and is not a basis. This is
+  assumption. An unchecked "same as existing" is a guess and is not a basis. When a run is
+  told not to read the implementation at all (a blind review), every "same as existing X"
+  becomes a must-ask question: "what does X show today — please transcribe it into the spec". This is
   the one place mode A reads the implementation, and only for how the existing thing is
   displayed; the new feature's behavior still comes from the spec and the answers
 - **Accept by default; ask only what must be asked** (below). Owners should spend their
@@ -209,6 +211,10 @@ note tier below, which decides how a question is handled.
 - **Reference both sides.** Give each question the spec location (heading or diagram
   name) and the IR reference (`STATE × event`, `input × condition`, rule or scenario
   id). The IR reference is the key for matching answers on re-review
+- **Say who decides.** Tag each question with who can answer it: the spec owner, the
+  implementation team, or another team (a backend, a recommendation service). Only the owner's
+  questions go to the owner; the rest are answered where they belong and recorded in the same
+  ledger. In one trial this moved a third of the questions off the owner's list
 - **Keep question ids stable.** An id never changes between rounds, and ids are unique across
   every IR of one spec or PRD. An assumption used by two IRs is declared in the one that decides
   the behavior; the other refers to the id in its text instead of declaring it again, so the
