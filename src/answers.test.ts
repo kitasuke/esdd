@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAnswers, parseLedger } from "./answers.ts";
+import { applyAnswers, describeApplied, parseLedger } from "./answers.ts";
 import { checkPending } from "./checks.ts";
 import { parseIR } from "./parse.ts";
 
@@ -68,7 +68,15 @@ describe("applyAnswers", () => {
     expect(source).toContain('outcome: [ "the order is marked done" ] # the owner has not said');
     expect(source).toContain('expected: "shows 0: the order is marked done"');
     expect(source).not.toContain("TBD(");
-    expect(applied).toContainEqual({ id: "Q1", kind: "replaced_pending", places: 2 });
+    expect(applied).toContainEqual({
+      id: "Q1",
+      kind: "replaced_pending",
+      places: 2,
+      replaced: [
+        { at: "transitions[0].outcome[0]", before: "TBD(Q1: what is shown after go?)", after: "the order is marked done" },
+        { at: "rules[RULE-001].cases[0].expected", before: "shows 0: TBD(Q1)", after: "shows 0: the order is marked done" },
+      ],
+    });
   });
 
   it("replaces the applied text of a replaced assumption and removes its declaration; an accepted one stands", () => {
@@ -78,8 +86,14 @@ describe("applyAnswers", () => {
     expect(source).not.toContain("ASSUMED(W2)");
     expect(source).toContain("{ id: W1,");
     expect(source).not.toContain("{ id: W2,");
-    expect(applied).toContainEqual({ id: "W1", kind: "accepted", places: 1 });
-    expect(applied).toContainEqual({ id: "W2", kind: "replaced_assumption", places: 1, declaration_removed: true });
+    expect(applied).toContainEqual({ id: "W1", kind: "accepted", places: 1, replaced: [] });
+    expect(applied).toContainEqual({
+      id: "W2",
+      kind: "replaced_assumption",
+      places: 1,
+      declaration_removed: true,
+      replaced: [{ at: "transitions[1].outcome[1]", before: "a notice is shown ASSUMED(W2)", after: "nothing is shown: the customer finds out on the next visit" }],
+    });
   });
 
   it("names the ledger ids no marker refers to", () => {
@@ -97,5 +111,16 @@ describe("applyAnswers", () => {
   it("drops the assumptions key when the last declaration goes", () => {
     const { source } = applyAnswers(IR, ledger("answers:\n  - { id: W1, answer: dropped }\n  - { id: W2, answer: dropped }\n"));
     expect(source).not.toContain("assumptions:");
+  });
+  it("lists each place a replaced assumption's one answer went into, with the text it had", () => {
+    const ir = IR.replace('"a notice is shown ASSUMED(W2)"', '"a notice is shown ASSUMED(W1)"');
+    const result = applyAnswers(ir, ledger("answers:\n  - { id: W1, answer: the request is dropped }\n"));
+    const lines = describeApplied("t.yaml", result);
+    expect(lines).toEqual([
+      "t.yaml:",
+      "  W1: proposal replaced by the answer — 2 places, declaration removed; the same answer went into each — check it holds in every place:",
+      '    transitions[1].outcome[0]: was "the request is kept ASSUMED(W1)"',
+      '    transitions[1].outcome[1]: was "a notice is shown ASSUMED(W1)"',
+    ]);
   });
 });
