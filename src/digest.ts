@@ -77,7 +77,9 @@ export const DEFAULT_DIGEST_LABELS: DigestLabels = {
   no_assumptions: "none",
 };
 
-const labels = (): DigestLabels => ({ ...DEFAULT_DIGEST_LABELS, ...config().digest });
+// the labels of the digest being rendered: the defaults, under the config's, under the profile's (renderDigest sets them)
+let profileLabels: Partial<DigestLabels> = {};
+const labels = (): DigestLabels => ({ ...DEFAULT_DIGEST_LABELS, ...config().digest, ...profileLabels });
 const fill = (pattern: string, values: Record<string, string>) =>
   pattern.replace(/\{(\w+)\}/g, (all, key: string) => values[key] ?? all);
 
@@ -225,8 +227,12 @@ function assumptionsSection(model: Model): string[] {
   return out;
 }
 
-/** Render an IR as the approval digest. Deterministic, so it can be diffed against the previous one */
-export function renderDigest(model: Model): string {
+/**
+ * Render an IR as the approval digest. Deterministic, so it can be diffed against the previous one.
+ * `profile` overrides the labels for this rendering (a PRD profile's `digest` key, --digest --profile)
+ */
+export function renderDigest(model: Model, profile: Partial<DigestLabels> = {}): string {
+  profileLabels = profile;
   const { ir } = model;
   const out: string[] = [
     `# ${ir.usecase} ${ir.name}`,

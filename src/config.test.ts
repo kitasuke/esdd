@@ -127,5 +127,9 @@ scenarios:
     };
     expect(run(join(example, "order-cancel.usecase.yaml"))).toContain("all checks passed");
     expect(run(join(example, "order-cancel.usecase.yaml"), "--config", join(example, "esdd.config.ts"), "--digest")).toContain("## Lifecycle");
+    // a profile's digest labels win over the config's
+    expect(
+      run(join(example, "order-cancel.usecase.yaml"), "--config", join(example, "esdd.config.ts"), "--digest", "--profile", join(example, "prd-profile.yaml")),
+    ).toContain("## States and transitions (approval digest)");
   });
 });

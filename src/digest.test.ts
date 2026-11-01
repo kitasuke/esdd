@@ -93,4 +93,13 @@ describe("renderDigest", () => {
     expect(renderDigest(model(STATELESS))).toBe(renderDigest(model(STATELESS)));
     expect(renderDigest(model(STATE_MACHINE))).toContain("## Assumptions\n\nnone");
   });
+  it("renders with the labels a profile gives, over the defaults", () => {
+    const out = renderDigest(model(STATE_MACHINE), { states: "状態と遷移", initial: "開始", impossible: "発生しない" });
+    expect(out).toContain("## 状態と遷移");
+    expect(out).toContain("開始");
+    expect(out).toContain("発生しない");
+    expect(out).not.toContain("## States and transitions");
+    // the next rendering without a profile is back to the defaults
+    expect(renderDigest(model(STATE_MACHINE))).toContain("## States and transitions");
+  });
 });

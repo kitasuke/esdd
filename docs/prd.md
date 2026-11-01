@@ -125,6 +125,8 @@ phrases:               # sentence patterns; placeholders {state} {event} {actor}
   assumed: " (assumed: {id})"   # replaces ASSUMED(<id>) in the rendered text
 labels:                # sub-headings and table headers
   acceptance: Acceptance tests
+digest:                # the approval digest's fixed words (--digest --profile), same keys as a config's digest
+  states: Lifecycle
 ```
 
 Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_case_list` (one line
@@ -137,8 +139,10 @@ the impossible declarations and the input matrix are the usual ones; `requiremen
 `rules` and `acceptance` can be folded too. A folded sub-section is rendered as an HTML
 `<details>` block with the label as its summary, which Markdown renderers and wiki importers
 show collapsed. Folding changes nothing about what is checked.
-A profile for a team that writes specs in another language translates `phrases` and `labels`;
-the IR texts stay in the language they were written in.
+A profile for a team that writes specs in another language translates `phrases` and `labels`, and
+`digest` for the approval digest (`--digest --profile`, the same keys a config's `digest` takes;
+the profile's words win over the config's), so one profile serves the PRD, the questions and the
+digest; the IR texts stay in the language they were written in.
 [examples/prd-profile.yaml](../examples/prd-profile.yaml) is a complete profile.
 
 Where the rendered Markdown goes (a docs tool, a wiki, the repository) is the project's choice and
