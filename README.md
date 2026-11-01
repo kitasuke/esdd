@@ -67,8 +67,9 @@ npm run check -- examples/order-cancel.usecase.yaml --bindings examples/order-ca
 # form mode (no states) + cross-check against bindings (the locator/literal contract)
 npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact-email.bindings.yaml
 
-# the approval digest: the IR as Markdown for the approver (no checks)
+# the approval digest: the IR as Markdown for the approver (no checks); --profile sets its fixed words
 npm run check -- examples/order-cancel.usecase.yaml --digest
+npm run check -- examples/order-cancel.usecase.yaml --digest --profile examples/prd-profile.yaml
 
 # the open questions of an IR, worded for the spec owner (the PRD's open-questions list without a frame)
 npm run check -- examples/order-cancel.usecase.yaml --questions --profile examples/prd-profile.yaml

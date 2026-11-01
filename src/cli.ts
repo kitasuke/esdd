@@ -5,7 +5,7 @@
 //                   [--bindings <bindings.yaml>] [--steps <steps.yaml>] [--suggest-paths] [--json] [--strict]
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
-//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest
+//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest [--profile <profile.yaml>]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --questions [--profile <profile.yaml>]
 //   node src/cli.ts --prd <frame.prd.yaml> [--profile <profile.yaml>] [--render]
 //   any of the above with --config <config.ts> (the project configuration, src/config.ts)
@@ -22,9 +22,10 @@
 // --approved checks the IRs as approved IRs (docs/approval.md): the approval record and spec version
 // are required, the file name must match the usecase id, and pending markers become errors.
 // --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
+// (one item per line, input coverage and assumptions as tables — docs/approval.md); --profile sets
+// its labels (the profile's digest key).
 // --questions prints the IRs' open questions as the rendered PRD words them (docs/prd.md), for a
 // review that has no PRD frame; --profile localizes the phrases
-// (one item per line, input coverage and assumptions as tables — docs/approval.md).
 // --prd checks a PRD frame together with the IRs it links (docs/prd.md); with --render it prints the
 // PRD as Markdown instead, laid out by the profile (the default profile when --profile is omitted).
 // With --approved, the frame's status has to be approved (every warn is then an error).
@@ -318,13 +319,14 @@ async function main(): Promise<void> {
   }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
     );
     process.exit(2);
   }
 
   if (args.digest) {
     // no checks here (run them separately before asking for approval); an unparsable IR is invalid input
+    const profile = mergeProfile(args.profile ? parseYaml(readOrExit(args.profile)) : undefined);
     const pages: string[] = [];
     for (const file of args.files) {
       let source: string;
@@ -339,7 +341,7 @@ async function main(): Promise<void> {
         console.error(`cannot render a digest (the IR does not parse): ${file}: ${findings.map((f) => f.message).join(" / ")}`);
         process.exit(2);
       }
-      pages.push(renderDigest(model));
+      pages.push(renderDigest(model, profile.digest));
     }
     process.stdout.write(pages.join("\n---\n\n"));
     return;

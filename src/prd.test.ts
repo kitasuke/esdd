@@ -468,4 +468,8 @@ scenarios:
   it("is deterministic", () => {
     expect(renderPrd(frame(), ucs, [])).toBe(renderPrd(frame(), ucs, []));
   });
+  it("carries the digest labels of a profile, and leaves them empty by default", () => {
+    expect(mergeProfile({}).digest).toEqual({});
+    expect(mergeProfile({ digest: { states: "Lifecycle" } }).digest).toEqual({ states: "Lifecycle" });
+  });
 });

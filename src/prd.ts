@@ -6,6 +6,7 @@
 // checker's findings rather than a list someone remembered to keep.
 
 import { parse as parseYaml } from "yaml";
+import type { DigestLabels } from "./digest.ts";
 import {
   checkRaceDeclarations,
   findPendingMarker,
@@ -241,6 +242,11 @@ export interface PrdProfile {
     /** An open question for an actor of an event that users does not name. Placeholders: {actor} {event} */
     unknown_actor: string;
   };
+  /**
+   * Labels of the approval digest (--digest --profile), the same words a config's `digest` sets, so a
+   * team that reads another language keeps one profile for the PRD, the questions and the digest
+   */
+  digest: Partial<DigestLabels>;
   labels: {
     requirements: string;
     not_applicable: string;
@@ -317,6 +323,7 @@ export const DEFAULT_PROFILE: PrdProfile = {
     assumed_table: ["ID", "Question", "Applied answer", "Basis"],
     source: "Source",
   },
+  digest: {},
 };
 
 /** A profile file overrides the default per key; sections, when given, replace the whole list */
@@ -329,6 +336,7 @@ export function mergeProfile(override: unknown): PrdProfile {
     actors: o.actors && typeof o.actors === "object" ? { ...o.actors } : DEFAULT_PROFILE.actors,
     phrases: { ...DEFAULT_PROFILE.phrases, ...(o.phrases ?? {}) },
     labels: { ...DEFAULT_PROFILE.labels, ...(o.labels ?? {}) },
+    digest: o.digest && typeof o.digest === "object" ? { ...o.digest } : DEFAULT_PROFILE.digest,
   };
 }
 

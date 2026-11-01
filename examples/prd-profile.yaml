@@ -17,3 +17,5 @@ phrases:
   stay: "In “{state}”, when {actor} chooses “{event}”, the order stays “{state}”."
 labels:
   acceptance: Acceptance tests
+digest:                          # the approval digest's fixed words (--digest --profile); same keys as a config's digest
+  states: "States and transitions (approval digest)"

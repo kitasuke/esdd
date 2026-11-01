@@ -93,4 +93,13 @@ describe("renderDigest", () => {
     expect(renderDigest(model(STATELESS))).toBe(renderDigest(model(STATELESS)));
     expect(renderDigest(model(STATE_MACHINE))).toContain("## Assumptions\n\nnone");
   });
+  it("renders with the labels a profile gives, over the defaults", () => {
+    const out = renderDigest(model(STATE_MACHINE), { states: "Lifecycle", initial: "start", impossible: "never happens" });
+    expect(out).toContain("## Lifecycle");
+    expect(out).toContain("start");
+    expect(out).toContain("never happens");
+    expect(out).not.toContain("## States and transitions");
+    // the next rendering without a profile is back to the defaults
+    expect(renderDigest(model(STATE_MACHINE))).toContain("## States and transitions");
+  });
 });
