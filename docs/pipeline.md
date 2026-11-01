@@ -215,7 +215,16 @@ converting; it never decides answers (no invention). These rules keep the rounds
   answer holds in each (an assumption that was applied to "stops" in one place and "resumes" in
   another needs its places fixed one by one). The IR file is edited in place with its comments, order and quoting kept
   (flow collections and comment spacing come out in the YAML library's normal form), so the diff
-  is the round's result. Ids the IRs do not carry are reported, not ignored
+  is the round's result. Ids the IRs do not carry are reported, not ignored.
+  `--answers` reads only `id`, `answer`, `accepted`, `by` and `at`; the ledger may carry more, and
+  two more fields are worth carrying from the start, because they are what gets lost when answers
+  arrive in chat: `source` (where the decision was made: a message link, a comment, "spoken, by X
+  on Y") and `applies_to` (the spec item and the IR places the answer changed, as the run names
+  them). A decision that answers no question (a revision of the spec that changes behavior, a scope
+  change, an agreement at a kickoff) goes in the same file under `decisions:` with its own ids
+  (`D-1`, …) and the same fields, so one file lists everything decided about the spec, each with
+  where it was decided and what it changed. A decision without a source is not a decision yet;
+  put it back on the question list
 - **Keep run records apart.** One record holds a run's in-progress state (stage,
   gates, approval, links to outputs); a separate index spans runs (which specs wait on
   answers, which tests wait on an implementation). When they disagree, the run tracker
