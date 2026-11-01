@@ -268,9 +268,10 @@ note tier below, which decides how a question is handled.
   questions go to the owner; the rest are answered where they belong and recorded in the same
   ledger. In one trial this moved a third of the questions off the owner's list
 - **Keep question ids stable.** An id never changes between rounds, and ids are unique across
-  every IR of one spec or PRD. An assumption used by two IRs is declared in the one that decides
-  the behavior; the other refers to the id in its text instead of declaring it again, so the
-  review lists it once
+  every IR of one spec or PRD. An assumption used by two IRs keeps one id and is declared in each
+  IR that carries its marker, with the same question, proposal and basis (the assumptions check
+  wants the declaration next to the marker); the question list shows it once, so the owner
+  reviews one decision, not one per IR
 - **Don't duplicate the owner's own list.** If the spec already lists an item as an open
   decision, reference it and name the cell it fills instead of raising a new question
 
