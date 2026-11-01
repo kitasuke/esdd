@@ -8,7 +8,7 @@
 // what the answers changed. Re-run the checks afterwards: an answer that adds a state or an
 // event brings undeclared cells with it.
 
-import { isMap, isSeq, parseDocument, visit, type Document, type Scalar } from "yaml";
+import { isMap, isPair, isScalar, isSeq, parseDocument, visit, type Document, type Scalar } from "yaml";
 
 export interface Answer {
   /** The question id the answer is for (Q4, W7 — any id the IR's markers use) */
@@ -33,6 +33,8 @@ export interface Applied {
   places: number;
   /** the assumption's declaration was removed */
   declaration_removed?: boolean;
+  /** each text the answer replaced, before and after, so a reader can see that the one answer fits every place */
+  replaced: { at: string; before: string; after: string }[];
 }
 
 export interface ApplyResult {
@@ -82,19 +84,27 @@ export function applyAnswers(source: string, ledger: Ledger): ApplyResult {
     const pending = new RegExp(`TBD\\(${escape(a.id)}(?::[^)]*)?\\)`, "g");
     const assumed = new RegExp(`\\s*ASSUMED\\(${escape(a.id)}\\)`);
     let places = 0;
+    const replaced: Applied["replaced"] = [];
     visit(doc, {
-      Scalar(_key, node: Scalar) {
+      Scalar(_key, node: Scalar, path) {
         if (typeof node.value !== "string") return;
         const text = node.value;
         if (pending.test(text)) {
           pending.lastIndex = 0;
-          if (a.answer !== undefined) node.value = text.replace(pending, a.answer).trim();
+          if (a.answer !== undefined) {
+            const after = text.replace(pending, a.answer).trim();
+            node.value = after;
+            replaced.push({ at: where(path, node), before: text, after });
+          }
           places += 1;
           pending.lastIndex = 0;
           return;
         }
         if (assumed.test(text)) {
-          if (a.answer !== undefined) node.value = a.answer;
+          if (a.answer !== undefined) {
+            node.value = a.answer;
+            replaced.push({ at: where(path, node), before: text, after: a.answer });
+          }
           places += 1;
         }
       },
@@ -104,14 +114,35 @@ export function applyAnswers(source: string, ledger: Ledger): ApplyResult {
       continue;
     }
     if (a.accepted) {
-      applied.push({ id: a.id, kind: "accepted", places });
+      applied.push({ id: a.id, kind: "accepted", places, replaced });
       continue;
     }
     const removed = removeAssumption(doc, a.id);
-    applied.push(removed ? { id: a.id, kind: "replaced_assumption", places, declaration_removed: true } : { id: a.id, kind: "replaced_pending", places });
+    applied.push(
+      removed
+        ? { id: a.id, kind: "replaced_assumption", places, declaration_removed: true, replaced }
+        : { id: a.id, kind: "replaced_pending", places, replaced },
+    );
   }
   // no line wrapping, so a long answer stays on its line; flow collections and comment spacing are normalized by the library
   return { source: doc.toString({ lineWidth: 0 }), applied, unmatched };
+}
+
+/** Where a scalar sits, as the checker names places: transitions[0].outcome[1], rules[RULE-001].cases[0].expected */
+function where(path: readonly unknown[], leaf: unknown): string {
+  let out = "";
+  for (let i = 0; i < path.length; i++) {
+    const el = path[i];
+    const next = i + 1 < path.length ? path[i + 1] : leaf;
+    if (isPair(el) && isScalar(el.key)) {
+      out += out ? `.${String(el.key.value)}` : String(el.key.value);
+    } else if (isSeq(el)) {
+      const index = el.items.indexOf(next);
+      const id = isMap(next) ? next.get("id") : undefined;
+      out += typeof id === "string" ? `[${id}]` : `[${index}]`;
+    }
+  }
+  return out;
 }
 
 /** Drops the declaration of an assumption whose proposal was replaced; true when one was there */
@@ -125,13 +156,19 @@ function removeAssumption(doc: Document, id: string): boolean {
   return true;
 }
 
-/** One line per answer, for the CLI */
+/**
+ * One line per answer, for the CLI, and under a replaced assumption each place with the text it had:
+ * one answer goes into every place that carried the marker, and those places may have said different
+ * things (one "stops", another "resumes"), so the reader checks that the answer holds in each
+ */
 export function describeApplied(file: string, result: ApplyResult): string[] {
-  const lines = result.applied.map((a) => {
+  const lines = result.applied.flatMap((a) => {
     const where = `${a.places} place${a.places === 1 ? "" : "s"}`;
-    if (a.kind === "accepted") return `  ${a.id}: accepted (kept; the approval names it) — ${where}`;
-    if (a.kind === "replaced_assumption") return `  ${a.id}: proposal replaced by the answer — ${where}, declaration removed`;
-    return `  ${a.id}: TBD replaced by the answer — ${where}`;
+    if (a.kind === "accepted") return [`  ${a.id}: accepted (kept; the approval names it) — ${where}`];
+    if (a.kind === "replaced_pending") return [`  ${a.id}: TBD replaced by the answer — ${where}`];
+    const head = `  ${a.id}: proposal replaced by the answer — ${where}, declaration removed`;
+    if (a.replaced.length < 2) return [head];
+    return [`${head}; the same answer went into each — check it holds in every place:`, ...a.replaced.map((r) => `    ${r.at}: was "${r.before}"`)];
   });
   return [`${file}:`, ...(lines.length > 0 ? lines : ["  (no marker of the ledger's ids)"])];
 }

@@ -210,7 +210,10 @@ converting; it never decides answers (no invention). These rules keep the rounds
 
   An answered `TBD(Q4: …)` becomes the answer wherever it appears; a replaced assumption's
   applied text becomes the answer and its declaration is removed; an accepted one is left for
-  the approval to name. The IR file is edited in place with its comments, order and quoting kept
+  the approval to name. One answer goes into every place that carried the marker, and the run
+  lists those places with the text each had when there is more than one, so the reader checks the
+  answer holds in each (an assumption that was applied to "stops" in one place and "resumes" in
+  another needs its places fixed one by one). The IR file is edited in place with its comments, order and quoting kept
   (flow collections and comment spacing come out in the YAML library's normal form), so the diff
   is the round's result. Ids the IRs do not carry are reported, not ignored
 - **Keep run records apart.** One record holds a run's in-progress state (stage,
