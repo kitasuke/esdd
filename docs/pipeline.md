@@ -156,6 +156,25 @@ converting; it never decides answers (no invention). These rules keep the rounds
   becomes a must-ask question: "what does X show today — please transcribe it into the spec". This is
   the one place mode A reads the implementation, and only for how the existing thing is
   displayed; the new feature's behavior still comes from the spec and the answers
+- **Displayed text the spec does not give is referenced, not written.** The outcome says
+  what is visible (an error is shown, the list is empty, a toast appears) and points to
+  where the text lives: "an error is shown (text: design file, element 3-a, error state)".
+  Where the text lives differs by team (a design file, a strings table next to the spec,
+  the existing product) and is often not settled early, so the converter does not pick
+  one; it asks once per screen where the text's source of truth is, and proposes the
+  source the spec already links. One question per screen, not one per string — the owner
+  can answer that in a word. A string gets a question of its own only when two sources
+  disagree, or the spec disagrees with itself (a contradiction, so must-ask). Once the
+  source is settled, the text under it is out of the review's scope and the report says so.
+  What a check can verify is that every visible-text outcome names its source, not
+  whether the text is right
+- **Several IRs from one spec: shared material first.** A spec that spans screens
+  usually has pages that apply to all of them (definitions, the values of an input axis,
+  non-functional rules) and pages per screen. Convert the shared pages first into the
+  input axes and rules every IR takes, then each screen's IR with those in; group screens
+  that hand state to each other (a list and its detail, two tabs) into one pass, by that
+  dependency rather than by page count. One question list for the spec, with ids that
+  continue across passes, so a later pass does not re-ask an earlier one
 - **Accept by default; ask only what must be asked** (below). Owners should spend their
   time on the decisions that need them, not on confirming the obvious one by one
 - **Override in bulk.** Let the owner reply with ranges — `OK: W1–W8` confirms, `W4: "…"`
@@ -185,7 +204,13 @@ converting; it never decides answers (no invention). These rules keep the rounds
   wins and the index is corrected
 
 Answers often open new questions — an answer that adds a state brings that state's
-undefined cells with it. Re-run the checks after every batch of answers.
+undefined cells with it. Re-run the checks after every batch of answers, on every IR of
+the spec, not only the one the question came from: an answer about a shared axis (a
+user segment, a sign-in state, an experiment group) goes into every IR that carries the
+axis. When two screens got different answers to the same decision (the list updates the
+site-wide setting, the detail only filters), do not pick one — ask whether the difference
+is intended, as a new question with the next id. Reconciling answers across IRs is part
+of the round, done by whoever holds the IRs and the ledger.
 
 ### Questions and severity
 
