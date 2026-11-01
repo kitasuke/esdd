@@ -197,7 +197,22 @@ converting; it never decides answers (no invention). These rules keep the rounds
   ledger's date is added to `source.version`. Then tag each IR entry it produced with
   the answer id, and list the answers in the
   change that commits the approved IR, so reviewers can see where spec text that is
-  not in the spec document came from
+  not in the spec document came from.
+  The ledger is a file the checker folds in (`--answers <ledger.yaml> <ir.yaml> ...`), so the
+  second round starts from the answers mechanically rather than from someone's edit:
+
+  ```yaml
+  answers:
+    - { id: Q4, answer: "the site-wide setting is updated too", by: owner, at: 2026-01-02 }
+    - { id: W3, accepted: true, by: owner, at: 2026-01-02 }   # the proposal stands
+    - { id: W7, answer: "the row is hidden", by: owner, at: 2026-01-02 }   # the proposal is replaced
+  ```
+
+  An answered `TBD(Q4: …)` becomes the answer wherever it appears; a replaced assumption's
+  applied text becomes the answer and its declaration is removed; an accepted one is left for
+  the approval to name. The IR file is edited in place with its comments, order and quoting kept
+  (flow collections and comment spacing come out in the YAML library's normal form), so the diff
+  is the round's result. Ids the IRs do not carry are reported, not ignored
 - **Keep run records apart.** One record holds a run's in-progress state (stage,
   gates, approval, links to outputs); a separate index spans runs (which specs wait on
   answers, which tests wait on an implementation). When they disagree, the run tracker
