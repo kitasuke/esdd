@@ -131,6 +131,12 @@ assumptions:
     expect(md).toContain("| W1 | Is a mail sent? | No mail | the spec lists no notification |");
     expect(md).not.toContain("exhaustiveness");
   });
+  it("lists an assumption declared by several IRs once", () => {
+    const other = OPEN.replace("UC-OPEN-001", "UC-OPEN-002").replace("name: Open", "name: Other");
+    const md = renderQuestions([model(OPEN), model(other)]);
+    expect(md.match(/\| W1 \|/g)).toHaveLength(1);
+    expect(md).toContain("**Other: waiting × proceed**: TBD(Q1: what is shown)");
+  });
   it("names actors from the profile when there is no frame", () => {
     const md = renderQuestions([model(OPEN)], mergeProfile({ actors: { customer: "the shopper" } }));
     expect(md).toContain("what happens when the shopper does “cancel”?");

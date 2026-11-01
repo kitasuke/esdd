@@ -622,7 +622,13 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
     ...ucs.flatMap((uc) => irPending(uc.model).map((x) => `- **${uc.model.ir.name}: ${x.where}**: ${x.text}`)),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];
-  const assumed = ucs.flatMap((uc) => (uc.model.ir.assumptions ?? []).map((a) => [a.id, a.question, a.proposal, a.basis]));
+  // an assumption shared by several IRs is declared in each (the assumptions check wants the
+  // declaration next to the marker), but it is one decision: the list shows it once, by id
+  const seen = new Set<string>();
+  const assumed = ucs
+    .flatMap((uc) => uc.model.ir.assumptions ?? [])
+    .filter((a) => !seen.has(a.id) && (seen.add(a.id), true))
+    .map((a) => [a.id, a.question, a.proposal, a.basis]);
   if (questions.length === 0 && assumed.length === 0) return [p.labels.open_questions_none, ""];
   const out = [...questions, ""];
   if (assumed.length > 0) out.push(`**${p.labels.assumed}**`, "", ...table(p.labels.assumed_table, assumed), "");
