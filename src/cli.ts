@@ -6,6 +6,7 @@
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
 //                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest [--profile <profile.yaml>]
+//   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --answers <ledger.yaml>
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --questions [--profile <profile.yaml>]
 //   node src/cli.ts --prd <frame.prd.yaml> [--profile <profile.yaml>] [--render]
 //   any of the above with --config <config.ts> (the project configuration, src/config.ts)
@@ -24,6 +25,8 @@
 // --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
 // (one item per line, input coverage and assumptions as tables — docs/approval.md); --profile sets
 // its labels (the profile's digest key).
+// --answers folds a review round's answers into the IRs in place (docs/pipeline.md "Keep an answer
+// ledger"): TBD markers and replaced assumptions become the answers; run the checks again after.
 // --questions prints the IRs' open questions as the rendered PRD words them (docs/prd.md), for a
 // review that has no PRD frame; --profile localizes the phrases
 // --prd checks a PRD frame together with the IRs it links (docs/prd.md); with --render it prints the
@@ -32,11 +35,12 @@
 //
 // Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
 import { parse as parseYaml } from "yaml";
+import { applyAnswers, describeApplied, parseLedger } from "./answers.ts";
 import { parseBindings, runBindingsChecks } from "./bindings.ts";
 import { coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
@@ -81,6 +85,7 @@ interface Args {
   questions: boolean;
   prd?: string;
   profile?: string;
+  answers?: string;
   render: boolean;
   config?: string;
 }
@@ -149,6 +154,8 @@ function parseArgs(argv: string[]): Args {
       args.questions = true;
     } else if (a === "--prd") {
       args.prd = argv[++i];
+    } else if (a === "--answers") {
+      args.answers = argv[++i];
     } else if (a === "--profile") {
       args.profile = argv[++i];
     } else if (a === "--render") {
@@ -319,9 +326,39 @@ async function main(): Promise<void> {
   }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
     );
     process.exit(2);
+  }
+
+  if (args.answers) {
+    // folds answers into the IR files in place, no checks (run them again after)
+    const { ledger, errors } = parseLedger(readOrExit(args.answers));
+    if (!ledger) {
+      for (const e of errors) console.error(e);
+      process.exit(2);
+    }
+    const unmatched = new Set(ledger.answers.map((a) => a.id));
+    for (const file of args.files) {
+      const path = resolveInput(file);
+      let source: string;
+      try {
+        source = readFileSync(path, "utf8");
+      } catch (e) {
+        console.error(`cannot read: ${file}: ${(e as Error).message}`);
+        process.exit(2);
+      }
+      const result = applyAnswers(source, ledger);
+      for (const a of result.applied) unmatched.delete(a.id);
+      if (result.source !== source) writeFileSync(path, result.source);
+      for (const line of describeApplied(file, result)) console.log(line);
+    }
+    if (unmatched.size > 0) {
+      console.error(`no IR carries a marker for: ${[...unmatched].join(", ")} (an answered id that is not in these IRs, or a marker already replaced)`);
+      process.exit(1);
+    }
+    console.log("run the checks again: an answer that adds a state or an event brings undeclared cells with it");
+    return;
   }
 
   if (args.digest) {

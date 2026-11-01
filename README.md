@@ -71,6 +71,9 @@ npm run check -- examples/contact-email.usecase.yaml --bindings examples/contact
 npm run check -- examples/order-cancel.usecase.yaml --digest
 npm run check -- examples/order-cancel.usecase.yaml --digest --profile examples/prd-profile.yaml
 
+# fold a review round's answers into the IRs (TBD markers and replaced assumptions become the answers), then check again
+npm run check -- examples/order-cancel.usecase.yaml --answers answers.yaml
+
 # the open questions of an IR, worded for the spec owner (the PRD's open-questions list without a frame)
 npm run check -- examples/order-cancel.usecase.yaml --questions --profile examples/prd-profile.yaml
 
