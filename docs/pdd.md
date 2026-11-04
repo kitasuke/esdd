@@ -140,10 +140,21 @@ the approval are unchanged; these steps add what is specific to a design doc.
    ([approval.md](approval.md#updating-an-approved-ir)); otherwise draft the IRs from the PRD and
    the design doc together
 4. **Raise questions** for gaps, open threads and disagreements, each with a proposal, a tier and
-   who decides. Ids continue the PRD's question list, so one list covers the spec
+   who decides. Ids continue the PRD's question list, so one list covers the spec. A question that
+   has an IR place carries its `TBD` there, so the checker tracks it. A question with no IR place
+   yet (a candidate event nobody declared, a cache the user may see, a thread about another actor)
+   produces no finding, so it is easy to lose: put it in the PRD frame's `questions` when there is a
+   frame, so it stays on the rendered open questions ([prd.md](prd.md#the-prd-frame)), or else
+   in the report under a note-tier id. A decision found in a resolved thread goes in the ledger
+   under `decisions:` as well as on the list
 5. **Check** the IRs (`npm run check -- <ir.yaml> ...`, or `--prd` with the frame). The findings
    join the list; send it where the run is tracked and fold answers in with `--answers`
 6. **Before approval,** re-read every source's edit time and look for new threads
+
+[examples/order-cancel.design.md](../examples/order-cancel.design.md) is a design doc for the
+order-cancel example, and [examples/order-cancel.design-review.md](../examples/order-cancel.design-review.md)
+is its review: the statements sorted, the question list, and the IR it produced
+([examples/order-cancel.design-review.usecase.yaml](../examples/order-cancel.design-review.usecase.yaml)).
 
 ## Writing a design doc
 

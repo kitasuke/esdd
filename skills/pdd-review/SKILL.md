@@ -32,7 +32,9 @@ Collect these before converting. Ask for any that are missing:
 4. Raise questions for [gaps](../../docs/pdd.md#gaps-constraints-that-say-less-than-they-seem-to),
    [threads](../../docs/pdd.md#comments-and-open-threads) and
    [disagreements](../../docs/pdd.md#disagreements). Each question gets one proposal, a tier and who
-   decides. Disagreements are always must-ask. Question ids continue the PRD's list
+   decides. Disagreements are always must-ask. Question ids continue the PRD's list. A question
+   with an IR place carries its `TBD` there. A question with no IR place goes in the PRD frame's
+   `questions`, or in the report under a note-tier id when there is no frame, so it is not lost
 5. Check, and turn the findings into questions too:
 
    ```bash
