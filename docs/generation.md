@@ -345,8 +345,10 @@ reviewed and merged. The bar:
   to a shared contract made only to get the scaffold running. A temporary schema or a
   stub stays outside the scaffold's diff and is listed as what the real backend must
   provide
-- **Delivered with a merge-readiness report**: the checks that passed, the self-review
-  result, and what still blocks merging, sorted by who must act: backend work (a missing
+- **Delivered with a merge-readiness report, written by someone other than the generator**:
+  a reviewer that is not given the generator's own conclusions (given them, it tends to
+  agree). The report has the tests before and after the scaffold, the checks that passed,
+  the self-review result, and what still blocks merging, sorted by who must act: backend work (a missing
   field, a query that would run once per row), design decisions the spec does not make
   (where a new column goes, how a preview is labeled), and spec questions the scaffold
   raised. Each decision the scaffold had to make that the IR does not state is listed;
