@@ -128,19 +128,26 @@ the ledger.
 ## Versions and approval freshness
 
 An IR converted from a PRD and design docs has several sources, and each one can change after
-approval. `source.spec` holds one link: the PRD (or the PRD frame). List every source with its
-edit time in `source.version`, and the design-doc links in the IR's header comment:
+approval. `source.spec` and `source.version` hold the PRD (or the PRD frame) and its edit time.
+Every other source goes in `source.sources` with its own link, version and label
+([usecase-ir.md](usecase-ir.md#common-header)): each design doc with its edit time, a design file,
+and in mode B the implementation with its commit. Keep the input mode in `source.version`:
 
 ```yaml
-# Sources: PRD https://example.com/specs/notes-tags
-#          design doc https://example.com/design/notes-tags
 source:
   spec: "https://example.com/specs/notes-tags"
-  version: "PRD 2026-10-20T09:00Z; design doc 2026-10-22T14:10Z; mode B: commit 4f2c1a9"
+  version: "2026-10-20T09:00Z (mode B)"
+  sources:
+    - { spec: "https://example.com/design/notes-tags", version: "2026-10-22T14:10Z", label: design doc }
+    - { spec: "https://example.com/repo", version: "commit 4f2c1a9", label: implementation }
 ```
 
+The checker validates the list, `--approved` requires a version for every entry, and the digest
+shows each source with its version, so the approver sees what the approval covers.
+
 The approval conditions in [approval.md](approval.md#binding-the-approval-to-one-exact-ir) apply to
-every source: before counting an approval, re-read each source's edit time, and treat an edit to a
+every source: before counting an approval, re-read the edit time of `source.spec` and of each entry
+in `source.sources`, and treat an edit to a
 design doc exactly like an edit to the PRD. If any source changed after the version the IR was
 converted from, the approval is void and review starts again from that change. Many doc tools do
 not change a doc's edit time when a comment is added, so also look for threads opened since the
@@ -152,7 +159,8 @@ The steps a reviewer (or an agent working for one) follows. The input mode, the 
 the approval are unchanged; these steps add what is specific to a design doc.
 
 1. **Collect the sources.** The PRD, every design doc, their comment threads, and each source's
-   edit time. Declare the input mode. Record all of it in `source.version` from the first draft
+   edit time. Declare the input mode. Record the PRD in `source.spec` / `source.version` and every
+   other source in `source.sources` from the first draft
 2. **Sort each statement** into spec or implementation detail with the table above. Keep a list of
    the statements taken, each with its location in the doc, as the basis for the questions
 3. **Map** each spec statement to its IR place (constraints table). Where the IR already exists,
@@ -221,8 +229,8 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    existing items, deletions that cascade: a row each for what users see when they happen
 5. **Keep open points in one list.** Each with a proposal and who decides, in the doc rather than
    only in comment threads, and each resolved thread's decision written into the body
-6. **Fold into the IRs and check.** Add the rows' consequences to the IRs, cite the design doc in
-   `source.version`, and run the checker. An open point with an IR place goes there as a `TBD`; one
+6. **Fold into the IRs and check.** Add the rows' consequences to the IRs, list the design doc in
+   `source.sources` with its edit time, and run the checker. An open point with an IR place goes there as a `TBD`; one
    with no IR place goes in the PRD frame's `questions`, as in a review
    ([Reviewing](#reviewing-a-design-doc), step 4). The new rule cases and cells bring their own
    questions; answer them in the doc and the IRs, then ask for approval. Folding into an approved
