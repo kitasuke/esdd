@@ -84,6 +84,7 @@ describe("walk", () => {
     expect(report.probed).toHaveLength(5 * 3);
     // No status text for PLACED: reported as unobservable, not as a pass
     expect(report.unobservable).toEqual(["PLACED"]);
+    expect(report.stopped).toBe("covered");
   });
 
   it("reports an impossible event the implementation offers as a safety violation, with its reproduction", async () => {
@@ -129,7 +130,62 @@ describe("walk", () => {
 
     const report = await walk(ORDER, target(CORRECT), { maxSteps: 2 });
     expect(report.steps).toBe(2);
+    expect(report.stopped).toBe("steps");
     expect(report.uncovered.length).toBeGreaterThan(0);
+  });
+
+  it("reports a probe that throws as inconclusive, not as a refusal, and walks the rest", async () => {
+    const flaky = target(CORRECT);
+    const offered = flaky.offered;
+    let flaked = false;
+    flaky.offered = async (event) => {
+      if (!flaked && event === "hand_over" && flaky.fired.at(-1) === "pack") {
+        flaked = true;
+        throw new Error("locator.isVisible: Timeout 5000ms exceeded.\nCall log: …");
+      }
+      return offered(event);
+    };
+    const report = await walk(ORDER, flaky);
+    expect(report.violations).toEqual([]);
+    // The cell that flaked is not probed again in PACKED, so its transition stays unfired; the rest is walked
+    expect(report.uncovered).toEqual(["PACKED hand_over", "HANDED_OVER complete"]);
+    expect(report.covered).toHaveLength(3);
+    expect(report.inconclusive).toMatchObject([
+      { state: "PACKED", event: "hand_over", trace: ["pack"], message: "could not probe hand_over in PACKED: locator.isVisible: Timeout 5000ms exceeded." },
+    ]);
+  });
+
+  it("reports a screen that does not settle as inconclusive, not as being in another state", async () => {
+    const unsettled = target(CORRECT);
+    const shows = unsettled.shows;
+    unsettled.shows = async (state) => (state === "PACKED" ? { failed: "a loading indicator is still shown" } : shows(state));
+    const report = await walk(ORDER, unsettled);
+    expect(report.violations).toEqual([]);
+    expect(report.inconclusive.map((i) => i.message)).toContain("could not observe PACKED after pack: a loading indicator is still shown");
+  });
+
+  it("ends a walk that runs out of time and says so", async () => {
+    let clock = 0;
+    const slow = target(CORRECT);
+    const fire = slow.fire;
+    slow.fire = async (event, step) => {
+      clock += 60_000; // a step on a real system can take a minute
+      return fire(event, step);
+    };
+    const report = await walk(ORDER, slow, { maxDuration: 150_000, now: () => clock });
+    expect(report.stopped).toBe("time");
+    expect(report.steps).toBe(3);
+    expect(renderWalkReport(report)).toContain("stopped: time budget reached");
+  });
+
+  it("stops when the target cannot start a run", async () => {
+    const broken = target(CORRECT);
+    broken.reset = async () => {
+      throw new Error("environment unavailable");
+    };
+    const report = await walk(ORDER, broken);
+    expect(report.stopped).toBe("reset failed");
+    expect(report.inconclusive.map((i) => i.message)).toEqual(["could not start a run in PLACED: environment unavailable"]);
   });
 
   it("renders the violations with their reproduction", async () => {
