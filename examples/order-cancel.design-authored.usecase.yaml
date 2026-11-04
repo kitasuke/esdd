@@ -1,0 +1,129 @@
+# Example: examples/order-cancel.usecase.yaml with the behavior rows of its authored design doc
+# (examples/order-cancel.design-authored.md) folded in. Open points are TBD(O<n>) in their IR places.
+# Check it: npm run check -- examples/order-cancel.design-authored.usecase.yaml --questions
+usecase: UC-ORDER-CANCEL-001
+name: Order cancellation
+source:
+  spec: "https://example.com/specs/order-cancel" # link to the spec (PRD etc.)
+  version: "PRD v1; design doc (authored) 2026-11-04"
+
+initial: PLACED
+
+states:
+  - { id: PLACED, label: Order placed }
+  - { id: PACKED, label: Packed }
+  - { id: HANDED_OVER, label: Handed to the carrier }
+  - { id: COMPLETED, label: Delivered, terminal: true }
+  - { id: CANCELED, label: Canceled, terminal: true }
+
+events:
+  - { id: pack, label: pack the order, actor: staff }
+  - { id: hand_over, label: hand the order to the carrier, actor: staff }
+  - { id: complete, label: complete the delivery, actor: system }
+  - { id: cancel, label: cancel the order, actor: customer }
+
+transitions:
+  - from: PLACED
+    on: pack
+    to: PACKED
+    outcome: ['the order status shows "Packed"']
+  - from: PLACED
+    on: cancel
+    to: CANCELED
+    outcome:
+      - 'the order status shows "Canceled"'
+      - "no cancellation fee is charged (RULE-001)"
+      - "TBD(O6: what the order shows while the refund is pending, and after it fails)"
+  - from: PLACED
+    on: [hand_over, complete]
+    impossible: true
+    reason: "an unpacked order never reaches hand-over or delivery completion (work-order constraint)"
+  - from: PACKED
+    on: hand_over
+    to: HANDED_OVER
+    outcome: ['the order status shows "Shipped"']
+  - from: PACKED
+    on: cancel
+    to: CANCELED
+    outcome:
+      - 'the order status shows "Canceled"'
+      - "the cancellation fee notice is shown (RULE-001)"
+      - "TBD(O6: what the order shows while the refund is pending, and after it fails)"
+  - from: PACKED
+    on: [pack, complete]
+    impossible: true
+    reason: "the UI has no path to double-packing, and delivery cannot complete before hand-over"
+  - from: HANDED_OVER
+    on: complete
+    to: COMPLETED
+    outcome: ['the order status shows "Delivered"']
+  - from: HANDED_OVER
+    on: [pack, hand_over]
+    impossible: true
+    reason: "rework after hand-over is out of scope for this usecase (returns are a separate usecase)"
+  - from: HANDED_OVER
+    on: cancel
+    impossible: true
+    reason: "cancellation after hand-over is not allowed — the user is directed to the returns flow (separate usecase). TBD(O1: the design proposed allowing it within 30 minutes; withdrawn unless the PRD owner wants it)"
+
+# When events of different actors can race in the same state, declare the winner and the outcome
+races:
+  - state: PLACED
+    between: [pack, cancel]
+    winner: cancel
+    outcome: ['the operation that commits first wins. The packing screen shows a "Canceled" notice']
+  - state: PACKED
+    between: [hand_over, cancel]
+    winner: hand_over
+    outcome: ["a cancellation request after hand-over is committed is rejected, and the returns flow is offered"]
+
+scenarios:
+  - id: SC-001
+    name: an order progresses to delivered
+    critical: true
+    path: [pack, hand_over, complete]
+    given: ["one paid order exists"]
+    when: ["staff packs it, hands it to the carrier, and the delivery completes"]
+    then: ['the order status shows "Delivered"']
+  - id: SC-002
+    name: cancellation before packing completes free of charge
+    critical: true
+    path: [cancel]
+    given: ["one paid order exists"]
+    when: ["the customer cancels"]
+    then:
+      - 'the order status shows "Canceled"'
+      - "no cancellation fee is charged"
+  - id: SC-003
+    name: cancellation after packing completes with a fee notice
+    path: [pack, cancel]
+    given: ["one packed order exists"]
+    when: ["the customer cancels"]
+    then:
+      - 'the order status shows "Canceled"'
+      - "the cancellation fee notice is shown"
+
+rules:
+  - id: RULE-001
+    name: cancellation fee
+    cases:
+      - { input: "cancellation before packing (PLACED)", expected: "cancellation fee is $0" }
+      - { input: "cancellation after packing (PACKED)", expected: 'show the fee notice "Cancellations after packing incur a handling fee" and TBD(O2: the fee amount, 5% of the total and at least $3, and its format)' }
+      - { input: "the fee rate changes between the notice and the confirmation", expected: "TBD(O8: which fee is charged)" }
+  - id: RULE-002
+    name: the same order canceled twice
+    cases:
+      - { input: "the order is canceled from a second tab after it was canceled", expected: "TBD(O3: what is shown; no second fee is charged)" }
+  - id: RULE-003
+    name: cancellation reason and note
+    cases:
+      - { input: "no reason chosen", expected: "TBD(O4: is a reason required?)", covers: "reason×empty" }
+      - { input: "no note entered", expected: "the cancellation goes through without a note", covers: "note×empty" }
+      - { input: "a note of 500 characters", expected: "TBD(O5: what the note field shows at 500 characters)", covers: "note×boundary" }
+
+inputs:
+  - id: reason
+    kind: field
+    conditions: [empty]
+  - id: note
+    kind: field

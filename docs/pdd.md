@@ -184,9 +184,18 @@ adds is one section and a few rules:
 | a tag appears once per note | DB unique, API 409 | a tag already on the note is not offered again | RULE-002 |
 | an empty tag list removes all tags | API | saving with no tag selected is allowed; the note shows no tags | SC-004 |
 | note text is 1 to 2000 characters | API, client | the save button stays disabled while the text is empty | `body×empty` |
+| a note keeps at most 10 attachments | API | proposed: the attach button is hidden at 10 (O2) | none yet: `attachments×boundary`, `TBD(O2)` |
+
+A row whose consequence is not in any IR carries the proposal, marked `proposed:` with its open
+point, and "none yet" in the IR column with the place the answer will go. Below the table, list the
+constraints that got no row and why ("the API refuses a caller who does not own the note; the
+screen lists only the user's own notes, so it cannot reach that"), so a reviewer does not ask again.
 
 1. **Start from the IRs.** Read the IRs (approved or in review) and the PRD. List each rule, input
-   cell and outcome the design must enforce; each needs at least one row
+   cell, outcome, race and impossible cell that this design changes or enforces; each needs at
+   least one row. Races and impossible cells are often what a lock or a refusal in the design is
+   for. Name the IR items this design leaves to others (another service, another team's screen),
+   so the list is visibly complete
 2. **Write the consequence with each constraint.** For every limit, uniqueness, request meaning,
    order, error and permission in the design, add its row. A constraint with no visible effect gets
    no row. A row whose consequence is not in any IR is new behavior: it goes back to the PRD owner
@@ -199,5 +208,13 @@ adds is one section and a few rules:
 5. **Keep open points in one list.** Each with a proposal and who decides, in the doc rather than
    only in comment threads, and each resolved thread's decision written into the body
 6. **Fold into the IRs and check.** Add the rows' consequences to the IRs, cite the design doc in
-   `source.version`, and run the checker. The new rule cases and cells bring their own questions;
-   answer them in the doc and the IRs, then ask for approval
+   `source.version`, and run the checker. An open point with an IR place goes there as a `TBD`; one
+   with no IR place goes in the PRD frame's `questions`, as in a review
+   ([Reviewing](#reviewing-a-design-doc), step 4). The new rule cases and cells bring their own
+   questions; answer them in the doc and the IRs, then ask for approval. Folding into an approved
+   IR changes it, so it needs approval again ([approval.md](approval.md#updating-an-approved-ir))
+
+[examples/order-cancel.design-authored.md](../examples/order-cancel.design-authored.md) is a design
+doc written this way from the same decisions as the reviewed one, and
+[examples/order-cancel.design-authored.usecase.yaml](../examples/order-cancel.design-authored.usecase.yaml)
+the IR it folds into. Its open points land in the same IR places the review's questions did
