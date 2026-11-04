@@ -148,6 +148,24 @@ elements:
     ).toBe(true);
   });
 
+  it("accepts refused codes on an event and rejects an empty or non-string list", () => {
+    const bindings = (refused: string) => `
+bindings: UC-TEST-001
+platform: web
+graph: account
+events:
+  create: { operation: CreateThing, kind: mutation, called_api: calledCreateThingMutation, refused: ${refused} }
+elements:
+  button: { role: button, name: "Create" }
+`;
+    expect(errorsOf(check(bindings("[INVALID_STATE]")), "bindings-events")).toEqual([]);
+    for (const bad of ["[]", "INVALID_STATE", '[""]']) {
+      expect(errorsOf(check(bindings(bad)), "bindings-events").map((f) => f.message)).toEqual([
+        "events.create: refused must be a non-empty list of error codes",
+      ]);
+    }
+  });
+
   it("literal_coverage: requires a stance for every rule in the IR", () => {
     const withoutRule2 = MINIMAL.replace(
       /  RULE-002: .*\n/,

@@ -31,7 +31,7 @@ platform: web                  # web (Playwright/ARIA) is built in; others come 
 graph: account                 # API graph name (required for platform: web)
 
 events: # IR event vocabulary → API operations (called_api is mechanically derived from operation/kind)
-  save: { operation: UpdateContactEmail, kind: mutation, called_api: calledUpdateContactEmailMutation }
+  save: { operation: UpdateContactEmail, kind: mutation, called_api: calledUpdateContactEmailMutation, refused: [EMAIL_LOCKED] } # refused: optional, the codes a rejection in a state that does not allow the event carries
 
 elements: # spec-vocabulary id → locator. Exactly one addressing form
   save_button: { role: button, name: "Save" } # role comes paired with name
@@ -59,7 +59,7 @@ resort.
 | --- | --- | --- |
 | bindings-schema | error | required keys (bindings/platform/elements; graph for web). Each element has exactly one of role(+name)/label/testid/text. role is within the allowed set (`ALLOWED_ROLES` in `src/bindings.ts`; extend it in step with your project's role table). testid is static kebab-case. An optional `note` is allowed and not checked. Other unknown keys are errors, treated as typos |
 | bindings-unique | warn | two elements with the same addressing (identical role+name / label / testid / text) — a strict mode violation waiting to happen |
-| bindings-events | error | operation is PascalCase, kind is mutation/query, called_api matches the mechanically derived `called<Operation><Query\|Mutation>` |
+| bindings-events | error | operation is PascalCase, kind is mutation/query, called_api matches the mechanically derived `called<Operation><Query\|Mutation>`. `refused`, when given, is a non-empty list of error codes (read by the API graph walk, [generation.md](generation.md#graph-walk--every-reachable-cell-not-only-the-written-paths)) |
 | bindings-usecase | error | the `bindings:` id does not match the usecase of the IR passed in / the corresponding IR is missing from the inputs |
 | literal-coverage | error | every rule in the IR has a stance (`literal: <key>` / `ui_text: none`). Rule ids absent from the IR and nonexistent literal keys are also errors |
 | pending | warn | TBD/TODO/FIXME/UNRESOLVED in a literal value or `literal: TBD` — a mark to resolve before approval |

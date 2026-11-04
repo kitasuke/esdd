@@ -30,6 +30,12 @@ export interface EventBinding {
   operation?: string;
   kind?: "mutation" | "query";
   called_api?: string;
+  /**
+   * The error codes the operation is rejected with when the state does not allow the event. An API
+   * graph walk reads a rejection with one of them as a refusal, and anything else that fails as
+   * inconclusive (docs/generation.md "Graph walk")
+   */
+  refused?: string[];
   /** Keys of other platforms (config.platforms) */
   [key: string]: unknown;
 }
@@ -334,6 +340,14 @@ function checkEvents(doc: BindingsDoc, findings: Finding[]): void {
         message: `events.${id}: must be a map`,
       });
       continue;
+    }
+    const refused = (entry as EventBinding).refused;
+    if (refused !== undefined && (!Array.isArray(refused) || refused.length === 0 || refused.some((c) => typeof c !== "string" || c === ""))) {
+      findings.push({
+        level: "error",
+        check: "bindings-events",
+        message: `events.${id}: refused must be a non-empty list of error codes`,
+      });
     }
     platform.checkEvent?.(id, entry as EventBinding, findings);
   }

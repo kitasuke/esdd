@@ -26,6 +26,8 @@ npm run example:walk                         # the graph walk of the same screen
 | [cancellation-terms.ts](cancellation-terms.ts) | yes | product code: RULE-001 as a pure function (`pure_rule_function`) | — |
 | [order-screen.ts](order-screen.ts) | yes | product code: the order screen (`entity_status_with_actions`) | — |
 | [order-cancel.walk.ts](order-cancel.walk.ts) | no | graph walk on the integration layer: every reachable cell, plus a negative control ([docs/generation.md](../../docs/generation.md#graph-walk--every-reachable-cell-not-only-the-written-paths)) | — |
+| [order-cancel.api-walk.test.ts](order-cancel.api-walk.test.ts) | no | graph walk on the API, from the initial state and from states built directly, with negative controls (runs with `npm test`) | — |
+| [order-service.ts](order-service.ts) | no | a hand-written stand-in for the order backend, the API walk's target | — |
 | [order-driver.ts](order-driver.ts) | no | semantic driver (IR vocabulary), with the walk's two probes | — |
 | [order-driver.playwright.ts](order-driver.playwright.ts) | no | the single adapter; reads the bindings file | — |
 | [harness.ts](harness.ts) | no | fixtures and a working fake backend + app shell for integration; a contract only for E2E | — |

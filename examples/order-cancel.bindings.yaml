@@ -6,9 +6,10 @@ platform: web
 graph: orders
 
 events: # IR events the UI drives → API operations. complete (actor: system) has no UI operation
-  pack: { operation: PackOrder, kind: mutation, called_api: calledPackOrderMutation }
-  hand_over: { operation: HandOverOrder, kind: mutation, called_api: calledHandOverOrderMutation }
-  cancel: { operation: CancelOrder, kind: mutation, called_api: calledCancelOrderMutation }
+  # refused: the code an operation is rejected with in a state that does not allow it
+  pack: { operation: PackOrder, kind: mutation, called_api: calledPackOrderMutation, refused: [INVALID_STATE] }
+  hand_over: { operation: HandOverOrder, kind: mutation, called_api: calledHandOverOrderMutation, refused: [INVALID_STATE] }
+  cancel: { operation: CancelOrder, kind: mutation, called_api: calledCancelOrderMutation, refused: [INVALID_STATE] }
 
 elements:
   order_status: { testid: order-status }
