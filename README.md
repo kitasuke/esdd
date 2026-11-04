@@ -139,6 +139,10 @@ discovery after generation.
 - [docs/prd.md](docs/prd.md) — writing the PRD itself from the IRs: the PRD frame (problem, users,
   goals with metrics, non-goals), its checks, the rendered PRD (EARS-style requirements, acceptance
   criteria, open questions from the checker), per-company profiles, and the authoring loop
+- [docs/pdd.md](docs/pdd.md) — design docs: what in a design doc is spec, how API/DB constraints map
+  to IR rules, inputs and cases, comments and open threads as questions, disagreements (with the PRD,
+  within the doc, with the implementation), and design-doc versions in approval freshness; plus
+  writing a design doc whose constraints carry their observable consequences
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
   IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
@@ -152,6 +156,11 @@ discovery after generation.
   sending an approval back, partial approval, and order-preserving updates
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
   is confirmed by a test that actually ran (`--results`), with negative-control records
+
+## Skills
+
+[skills/](skills/) holds agent skills that run the method: [pdd-review](skills/pdd-review/SKILL.md)
+and [pdd-author](skills/pdd-author/SKILL.md). They are thin; the method stays in `docs/`.
 
 ## Single-file build
 
