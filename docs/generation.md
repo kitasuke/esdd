@@ -379,6 +379,28 @@ provides, per platform:
 Where one of these is missing, the scaffold's quality cannot be assured for that platform;
 say so in the report rather than presenting the scaffold as merge-ready.
 
+The generated **tests** need the same four things, aimed at test code. Without them a generated
+test can pass while checking nothing, or fail for reasons unrelated to the product:
+
+- **A testing guideline**, the most important of the four: which layer a check belongs to
+  (unit, integration, end-to-end), what counts as an oracle (an observable fact, never an
+  internal call), how to wait (on a state, never a fixed sleep), how to set up data and clean
+  it up, how locators are chosen, and what each test must prove before it is trusted (a
+  negative control). The scaffold's own unit tests follow it too
+- **Machine checks for test code**: a linter with rules for tests (no fixed sleeps, no raw
+  locators where a contract exists, no assertion-free tests), the type checker, and the
+  checks that tie tests to their sources: the IR checker's vocabulary, bindings and step
+  cross-checks, a check that every scenario records its negative control, and a check that
+  contract texts and test ids in the tests exist in the product
+- **A self-review procedure for test code**, separate from the product-code review: it asks
+  whether each oracle can fail and whether the test proves what its scenario claims
+- **A registry of test building blocks with real examples**: the helpers and their
+  preconditions, the observation vocabulary, the contracts shared across platforms, and an
+  existing scenario per kind of flow, with the commands that run each layer locally
+
+A platform whose tests lack one of these gets its generated tests reported as lower
+confidence, for the same reason.
+
 **Against an existing implementation**, build the scaffold for the gaps when the tests are
 Red because the approved spec differs from the product (spec drift). It is the only way to
 show that the Red tests can turn Green: a test that cannot pass against any
