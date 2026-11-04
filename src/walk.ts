@@ -15,6 +15,13 @@
 
 import { type Cell, type Model, cellKey } from "./types.ts";
 
+/**
+ * A target's answer when it could not answer: a probe that timed out, a screen that never settled, a
+ * server error. A method that throws is read the same way. The walk reports it as inconclusive and
+ * ends the run, never as a pass or a violation, so a flaky environment cannot pose as a defect
+ */
+export type Failed = { failed: string };
+
 interface TargetBase {
   /**
    * The events the target can probe: a screen's controls, an API's operations. Other events
@@ -33,8 +40,12 @@ interface TargetBase {
   resetTo?(state: string): Promise<void>;
   /** Fires an event that is not probed. `to` is the state the IR leads to (a fake backend may need it); absent for an ignored cell */
   fire(event: string, step: { from: string; to?: string }): Promise<void>;
-  /** Whether the instance is in the state. undefined when nothing observable tells it apart: reported, never counted as a pass */
-  shows(state: string): Promise<boolean | undefined>;
+  /**
+   * Whether the instance is in the state. undefined when nothing observable tells it apart: reported,
+   * never counted as a pass. false only when the instance settled in another state; when it did not
+   * settle, answer Failed
+   */
+  shows(state: string): Promise<boolean | undefined | Failed>;
 }
 
 /**
@@ -43,7 +54,7 @@ interface TargetBase {
  */
 export interface ScreenTarget extends TargetBase {
   /** Whether the event's control is offered now. Hidden or disabled is not offered; a control that answers with an error is offered */
-  offered(event: string): Promise<boolean>;
+  offered(event: string): Promise<boolean | Failed>;
   /** Fires any event, probed or not */
   fire(event: string, step: { from: string; to?: string }): Promise<void>;
 }
@@ -53,7 +64,7 @@ export interface ScreenTarget extends TargetBase {
  * operation (its `refused` codes); anything else that is not a success (a server error, a timeout, an
  * unknown code) is `failed`, so an outage never reads as a refusal
  */
-export type Attempt = "accepted" | "refused" | { failed: string };
+export type Attempt = "accepted" | "refused" | Failed;
 
 /** An API. Probing an event sends its request, so the state can change */
 export interface ApiTarget extends TargetBase {
@@ -68,6 +79,13 @@ export interface WalkOptions {
   maxSteps?: number;
   /** Seed for choosing among cells not covered yet (default 1). The same seed walks the same way */
   seed?: number;
+  /**
+   * Upper bound on the walk's duration in milliseconds (default none). On a real system a step can
+   * take seconds or minutes, so a lane bounds the time too; the walk ends after the step in progress
+   */
+  maxDuration?: number;
+  /** The clock maxDuration is measured with (default Date.now) */
+  now?: () => number;
 }
 
 /** Where a reproduction starts: the initial state, or a state the target built directly (resetTo) */
@@ -86,7 +104,7 @@ export interface Violation {
   message: string;
 }
 
-/** An attempt that neither succeeded nor was refused: the walk cannot judge the cell, and stops the run */
+/** A probe, an attempt or an observation the target could not answer: the walk cannot judge the cell, and ends the run */
 export interface Inconclusive {
   state: string;
   event: string;
@@ -108,6 +126,11 @@ export interface WalkReport {
   unobservable: string[];
   steps: number;
   runs: number;
+  /**
+   * Why the walk ended: every cell fired, nothing left it could reach, a budget ran out, or the
+   * target could not start a run
+   */
+  stopped: "covered" | "stalled" | "steps" | "time" | "reset failed";
 }
 
 export type Offer = "offered" | "refused" | "either";
@@ -180,18 +203,27 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
   const unobservable = new Set<string>();
   const violations: Violation[] = [];
   const inconclusive: Inconclusive[] = [];
-  // API cells already judged a violation or inconclusive: attempting them again would end every
-  // later run at the same place, so the rest of the graph would never be walked
+  // Cells that ended a run (an API cell judged a violation, any inconclusive probe): probing them
+  // again would end every later run at the same place, so the rest of the graph would never be walked
   const settled = new Set<string>();
   let steps = 0;
   let runs = 0;
+  const maxDuration = options.maxDuration ?? Number.POSITIVE_INFINITY;
+  const now = options.now ?? Date.now;
+  const started = now();
+  let stopped: WalkReport["stopped"] | undefined;
+  const withinBudget = (): boolean => {
+    if (stopped === undefined && steps >= maxSteps) stopped = "steps";
+    if (stopped === undefined && now() - started >= maxDuration) stopped = "time";
+    return stopped === undefined;
+  };
 
-  while (steps < maxSteps) {
+  while (withinBudget()) {
     const coveredBefore = covered.size;
     // Later runs start next to an uncovered cell when the target can build that state
     const jump = runs > 0 && target.resetTo !== undefined ? pick(cells.filter((c) => !covered.has(cellKey(c.from, c.on))))?.from : undefined;
     const start: Start = { state: jump ?? initial, direct: jump !== undefined };
-    await (jump !== undefined ? target.resetTo!(jump) : target.reset());
+    const reset = await answer(() => (jump !== undefined ? target.resetTo!(jump) : target.reset()));
     runs++;
     let state = start.state;
     const trace: string[] = [];
@@ -202,40 +234,54 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
         violations.push({ kind, state, event, start, trace: [...trace], message });
       }
     };
-    const fail = (event: string, failed: { failed: string }) =>
-      inconclusive.push({ state, event, start, trace: [...trace], message: `${event} in ${state} neither succeeded nor was refused: ${failed.failed}` });
-    // false when the instance is somewhere else: the walk no longer knows where it is
+    const fail = (event: string, message: string) => inconclusive.push({ state, event, start, trace: [...trace], message });
+    // false when the instance is somewhere else or could not be observed: the walk no longer knows where it is
     const observe = async (after: string, expected: string): Promise<boolean> => {
-      const shown = await target.shows(expected);
+      const shown = await answer(() => target.shows(expected));
+      if (isFailed(shown)) {
+        fail(after, `could not observe ${expected} after ${after}: ${shown.failed}`);
+        return false;
+      }
       if (shown === undefined) unobservable.add(expected);
       if (shown !== false) return true;
       state = expected;
       report("safety", after, `after ${after} the instance is not in ${expected}`);
       return false;
     };
-    if (!(await observe(start.direct ? "resetTo" : "reset", state))) break;
+    const resetEvent = start.direct ? "resetTo" : "reset";
+    if (isFailed(reset)) {
+      fail(resetEvent, `could not start a run in ${state}: ${reset.failed}`);
+      stopped = "reset failed";
+      break;
+    }
+    if (!(await observe(resetEvent, state))) break;
 
-    run: while (steps < maxSteps) {
+    run: while (withinBudget()) {
       // Probe
       const offered = new Map<string, boolean>();
       for (const event of probes) {
         const expected = expectedOffer(model, state, event);
-        if (expected === undefined) continue;
+        if (expected === undefined || settled.has(cellKey(state, event))) continue;
         if (screen) {
-          const actual = await screen.offered(event);
+          const actual = await answer(() => screen.offered(event));
+          if (isFailed(actual)) {
+            settled.add(cellKey(state, event));
+            fail(event, `could not probe ${event} in ${state}: ${actual.failed}`);
+            break run;
+          }
           offered.set(event, actual);
           probed.add(cellKey(state, event));
           if (expected === "offered" && !actual) report("liveness", event, `${event} is not offered in ${state}, where the IR has a transition`);
           else if (expected === "refused" && actual) report("safety", event, `${event} is offered in ${state}, where the IR declares it impossible`);
-        } else if (api && expected !== "offered" && !settled.has(cellKey(state, event))) {
+        } else if (api && expected !== "offered") {
           // A transition is checked when it is fired; probing it here would move the state
-          const result = await api.attempt(event, { from: state });
+          const result = await answer(() => api.attempt(event, { from: state }));
           steps++;
           probed.add(cellKey(state, event));
           if (expected === "either") covered.add(cellKey(state, event));
-          if (typeof result === "object") {
+          if (isFailed(result)) {
             settled.add(cellKey(state, event));
-            fail(event, result);
+            fail(event, unanswered(event, state, result));
             break run;
           }
           if (result === "accepted" && expected === "refused") {
@@ -261,9 +307,9 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
       steps++;
       covered.add(cellKey(cell.from, cell.on));
       if (api && probes.has(cell.on)) {
-        const result = await api.attempt(cell.on, { from: state, to: cell.to });
-        if (typeof result === "object") {
-          fail(cell.on, result);
+        const result = await answer(() => api.attempt(cell.on, { from: state, to: cell.to }));
+        if (isFailed(result)) {
+          fail(cell.on, unanswered(cell.on, state, result));
           break;
         }
         if (result === "refused") {
@@ -272,7 +318,11 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
           continue;
         }
       } else {
-        await target.fire(cell.on, { from: state, to: cell.to });
+        const fired = await answer(() => target.fire(cell.on, { from: state, to: cell.to }));
+        if (isFailed(fired)) {
+          fail(cell.on, `could not fire ${cell.on} in ${state}: ${fired.failed}`);
+          break;
+        }
       }
       trace.push(cell.on);
       const to = cell.to ?? state;
@@ -280,7 +330,9 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
       state = to;
     }
     // A run that covered nothing new will not cover anything on the next one either
-    if (covered.size === coveredBefore || covered.size === cells.length) break;
+    if (stopped === undefined && (covered.size === coveredBefore || covered.size === cells.length)) {
+      stopped = covered.size === cells.length ? "covered" : "stalled";
+    }
   }
 
   const keys = cells.map((c) => cellKey(c.from, c.on));
@@ -293,8 +345,34 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
     unobservable: [...unobservable],
     steps,
     runs,
+    stopped: stopped ?? (covered.size === cells.length ? "covered" : "stalled"),
   };
 }
+
+function isFailed(value: unknown): value is Failed {
+  return typeof value === "object" && value !== null && "failed" in value;
+}
+
+/** The target's answer, or Failed when it threw: a Playwright timeout, a dropped connection */
+async function answer<T>(call: () => Promise<T>): Promise<T | Failed> {
+  try {
+    return await call();
+  } catch (error) {
+    return { failed: error instanceof Error ? (error.message.split("\n")[0] ?? error.name) : String(error) };
+  }
+}
+
+function unanswered(event: string, state: string, result: Failed): string {
+  return `${event} in ${state} neither succeeded nor was refused: ${result.failed}`;
+}
+
+const STOPPED: Record<WalkReport["stopped"], string> = {
+  covered: "every cell fired",
+  stalled: "nothing left it could reach",
+  steps: "step budget reached",
+  time: "time budget reached",
+  "reset failed": "could not start a run",
+};
 
 function reproduction(start: Start, trace: string[]): string {
   const from = start.direct ? `${start.state}, built directly` : start.state;
@@ -304,7 +382,7 @@ function reproduction(start: Start, trace: string[]): string {
 /** The report as lines for a test log */
 export function renderWalkReport(report: WalkReport): string {
   const lines = [
-    `graph walk: ${report.steps} steps over ${report.runs} runs — ${report.covered.length}/${report.covered.length + report.uncovered.length} cells fired, ${report.probed.length} cells probed, ${report.violations.length} violations`,
+    `graph walk: ${report.steps} steps over ${report.runs} runs — ${report.covered.length}/${report.covered.length + report.uncovered.length} cells fired, ${report.probed.length} cells probed, ${report.violations.length} violations, ${report.inconclusive.length} inconclusive — stopped: ${STOPPED[report.stopped]}`,
   ];
   for (const v of report.violations) lines.push(`  ${v.kind}: ${v.message} (${reproduction(v.start, v.trace)})`);
   for (const i of report.inconclusive) lines.push(`  inconclusive: ${i.message} (${reproduction(i.start, i.trace)})`);

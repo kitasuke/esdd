@@ -442,6 +442,14 @@ this event?" differently:
   code is reported as inconclusive and ends the run, never counted as a refusal, so an
   outage cannot pass an impossible cell. A cell found inconclusive or in violation is
   not attempted again, so one defect does not stop the rest of the walk
+- **A probe with no answer is inconclusive, on every target.** Any target method may
+  answer `{ failed }`, and one that throws (a locator timeout, a dropped connection) is
+  read the same way. A screen probe that times out is not "not offered", and a screen
+  that never settled is not "in another state": either would turn a flaky environment
+  into a liveness or safety violation. `shows` answers `false` only when the screen
+  settled in another state. The run ends, the cell is not probed again, and the report
+  lists it with its reproduction. A walk that could not start a run at all stops with
+  "could not start a run"
 - **Runs may start from a state built directly.** A target with `resetTo` (test data on
   a real database, say) lets later runs start next to a cell not covered yet, instead of
   walking there from the initial state. The first run still starts from the initial
@@ -463,7 +471,7 @@ The same walk runs on several layers, with different targets:
 | --- | --- | --- |
 | **Integration** | a screen, on a fake that answers each event with the state the IR leads to | the screen offers or shows something the IR does not allow. Cheap and deterministic, so it can run on every change |
 | **Backend** | the API, on the real backend and a real database | the server accepts or refuses something the IR does not. Unlike a fake, the backend remembers: a leftover entity, an earlier refusal, a stale attempt are all still there, so walked sequences reach states that no scenario sets up. No screens and no devices, so it is cheap enough to run often |
-| **E2E** | screens, on the real system | the system as a whole allows or refuses something the IR does not, including whether several screens agree on the state. Bound it with a step budget: every fired event is one more chance of a nondeterministic failure, so a long walk on a shared environment fails for reasons unrelated to the product |
+| **E2E** | screens, on the real system | the system as a whole allows or refuses something the IR does not, including whether several screens agree on the state. Opt-in. Bound it with a step budget (`maxSteps`) and a time budget (`maxDuration`): every fired event is one more chance of a nondeterministic failure, and a step can take minutes, so an unbounded walk on a shared environment fails, or outlives its lane, for reasons unrelated to the product. The report says why the walk ended (`stopped`), so a walk cut short by its budget reads as partial coverage, not as a failure |
 
 A common balance is the walk at Integration and Backend, and the `critical: true`
 scenarios at E2E: the walk covers every reachable cell where it is cheap, and E2E keeps

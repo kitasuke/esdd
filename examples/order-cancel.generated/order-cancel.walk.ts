@@ -63,7 +63,9 @@ test("UC-ORDER-CANCEL-001 graph walk: the screen offers what the IR allows in ev
   const report = await walk(model, await orderTarget(page));
   console.log(renderWalkReport(report));
   expect(report.violations).toEqual([]);
+  expect(report.inconclusive).toEqual([]);
   expect(report.uncovered).toEqual([]);
+  expect(report.stopped).toBe("covered");
 });
 
 // Negative control: the same walk on a screen that still offers cancel after hand-over must fail
