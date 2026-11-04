@@ -288,7 +288,7 @@ notifications, payments, writes to an external service — anything cleanup cann
 ### Tests before the implementation exists
 
 Tests can be generated before the feature is implemented. Until it lands, prove the
-test code itself (locators, flow, waits) against a **throwaway generated frontend**:
+test code itself (locators, flow, waits) against a **generated frontend (the scaffold)**:
 
 1. Locators cannot be measured, so the bindings are the source of locators — check
    them (including literal_coverage) before generating
@@ -300,7 +300,8 @@ test code itself (locators, flow, waits) against a **throwaway generated fronten
    matches the contract, only the one call site that invokes it moves
 3. Run the tests against the scaffold until they are Green and have negative controls.
    This verifies the tests, not the product
-4. Throw the scaffold away. Only the tests are delivered
+4. Keep the scaffold out of the test change. Only the tests are delivered in it; the
+   scaffold is handed over separately as a candidate implementation (below)
 5. The delivered tests are Red detectors until the implementation lands. Mark them as
    waiting in the scenario file and keep them out of gating CI lanes until they have
    been seen Green against the implementation
@@ -319,6 +320,73 @@ real system.
 **Blind runs against an existing feature** use the same scaffold, temporarily placed on
 the real route, and must then run against the implementation; classify its Reds as in
 [Handling Red](#handling-red).
+
+### The scaffold is a candidate implementation
+
+Write the scaffold to the bar of product code, so the implementing team can take it as
+the start of their change instead of rewriting it. A scaffold written only to make tests
+pass is read once and thrown away; one written to the codebase's own standard can be
+reviewed and merged. The bar:
+
+- **Read the project's rules before writing**, and check against them after (below)
+- **The project's rules for product code apply in full**: its coding standards, its
+  structure (logic in pure, unit-tested functions rather than inside components), its
+  existing components and helpers reused rather than copied, and the same lint, type and
+  unit-test checks a product change must pass. Run the project's own self-review for the
+  platform (the review a human change gets before review) on the scaffold, and fix what
+  it finds in the scaffold's lines
+- **Nothing that cannot be merged as is**: no hand edits to generated files, no change
+  to a shared contract made only to get the scaffold running. A temporary schema or a
+  stub stays outside the scaffold's diff and is listed as what the real backend must
+  provide
+- **Delivered with a merge-readiness report, written by someone other than the generator**:
+  a reviewer that is not given the generator's own conclusions (given them, it tends to
+  agree). The report has the tests before and after the scaffold, the checks that passed,
+  the self-review result, and what still blocks merging, sorted by who must act: backend work (a missing
+  field, a query that would run once per row), design decisions the spec does not make
+  (where a new column goes, how a preview is labeled), and spec questions the scaffold
+  raised. Each decision the scaffold had to make that the IR does not state is listed;
+  those are questions, not answers
+- **Separate from the test change**: a patch or a branch of its own, never committed
+  with the tests, so the tests can merge before the implementation is decided
+
+#### What a project provides
+
+Good generated code depends far more on what the project has written down and can check by
+machine than on the generator. The contents differ from project to project and are the
+project's own; esdd only needs them to exist. A project that wants merge-ready scaffolds
+provides, per platform:
+
+- **Coding guidelines** the generator reads first: structure (where logic, components and
+  tests go), naming, error handling, state and data fetching, testing, and the guides for
+  the kinds of code it builds (forms, lists, styling, navigation). Include the component
+  library's usage notes, each app's own notes, and the domain's spec guides
+- **Machine checks**, which matter most: a formatter, a linter (house conventions encoded as
+  custom rules where possible, since a rule is enforced on every change and a guideline only
+  when someone reads it), a type checker or compiler, and unit tests. A scaffold that passes
+  them is reviewable; one that has nothing to pass cannot show its quality
+- **A self-review procedure**: the review a human change gets before review, runnable on the
+  scaffold
+- **A pattern registry with real exemplars**: for each recurring building block, when to
+  pick it and an existing file that shows it, so the scaffold copies the codebase rather than
+  the generator's habits. A registry entry for a platform comes from a census of that
+  platform's code, and a building block that does not exist there is recorded as absent
+- **The check commands**, next to the patterns, so the generator and the reviewer run the
+  same checks
+- **Backend guides** (data loading, authorization, schema changes), so the report can name
+  backend work precisely, such as which loading pattern removes a per-row query
+
+Where one of these is missing, the scaffold's quality cannot be assured for that platform;
+say so in the report rather than presenting the scaffold as merge-ready.
+
+**Against an existing implementation**, build the scaffold for the gaps when the tests are
+Red because the approved spec differs from the product (spec drift). It is the only way to
+show that the Red tests can turn Green: a test that cannot pass against any
+implementation (it never sets up the data the screen loads), or that passes for the wrong
+reason, shows up here and not in the Red run. In one trial, a scaffold for three gaps
+turned six of seven Red tests Green, exposed one test that no implementation could pass and
+one that passed only because an upload failed, and surfaced a spec answer that contradicted
+an earlier product decision to remove the feature.
 
 ### Givens against a fake server
 
@@ -616,7 +684,7 @@ happened. Guard against it while writing and after running:
   fixture instead (for a race, the fake's rejection of the loser), and generate absence
   outcomes after a presence assertion that waits for the response
 - **A Green against a stand-in is not a Green against the real system.** A test that
-  passed against a throwaway scaffold or a simulated backend has verified the test, not
+  passed against a scaffold or a simulated backend has verified the test, not
   the product; report which target each layer ran against
 
 ## Visual evidence

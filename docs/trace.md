@@ -174,7 +174,7 @@ Records live in one of two places:
   ```
 
 - **`trace.yaml` `negative_controls`** — for layers whose test code does not stay in the
-  repository (e.g. acceptance tests generated against a throwaway scaffold) or that have
+  repository (e.g. acceptance tests generated against a scaffold) or that have
   no scenario file. `layer` is optional. A rule ID key applies to every case of the rule
   (a table-driven test shares one oracle across all rows)
 
