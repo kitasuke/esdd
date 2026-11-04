@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import ts from "typescript";
 import { parseIR } from "../../src/parse.ts";
-import { type WalkTarget, renderWalkReport, walk } from "../../src/walk.ts";
+import { type ScreenTarget, renderWalkReport, walk } from "../../src/walk.ts";
 import { type OrderStatus, integrationHarness } from "./harness.ts";
 import type { OrderDriver, StatusLiteral, UiEvent } from "./order-driver.ts";
 
@@ -23,7 +23,7 @@ const STATUS: Partial<Record<OrderStatus, StatusLiteral>> = {
   CANCELED: "status_canceled",
 };
 
-async function orderTarget(page: Page): Promise<WalkTarget> {
+async function orderTarget(page: Page): Promise<ScreenTarget> {
   const h = await integrationHarness(page);
   let orderId = "";
   let screen: { actor: string; driver: OrderDriver } | undefined;
@@ -34,7 +34,7 @@ async function orderTarget(page: Page): Promise<WalkTarget> {
   };
   const actorOf = (event: string) => model!.events.get(event)!.actor;
   return {
-    uiEvents: ["pack", "hand_over", "cancel"],
+    probes: ["pack", "hand_over", "cancel"],
     reset: async () => {
       orderId = await h.fixtures.paidOrder();
       screen = undefined;

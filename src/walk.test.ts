@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseIR } from "./parse.ts";
 import type { Model } from "./types.ts";
-import { type WalkTarget, expectedOffer, renderWalkReport, walk } from "./walk.ts";
+import { type ApiTarget, type ScreenTarget, expectedOffer, renderWalkReport, walk } from "./walk.ts";
 
 function model(source: string): Model {
   const { model, findings } = parseIR(source);
@@ -34,12 +34,12 @@ const CORRECT: Implementation = {
   text: { PACKED: "Packed", HANDED_OVER: "Shipped", COMPLETED: "Delivered", CANCELED: "Canceled" },
 };
 
-function target(impl: Implementation): WalkTarget & { fired: string[] } {
+function target(impl: Implementation): ScreenTarget & { fired: string[] } {
   let status: Status = "PLACED";
   const fired: string[] = [];
   return {
     fired,
-    uiEvents: ["pack", "hand_over", "cancel"],
+    probes: ["pack", "hand_over", "cancel"],
     reset: async () => void (status = "PLACED"),
     offered: async (event) => impl.offers[event]?.includes(status) ?? false,
     fire: async (event) => {
@@ -94,6 +94,7 @@ describe("walk", () => {
         kind: "safety",
         state: "HANDED_OVER",
         event: "cancel",
+        start: { state: "PLACED", direct: false },
         trace: ["pack", "hand_over"],
         message: "cancel is offered in HANDED_OVER, where the IR declares it impossible",
       },
@@ -134,7 +135,49 @@ describe("walk", () => {
   it("renders the violations with their reproduction", async () => {
     const leaky = { ...CORRECT, offers: { ...CORRECT.offers, cancel: ["PLACED", "PACKED", "HANDED_OVER"] as Status[] } };
     expect(renderWalkReport(await walk(ORDER, target(leaky)))).toContain(
-      "safety: cancel is offered in HANDED_OVER, where the IR declares it impossible (from the initial state: pack → hand_over)",
+      "safety: cancel is offered in HANDED_OVER, where the IR declares it impossible (from PLACED: pack → hand_over)",
     );
+  });
+});
+
+// The same hand-written implementation behind an API: probing means sending the request
+function api(impl: Implementation, options: { direct?: boolean; refuseButMove?: [string, Status] } = {}): ApiTarget {
+  let status: Status = "PLACED";
+  const target: ApiTarget = {
+    probes: ["pack", "hand_over", "cancel"],
+    reset: async () => void (status = "PLACED"),
+    attempt: async (event) => {
+      const to = impl.leadsTo[event]?.[status];
+      if (options.refuseButMove?.[0] === event && to === undefined) {
+        status = options.refuseButMove[1];
+        return "refused";
+      }
+      if (to === undefined) return "refused";
+      status = to;
+      return "accepted";
+    },
+    fire: async (event) => void (status = impl.leadsTo[event]?.[status] ?? status),
+    shows: async (state) => status === state,
+  };
+  if (options.direct) target.resetTo = async (state) => void (status = state as Status);
+  return target;
+}
+
+describe("walk on an API target", () => {
+  it("reports a refusal that still changes the state as a safety violation", async () => {
+    const report = await walk(ORDER, api(CORRECT, { refuseButMove: ["hand_over", "CANCELED"] }));
+    expect(report.violations[0]).toMatchObject({ kind: "safety", state: "PLACED", event: "hand_over", trace: ["hand_over (refused)"] });
+  });
+
+  it("starts the reproduction at a state built directly when the run started there", async () => {
+    const leaky = { ...CORRECT, leadsTo: { ...CORRECT.leadsTo, cancel: { ...CORRECT.leadsTo.cancel, HANDED_OVER: "CANCELED" as Status } } };
+    const report = await walk(ORDER, api(leaky, { direct: true }), { seed: 3 });
+    const violation = report.violations.find((v) => v.state === "HANDED_OVER" && v.event === "cancel");
+    expect(violation?.kind).toBe("safety");
+    const text = renderWalkReport(report);
+    expect(text).toContain("cancel is accepted in HANDED_OVER, where the IR declares it impossible");
+    expect(text).toContain(`from ${violation?.start.state}, built directly:`);
+    // The known defect is not attempted again, so the rest of the graph is still walked
+    expect(report.uncovered).toEqual([]);
   });
 });

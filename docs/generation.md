@@ -424,14 +424,30 @@ the last reset as its reproduction. This is graph-based testing with the IR as t
 model: its transitions are the traces the implementation may produce, and its impossible
 cells are what the implementation must refuse in a stable state.
 
-The walk drives a **target** (`WalkTarget`) that the project writes once per usecase on
-top of the [semantic driver](#semantic-driver-vocabulary-isolation), with two probes
-that answer instead of asserting: whether an event's control is offered, and whether
-the screen shows a state.
+The walk drives a **target** (`WalkTarget`) that the project writes once per usecase.
+There are two kinds, because a screen and an API answer the question "would you accept
+this event?" differently:
 
-- **Events a screen cannot refuse are not probed.** `actor: system` events and events
+| Target | How an event is probed | Built on |
+| --- | --- | --- |
+| **Screen** (`ScreenTarget`) | asked without changing anything: is the control offered? Every probed event is checked in every state | the [semantic driver](#semantic-driver-vocabulary-isolation), with two probes that answer instead of asserting: whether an event's control is offered, and whether the screen shows a state |
+| **API** (`ApiTarget`) | only by sending the request. An impossible event is attempted: it must be refused and leave the state as it was. A transition is checked when it is fired: it must be accepted and lead where the IR says | the bindings `events` (the operation per event, and its `refused` codes) and a read of the state |
+
+- **Events the target cannot refuse are not probed.** `actor: system` events and events
   from another device are fired only where the IR has a transition or an ignored cell;
   the target injects them (a fixture, a fake, an API call)
+- **A refusal is a rejection the bindings name; anything else is inconclusive.** An API
+  target reads a rejection carrying one of the operation's `refused` codes
+  ([bindings.md](bindings.md)) as a refusal. A server error, a timeout or an unknown
+  code is reported as inconclusive and ends the run, never counted as a refusal, so an
+  outage cannot pass an impossible cell. A cell found inconclusive or in violation is
+  not attempted again, so one defect does not stop the rest of the walk
+- **Runs may start from a state built directly.** A target with `resetTo` (test data on
+  a real database, say) lets later runs start next to a cell not covered yet, instead of
+  walking there from the initial state. The first run still starts from the initial
+  state, and every run keeps walking from where it lands: a state built directly has no
+  history, and bugs that depend on how a state was reached only show on walked paths. A
+  reproduction says where it started ("from PACKED, built directly: …")
 - **A state with nothing observable is reported, not passed.** When no literal tells a
   state apart, the probe answers "unknown" and the report lists the state as not
   checked. It is the same question as an outcome the bindings name nothing for
@@ -441,12 +457,17 @@ the screen shows a state.
 - **Races are not walked.** The walk fires one event at a time; races keep their two
   nodes ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration))
 
-The same walk runs on two layers, with different targets:
+The same walk runs on several layers, with different targets:
 
-| Layer | Target backend | What a violation means |
+| Layer | Target | What a violation means |
 | --- | --- | --- |
-| **Integration** | a fake that answers each event with the state the IR leads to | the screen offers or shows something the IR does not allow. Cheap and deterministic, so it can run on every change |
-| **E2E** | the real system | the system as a whole allows or refuses something the IR does not, including server-side refusals a fake cannot know about. Bound it with a step budget: every fired event is one more chance of a nondeterministic failure, so a long walk on a shared environment fails for reasons unrelated to the product |
+| **Integration** | a screen, on a fake that answers each event with the state the IR leads to | the screen offers or shows something the IR does not allow. Cheap and deterministic, so it can run on every change |
+| **Backend** | the API, on the real backend and a real database | the server accepts or refuses something the IR does not. Unlike a fake, the backend remembers: a leftover entity, an earlier refusal, a stale attempt are all still there, so walked sequences reach states that no scenario sets up. No screens and no devices, so it is cheap enough to run often |
+| **E2E** | screens, on the real system | the system as a whole allows or refuses something the IR does not, including whether several screens agree on the state. Bound it with a step budget: every fired event is one more chance of a nondeterministic failure, so a long walk on a shared environment fails for reasons unrelated to the product |
+
+A common balance is the walk at Integration and Backend, and the `critical: true`
+scenarios at E2E: the walk covers every reachable cell where it is cheap, and E2E keeps
+the few paths that check the screens against the real system.
 
 Against product code generated from the same IR, the walk agrees by construction, like
 the integration tests ([Handling Red](#handling-red)); its negative control (a mutated
@@ -454,9 +475,16 @@ screen that offers an impossible event) is what shows it can fail. Its value is 
 an implementation the IR did not produce: an existing feature, a hand-written screen,
 and the real system at E2E.
 
-[examples/order-cancel.generated/order-cancel.walk.ts](../examples/order-cancel.generated/order-cancel.walk.ts)
-walks the order example on the integration layer, with that negative control
-(`npm run example:walk`).
+The order example walks both kinds of target, each with negative controls:
+
+- [order-cancel.walk.ts](../examples/order-cancel.generated/order-cancel.walk.ts): the
+  screen on the integration layer, against a screen that still offers cancel after
+  hand-over (`npm run example:walk`)
+- [order-cancel.api-walk.test.ts](../examples/order-cancel.generated/order-cancel.api-walk.test.ts):
+  the API of a hand-written stand-in for the backend
+  ([order-service.ts](../examples/order-cancel.generated/order-service.ts)), from the
+  initial state and from states built directly, against a service that accepts cancel
+  after hand-over, one that refuses hand-over, and one whose operation is down (`npm test`)
 
 ## Pattern registry (select → instantiate)
 
