@@ -195,11 +195,16 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    cell, outcome, race and impossible cell that this design changes or enforces; each needs at
    least one row. Races and impossible cells are often what a lock or a refusal in the design is
    for. Name the IR items this design leaves to others (another service, another team's screen),
-   so the list is visibly complete
+   so the list is visibly complete. An item nothing in the design backs (the list shows a status
+   the list response does not carry) is a gap in the design: the author fills it before review; it
+   is not a question for the owner
 2. **Write the consequence with each constraint.** For every limit, uniqueness, request meaning,
    order, error and permission in the design, add its row. A constraint with no visible effect gets
    no row. A row whose consequence is not in any IR is new behavior: it goes back to the PRD owner
-   as a question, and the design doc does not decide it alone
+   as a question, and the design doc does not decide it alone. The other way round, when the
+   design cannot back what an IR item says (one stored creator, an IR that shows "last edited
+   by"), change the design so it does; that is the author's call. Ask the owner only when backing
+   it would cost more than the behavior is worth, and then propose the behavior the design can back
 3. **Agree the layers.** Each row names every layer that enforces it (database, API, client). Where
    the layers differ (the database allows what the API refuses), the row says which one the user
    meets and why the other differs, or the difference is an open point
