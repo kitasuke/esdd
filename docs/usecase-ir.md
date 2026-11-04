@@ -249,7 +249,13 @@ either **asked** or **assumed** (which one is decided by rule —
 [pipeline.md](pipeline.md#accept-by-default)):
 
 1. **Asked** (must-ask): carve a `TBD` (pending warn). It stays open until the owner
-   answers, and blocks approval
+   answers, and blocks approval. Put the marker where the answer will go, so that folding the
+   answer in (`--answers`, which replaces the marker with the answer text) leaves a statement of
+   the behavior. Either the marker stands for the unknown part of a sentence that already states
+   the rest (`the request is rejected and TBD(Q4: the message shown) is shown`), or it is the
+   whole text and carries the question (`expected: "TBD(Q4: can a note carry an attachment?)"`).
+   Never end a question with the marker (`whether a note can carry an attachment is TBD(Q4)`):
+   the answer replaces only the marker, and the question is left around it
 2. **Assumed**: apply the proposed answer and declare it, so the IR is complete and
    checkable while the owner reviews the list
 
