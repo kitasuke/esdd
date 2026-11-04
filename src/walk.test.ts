@@ -220,6 +220,23 @@ function api(impl: Implementation, options: { direct?: boolean; refuseButMove?: 
 }
 
 describe("walk on an API target", () => {
+  it("never sends more requests than the step budget, probes included", async () => {
+    let requests = 0;
+    const counting = api(CORRECT);
+    const attempt = counting.attempt;
+    counting.attempt = async (event, step) => {
+      requests++;
+      return attempt(event, step);
+    };
+    for (const maxSteps of [1, 2, 5]) {
+      requests = 0;
+      const report = await walk(ORDER, counting, { maxSteps });
+      expect(report.steps).toBeLessThanOrEqual(maxSteps);
+      expect(requests).toBeLessThanOrEqual(maxSteps);
+      expect(report.stopped).toBe("steps");
+    }
+  });
+
   it("reports a refusal that still changes the state as a safety violation", async () => {
     const report = await walk(ORDER, api(CORRECT, { refuseButMove: ["hand_over", "CANCELED"] }));
     expect(report.violations[0]).toMatchObject({ kind: "safety", state: "PLACED", event: "hand_over", trace: ["hand_over (refused)"] });

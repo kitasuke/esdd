@@ -274,6 +274,8 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
           if (expected === "offered" && !actual) report("liveness", event, `${event} is not offered in ${state}, where the IR has a transition`);
           else if (expected === "refused" && actual) report("safety", event, `${event} is offered in ${state}, where the IR declares it impossible`);
         } else if (api && expected !== "offered") {
+          // Each attempt is a step, so the budget is checked before every request
+          if (!withinBudget()) break run;
           // A transition is checked when it is fired; probing it here would move the state
           const result = await answer(() => api.attempt(event, { from: state }));
           steps++;
@@ -302,7 +304,7 @@ export async function walk(model: Model, target: WalkTarget, options: WalkOption
       const fresh = here.filter((c) => !covered.has(cellKey(c.from, c.on)));
       const toward = towardUncovered(cells, state, covered);
       const cell = fresh.length > 0 ? pick(fresh) : here.find((c) => c.on === toward);
-      if (cell === undefined) break;
+      if (cell === undefined || !withinBudget()) break;
 
       steps++;
       covered.add(cellKey(cell.from, cell.on));
