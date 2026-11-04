@@ -328,13 +328,7 @@ the start of their change instead of rewriting it. A scaffold written only to ma
 pass is read once and thrown away; one written to the codebase's own standard can be
 reviewed and merged. The bar:
 
-- **Read the project's rules before writing.** A project names, per platform, the
-  documents the generator reads first: the coding rules and structure, the guides for the
-  kinds of code involved (forms, data fetching, lists, styling), the component library's
-  usage notes, the app's own notes, and the domain's spec guides. A scaffold written
-  without them follows the spec and misses the conventions; reading them is what makes the
-  code reviewable. List the backend guides too, so the report can name backend work
-  precisely (for example, which loading pattern fixes a per-row query)
+- **Read the project's rules before writing**, and check against them after (below)
 - **The project's rules for product code apply in full**: its coding standards, its
   structure (logic in pure, unit-tested functions rather than inside components), its
   existing components and helpers reused rather than copied, and the same lint, type and
@@ -355,6 +349,35 @@ reviewed and merged. The bar:
   those are questions, not answers
 - **Separate from the test change**: a patch or a branch of its own, never committed
   with the tests, so the tests can merge before the implementation is decided
+
+#### What a project provides
+
+Good generated code depends far more on what the project has written down and can check by
+machine than on the generator. The contents differ from project to project and are the
+project's own; esdd only needs them to exist. A project that wants merge-ready scaffolds
+provides, per platform:
+
+- **Coding guidelines** the generator reads first: structure (where logic, components and
+  tests go), naming, error handling, state and data fetching, testing, and the guides for
+  the kinds of code it builds (forms, lists, styling, navigation). Include the component
+  library's usage notes, each app's own notes, and the domain's spec guides
+- **Machine checks**, which matter most: a formatter, a linter (house conventions encoded as
+  custom rules where possible, since a rule is enforced on every change and a guideline only
+  when someone reads it), a type checker or compiler, and unit tests. A scaffold that passes
+  them is reviewable; one that has nothing to pass cannot show its quality
+- **A self-review procedure**: the review a human change gets before review, runnable on the
+  scaffold
+- **A pattern registry with real exemplars**: for each recurring building block, when to
+  pick it and an existing file that shows it, so the scaffold copies the codebase rather than
+  the generator's habits. A registry entry for a platform comes from a census of that
+  platform's code, and a building block that does not exist there is recorded as absent
+- **The check commands**, next to the patterns, so the generator and the reviewer run the
+  same checks
+- **Backend guides** (data loading, authorization, schema changes), so the report can name
+  backend work precisely, such as which loading pattern removes a per-row query
+
+Where one of these is missing, the scaffold's quality cannot be assured for that platform;
+say so in the report rather than presenting the scaffold as merge-ready.
 
 **Against an existing implementation**, build the scaffold for the gaps when the tests are
 Red because the approved spec differs from the product (spec drift). It is the only way to
