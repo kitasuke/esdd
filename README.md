@@ -130,6 +130,25 @@ literal_coverage turns the "the rule demands UI copy but the contract has none" 
 of inconsistency into a machine finding at contract-review time instead of a
 discovery after generation.
 
+## What your project provides
+
+The checker verifies the contract; the quality of the code and tests generated from it
+depends mostly on what the project has written down and can check by machine. Write these
+down before generating, per platform. Their contents are your project's own; ESDD only needs
+them to exist:
+
+- **Guidelines**: coding guidelines for product code, and a **testing guideline** for tests
+  (which layer a check belongs to, what counts as an oracle, how to wait, how to prove a test
+  can fail)
+- **Machine checks**: a formatter, a linter (house rules encoded as custom rules where
+  possible), a type checker and unit tests, plus lint rules aimed at test code
+- **A self-review procedure** for product code and one for test code
+- **A pattern registry with real examples**: the recurring building blocks of the codebase
+  and its tests, each with an existing file that shows it, and the commands that run the checks
+
+A platform missing one of these gets its generated code and tests reported as lower
+confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides).
+
 ## Documentation
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
