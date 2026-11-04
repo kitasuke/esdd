@@ -208,7 +208,8 @@ converting; it never decides answers (no invention). These rules keep the rounds
     - { id: W7, answer: "the row is hidden", by: owner, at: 2026-01-02 }   # the proposal is replaced
   ```
 
-  An answered `TBD(Q4: …)` becomes the answer wherever it appears; a replaced assumption's
+  An answered `TBD(Q4: …)` becomes the answer wherever it appears (so does a marker the project
+  configures in `pendingMarkers`, written the same way); a replaced assumption's
   applied text becomes the answer and its declaration is removed; an accepted one is left for
   the approval to name. One answer goes into every place that carried the marker, and the run
   lists those places with the text each had when there is more than one, so the reader checks the

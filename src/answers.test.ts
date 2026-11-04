@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { applyAnswers, describeApplied, parseLedger } from "./answers.ts";
 import { checkPending } from "./checks.ts";
+import { configure } from "./config.ts";
 import { parseIR } from "./parse.ts";
 
 const IR = `
@@ -122,5 +123,25 @@ describe("applyAnswers", () => {
       '    transitions[1].outcome[0]: was "the request is kept ASSUMED(W1)"',
       '    transitions[1].outcome[1]: was "a notice is shown ASSUMED(W1)"',
     ]);
+  });
+});
+
+describe("applyAnswers with the project's pending markers", () => {
+  afterEach(() => configure({}));
+
+  const CONFIGURED = IR.replace("TBD(Q1: what is shown after go?)", "OPEN(Q1)");
+
+  it("replaces a configured marker as it replaces TBD", () => {
+    configure({ pendingMarkers: ["OPEN"] });
+    const { ledger } = parseLedger(LEDGER);
+    const result = applyAnswers(CONFIGURED, ledger!);
+    expect(result.source).not.toContain("OPEN(Q1)");
+    expect(result.applied.find((a) => a.id === "Q1")?.places).toBe(2);
+  });
+
+  it("leaves a marker the project did not configure", () => {
+    const { ledger } = parseLedger(LEDGER);
+    const result = applyAnswers(CONFIGURED, ledger!);
+    expect(result.source).toContain("OPEN(Q1)");
   });
 });

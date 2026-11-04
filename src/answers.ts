@@ -1,6 +1,7 @@
 // Folding answers into an IR (docs/pipeline.md "Keep an answer ledger"): the ledger is a YAML
 // file, one entry per answered question, and --answers applies it to the IR text mechanically:
 //   - an answer to a must-ask question replaces every `TBD(<id>: …)` / `TBD(<id>)` marker with the answer
+//     (any unanswered-question marker counts: the defaults and the project's pendingMarkers)
 //   - an answer to an assumption replaces every IR text that carries `ASSUMED(<id>)` with the answer
 //     and removes the assumption's declaration (the owner replaced the proposal)
 //   - an accepted assumption changes nothing (approving the IR names it, docs/approval.md)
@@ -8,6 +9,7 @@
 // what the answers changed. Re-run the checks afterwards: an answer that adds a state or an
 // event brings undeclared cells with it.
 
+import { pendingMarkers } from "./text.ts";
 import { isMap, isPair, isScalar, isSeq, parseDocument, visit, type Document, type Scalar } from "yaml";
 
 export interface Answer {
@@ -80,8 +82,9 @@ export function applyAnswers(source: string, ledger: Ledger): ApplyResult {
   const doc: Document = parseDocument(source);
   const applied: Applied[] = [];
   const unmatched: string[] = [];
+  const markers = pendingMarkers().map(escape).join("|");
   for (const a of ledger.answers) {
-    const pending = new RegExp(`TBD\\(${escape(a.id)}(?::[^)]*)?\\)`, "g");
+    const pending = new RegExp(`(?:${markers})\\(${escape(a.id)}(?::[^)]*)?\\)`, "g");
     const assumed = new RegExp(`\\s*ASSUMED\\(${escape(a.id)}\\)`);
     let places = 0;
     const replaced: Applied["replaced"] = [];
@@ -165,7 +168,7 @@ export function describeApplied(file: string, result: ApplyResult): string[] {
   const lines = result.applied.flatMap((a) => {
     const where = `${a.places} place${a.places === 1 ? "" : "s"}`;
     if (a.kind === "accepted") return [`  ${a.id}: accepted (kept; the approval names it) — ${where}`];
-    if (a.kind === "replaced_pending") return [`  ${a.id}: TBD replaced by the answer — ${where}`];
+    if (a.kind === "replaced_pending") return [`  ${a.id}: marker replaced by the answer — ${where}`];
     const head = `  ${a.id}: proposal replaced by the answer — ${where}, declaration removed`;
     if (a.replaced.length < 2) return [head];
     return [`${head}; the same answer went into each — check it holds in every place:`, ...a.replaced.map((r) => `    ${r.at}: was "${r.before}"`)];
