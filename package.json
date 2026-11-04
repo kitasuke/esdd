@@ -13,6 +13,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "example:integration": "playwright test -c examples/playwright.config.ts",
+    "example:walk": "playwright test -c examples/playwright.walk.config.ts",
     "bundle": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node18 --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=dist/esdd-check.mjs"
   },
   "dependencies": {

@@ -16,6 +16,7 @@
     "src",
     "examples/generator",
     "examples/order-cancel.generated",
-    "examples/playwright.config.ts"
+    "examples/playwright.config.ts",
+    "examples/playwright.walk.config.ts"
   ]
 }

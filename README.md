@@ -142,7 +142,7 @@ discovery after generation.
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
 - [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
   IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
-  acceptance-first with declaration-only stubs, semantic drivers, pattern registries,
+  acceptance-first with declaration-only stubs, semantic drivers, the graph walk, pattern registries,
   generation decision records, test data and side effects, tests ahead of the implementation,
   mechanism scenarios for bug tickets, no false greens, visual evidence, handling Red).
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from

@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { parse } from "yaml";
-import type { OrderDriver } from "./order-driver.ts";
+import type { OrderDriver, UiEvent } from "./order-driver.ts";
 
 type Element = { role?: Parameters<Page["getByRole"]>[0]; name?: string; label?: string; testid?: string; text?: string };
 type Bindings = { elements: Record<string, Element>; literals: Record<string, string> };
@@ -26,6 +26,8 @@ function locate(page: Page, id: string): Locator {
   return page.getByText(e.text ?? "", { exact: true });
 }
 
+const CONTROL: Record<UiEvent, string> = { pack: "pack_button", hand_over: "hand_over_button", cancel: "cancel_button" };
+
 // The harness opens the screen (route, sign-in) and hands the page over
 export function orderDriver(page: Page): OrderDriver {
   const status = () => locate(page, "order_status");
@@ -44,5 +46,13 @@ export function orderDriver(page: Page): OrderDriver {
     expectNoFeeNotice: () => expect(locate(page, "cancellation_fee_notice")).toBeHidden(),
     expectCanceledNotice: () => expect(locate(page, "canceled_notice")).toHaveText(literal("canceled_notice")),
     expectNoCanceledNotice: () => expect(locate(page, "canceled_notice")).toBeHidden(),
+    offers: async (event) => {
+      const control = locate(page, CONTROL[event]);
+      return (await control.isVisible()) && (await control.isEnabled());
+    },
+    shows: (key) =>
+      expect(status())
+        .toHaveText(literal(key), { timeout: 2000 })
+        .then(() => true, () => false),
   };
 }
