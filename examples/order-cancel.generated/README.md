@@ -12,6 +12,7 @@ produces, both tests and product code, from four reviewed inputs:
 node examples/generator/generate.ts          # regenerate
 node examples/generator/generate.ts --check  # compare with the committed files (also run by npm test)
 npm run example:integration                  # the integration tests against the generated product code, in Chromium
+npm run example:walk                         # the graph walk of the same screen, with its negative control
                                              # (once: npx playwright install chromium)
 ```
 
@@ -24,7 +25,8 @@ npm run example:integration                  # the integration tests against the
 | [order-cancel.decision.yaml](order-cancel.decision.yaml) | yes | decision record: the pattern per target, its slots, and what no input prescribes | — |
 | [cancellation-terms.ts](cancellation-terms.ts) | yes | product code: RULE-001 as a pure function (`pure_rule_function`) | — |
 | [order-screen.ts](order-screen.ts) | yes | product code: the order screen (`entity_status_with_actions`) | — |
-| [order-driver.ts](order-driver.ts) | no | semantic driver (IR vocabulary) | — |
+| [order-cancel.walk.ts](order-cancel.walk.ts) | no | graph walk on the integration layer: every reachable cell, plus a negative control ([docs/generation.md](../../docs/generation.md#graph-walk--every-reachable-cell-not-only-the-written-paths)) | — |
+| [order-driver.ts](order-driver.ts) | no | semantic driver (IR vocabulary), with the walk's two probes | — |
 | [order-driver.playwright.ts](order-driver.playwright.ts) | no | the single adapter; reads the bindings file | — |
 | [harness.ts](harness.ts) | no | fixtures and a working fake backend + app shell for integration; a contract only for E2E | — |
 
