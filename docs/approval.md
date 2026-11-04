@@ -50,6 +50,10 @@ source:
     assumptions_accepted: [W1, W4, W7] # the assumptions this approval accepts (if any)
 ```
 
+An IR converted from more than one source (a PRD and its design docs) lists the others under
+`source.sources`, each with the version that was approved
+([usecase-ir.md](usecase-ir.md#common-header)).
+
 Approval requires the same conditions as a passing review — no errors, no pending
 markers (every must-ask question answered, and the answer reflected in the IR) — plus an
 explicit approval by the spec owner. The approver must be a designated spec owner and
@@ -67,8 +71,8 @@ node src/cli.ts <usecases-dir>/<domain>/<usecase-id>.usecase.yaml --approved
 
 On top of the regular checks, `--approved`:
 
-- requires `source.version` and `source.approval` (`approved_by`, `approved_at`,
-  `record`), each a non-empty string; `approved_at` is a date or ISO 8601 timestamp,
+- requires `source.version`, a `version` for every entry in `source.sources`, and
+  `source.approval` (`approved_by`, `approved_at`, `record`), each a non-empty string; `approved_at` is a date or ISO 8601 timestamp,
   `record` an `https` URL
 - requires the file name to equal `<usecase-id>.usecase.yaml`
 - when the path contains a `usecases/` directory, requires exactly one `<domain>/` level under it
@@ -120,7 +124,7 @@ however small, needs a new approval. Two rules keep the hash meaningful:
   hash covers several IRs, record which files it covers and in what order
 - **Compare by parsed content when writing the approved file.** Adding the approval
   record is the only intended change. Diff the approved file against the frozen draft;
-  if anything other than `source.version` and `source.approval` differs, parse both and
+  if anything other than the versions in `source` and `source.approval` differs, parse both and
   compare the remaining content. Any real difference (a reordered list, a changed
   value) means you would be committing a version nobody approved — stop. A
   formatting-only difference may proceed; say so in the change description
@@ -130,10 +134,12 @@ Count an approval only if all of these hold:
 - it names the hash, and that hash matches the approval request
 - the approver is one of the designated approvers and not the operator who produced the IR
 - it was posted after the request it answers ([above](#what-the-approver-reads))
-- the spec is still at the version the IR was converted from
+- the spec, and every source in `source.sources`, is still at the version the IR was converted from
 
-So record the spec's own version at approval time (e.g. its last-edited timestamp).
-If the spec is edited after approval, the approval is void and review starts again.
+So record each source's own version at approval time (e.g. its last-edited timestamp).
+If any of them is edited after approval (a design doc as much as the PRD), the approval is void and
+review starts again. The checker cannot read a source's edit time; comparing it is the job of
+whatever counts the approval, and `source.sources` gives it the list to compare.
 
 ## Partial approval
 

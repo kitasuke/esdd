@@ -15,6 +15,8 @@ export interface DigestLabels {
   none: string;
   spec: string;
   version: string;
+  /** The name of a further source that has no label */
+  source: string;
   not_recorded: string;
   states: string;
   initial: string;
@@ -49,6 +51,7 @@ export const DEFAULT_DIGEST_LABELS: DigestLabels = {
   none: "(none)",
   spec: "spec",
   version: "version",
+  source: "source",
   not_recorded: "(not recorded)",
   states: "States and transitions",
   initial: "initial",
@@ -239,6 +242,9 @@ export function renderDigest(model: Model, profile: Partial<DigestLabels> = {}):
     "",
     `- ${labels().spec}: ${ir.source.spec}`,
     `- ${labels().version}: ${ir.source.version ?? labels().not_recorded}`,
+    ...(ir.source.sources ?? []).map(
+      (s) => `- ${s.label ?? labels().source}: ${s.spec} (${labels().version}: ${s.version ?? labels().not_recorded})`,
+    ),
     "",
   ];
   if (model.hasStateMachine) out.push(...stateMachine(model));

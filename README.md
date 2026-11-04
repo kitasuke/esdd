@@ -186,7 +186,7 @@ replaces `src/` without a merge.
 ## Status
 
 v0.2 — includes the IR checker, the bindings checker (web/Playwright profile), the
-approved-IR check (`--approved`, including accepted assumptions), declared assumptions
+approved-IR check (`--approved`, including accepted assumptions and the version of every source), declared assumptions
 (`ASSUMED(<id>)`), the step definitions check (`--steps`) and the behavior trace (`--results`).
 Platform profiles are an extension point (for mobile and the like, each project adds its own
 locator vocabulary through the configuration). A production generator is not included —

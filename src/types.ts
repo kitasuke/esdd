@@ -116,10 +116,23 @@ export interface AssumptionDef {
   basis: string;
 }
 
+/**
+ * A further spec source the IR was converted from, besides source.spec (a design doc, a design file, the
+ * implementation in mode B). Each has its own version, so an edit to any of them is visible (docs/approval.md)
+ */
+export interface SourceRef {
+  /** Link to the source */
+  spec: string;
+  /** Its version at conversion (e.g. its last-edited timestamp, or a commit). Required in an approved IR */
+  version?: string;
+  /** What the source is, as the digest names it (e.g. "design doc") */
+  label?: string;
+}
+
 export interface UseCaseIR {
   usecase: string;
   name: string;
-  source: { spec: string; version?: string; approval?: ApprovalRecord };
+  source: { spec: string; version?: string; sources?: SourceRef[]; approval?: ApprovalRecord };
   initial?: string;
   states?: StateDef[];
   events?: EventDef[];

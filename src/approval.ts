@@ -30,6 +30,12 @@ export function checkApproved(model: Model, file: string): Finding[] {
   if (!nonEmptyString(source.version)) {
     err("source.version (the approved spec version, e.g. its last-edited timestamp) is required");
   }
+  // Every source was approved at one version: an edit to a design doc voids the approval just as an edit to the PRD does
+  (Array.isArray(source.sources) ? source.sources : []).forEach((s, i) => {
+    if (!nonEmptyString(s?.version)) {
+      err(`source.sources[${i}].version (the approved version of ${s?.spec ?? "this source"}) is required`);
+    }
+  });
   const approval = source.approval;
   if (typeof approval !== "object" || approval === null || Array.isArray(approval)) {
     err("source.approval (approved_by / approved_at / record) is required");

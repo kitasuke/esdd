@@ -98,6 +98,16 @@ describe("checkApproved", () => {
       ),
     ).toEqual(["source.approval (approved_by / approved_at / record) is required"]);
   });
+
+  it("requires a version for every further source, not only for source.spec", () => {
+    const sources = `
+  sources:
+    - { spec: "https://example.com/design", version: "2026-10-22T14:10:00Z", label: design doc }
+    - { spec: "https://example.com/screens", label: design file }`;
+    expect(approvalErrors(irWith(APPROVED_SOURCE + sources), "UC-TEST-001.usecase.yaml")).toEqual([
+      "source.sources[1].version (the approved version of https://example.com/screens) is required",
+    ]);
+  });
 });
 
 describe("checkApproved placement", () => {
