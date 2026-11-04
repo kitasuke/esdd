@@ -17,7 +17,8 @@ or the IRs, and the document is rendered again. Rendering is deterministic, so a
 answer shows exactly what the answer changed.
 
 Out of scope for the PRD: how it is built (APIs, data model, architecture). That belongs to the
-design doc that follows the PRD.
+design doc that follows the PRD; how a design doc is read as a spec source and written against the
+IRs is in [pdd.md](pdd.md).
 
 ## The PRD frame
 

@@ -1,0 +1,140 @@
+# Example: examples/order-cancel.usecase.yaml after reviewing its design doc (examples/order-cancel.design.md)
+# with docs/pdd.md. The question list with proposals is examples/order-cancel.design-review.md.
+# Check it: npm run check -- examples/order-cancel.design-review.usecase.yaml --questions
+usecase: UC-ORDER-CANCEL-001
+name: Order cancellation
+# Sources: PRD https://example.com/specs/order-cancel
+#          design doc https://example.com/design/order-cancel
+# Input mode: A (spec only)
+source:
+  spec: "https://example.com/specs/order-cancel" # link to the spec (PRD etc.)
+  version: "PRD v1; design doc 2026-10-22T14:10Z"
+
+initial: PLACED
+
+states:
+  - { id: PLACED, label: Order placed }
+  - { id: PACKED, label: Packed }
+  - { id: HANDED_OVER, label: Handed to the carrier }
+  - { id: COMPLETED, label: Delivered, terminal: true }
+  - { id: CANCELED, label: Canceled, terminal: true }
+
+events:
+  - { id: pack, label: pack the order, actor: staff }
+  - { id: hand_over, label: hand the order to the carrier, actor: staff }
+  - { id: complete, label: complete the delivery, actor: system }
+  - { id: cancel, label: cancel the order, actor: customer }
+
+transitions:
+  - from: PLACED
+    on: pack
+    to: PACKED
+    outcome: ['the order status shows "Packed"']
+  - from: PLACED
+    on: cancel
+    to: CANCELED
+    outcome:
+      - 'the order status shows "Canceled"'
+      - "no cancellation fee is charged (RULE-001)"
+      - "TBD(Q2: what the order shows while the refund is pending, and after the refund fails)"
+  - from: PLACED
+    on: [hand_over, complete]
+    impossible: true
+    reason: "an unpacked order never reaches hand-over or delivery completion (work-order constraint)"
+  - from: PACKED
+    on: hand_over
+    to: HANDED_OVER
+    outcome: ['the order status shows "Shipped"']
+  - from: PACKED
+    on: cancel
+    to: CANCELED
+    outcome:
+      - 'the order status shows "Canceled"'
+      - "the cancellation fee notice is shown (RULE-001)"
+      - "TBD(Q2: what the order shows while the refund is pending, and after the refund fails)"
+  - from: PACKED
+    on: [pack, complete]
+    impossible: true
+    reason: "the UI has no path to double-packing, and delivery cannot complete before hand-over"
+  - from: HANDED_OVER
+    on: complete
+    to: COMPLETED
+    outcome: ['the order status shows "Delivered"']
+  - from: HANDED_OVER
+    on: [pack, hand_over]
+    impossible: true
+    reason: "rework after hand-over is out of scope for this usecase (returns are a separate usecase)"
+  - from: HANDED_OVER
+    on: cancel
+    impossible: true
+    reason: "TBD(Q1: can an order be canceled within 30 minutes after hand-over, before the carrier scans it? The design doc allows it; the PRD lists it as a non-goal)"
+
+# When events of different actors can race in the same state, declare the winner and the outcome
+races:
+  - state: PLACED
+    between: [pack, cancel]
+    winner: cancel
+    outcome: ['the operation that commits first wins. The packing screen shows a "Canceled" notice']
+  - state: PACKED
+    between: [hand_over, cancel]
+    winner: hand_over
+    outcome: ["a cancellation request after hand-over is committed is rejected, and the returns flow is offered"]
+
+scenarios:
+  - id: SC-001
+    name: an order progresses to delivered
+    critical: true
+    path: [pack, hand_over, complete]
+    given: ["one paid order exists"]
+    when: ["staff packs it, hands it to the carrier, and the delivery completes"]
+    then: ['the order status shows "Delivered"']
+  - id: SC-002
+    name: cancellation before packing completes free of charge
+    critical: true
+    path: [cancel]
+    given: ["one paid order exists"]
+    when: ["the customer cancels"]
+    then:
+      - 'the order status shows "Canceled"'
+      - "no cancellation fee is charged"
+  - id: SC-003
+    name: cancellation after packing completes with a fee notice
+    path: [pack, cancel]
+    given: ["one packed order exists"]
+    when: ["the customer cancels"]
+    then:
+      - 'the order status shows "Canceled"'
+      - "the cancellation fee notice is shown"
+
+rules:
+  - id: RULE-001
+    name: cancellation fee
+    cases:
+      - { input: "cancellation before packing (PLACED)", expected: "cancellation fee is $0" }
+      - { input: "cancellation after packing (PACKED)", expected: 'show the fee notice "Cancellations after packing incur a handling fee" and TBD(Q3: whether the fee amount, 5% of the total and at least $3, is shown, and in what format)' }
+      - { input: "cancellation after packing of an order under $10", expected: "TBD(Q4: is the fee waived? Agreed in design-doc thread 2, not in the doc body)" }
+      - { input: "the fee rate changes between the notice and the cancellation", expected: "TBD(Q5: which fee the customer is charged, and what they see)" }
+  - id: RULE-002
+    name: the same order canceled twice
+    cases:
+      - { input: "the cancel button is pressed twice", expected: 'the order shows "Canceled" once ASSUMED(W1)' }
+      - { input: "the order is canceled from a second tab after it was canceled", expected: "TBD(Q6: what is shown, and that no second fee is charged)" }
+  - id: RULE-003
+    name: cancellation reason and note
+    cases:
+      - { input: "no reason selected", expected: "TBD(Q7: is a reason required? Design-doc thread 3 is open)", covers: "reason×empty" }
+      - { input: "no note entered", expected: "the cancellation goes through without a note", covers: "note×empty" }
+      - { input: "a note at the length limit", expected: "TBD(Q8: the limit is 500 characters in the API and none in the database; which holds, and what the screen shows at it)", covers: "note×boundary" }
+
+inputs:
+  - id: reason
+    kind: field
+    conditions: [empty]
+  - id: note
+    kind: field
+
+assumptions:
+  - id: W1
+    question: What does the customer see when the cancel button is pressed twice?
+    proposal: 'the order shows "Canceled" once; the second press changes nothing'
+    basis: "design doc: one cancellation per order (unique order_id); the API answers a second cancel with ORDER_ALREADY_CANCELED"
