@@ -21,7 +21,7 @@ import {
   type UseCaseIR,
 } from "./types.ts";
 import { config } from "./config.ts";
-import { RACE_WINNER_FIRST } from "./text.ts";
+import { RACE_WINNER_FIRST, nonEmptyString } from "./text.ts";
 
 const STATE_ID = /^[A-Z][A-Z0-9_]*$/;
 const EVENT_ID = /^[a-z][a-z0-9_]*$/;
@@ -65,6 +65,31 @@ export function parseIR(source: string): ParseResult {
   }
   if (!ir.name) err("name is required");
   if (!ir.source?.spec) err("source.spec (link to the spec) is required");
+  // Further sources (design docs, …) each carry a link and their own version, so a change to any of them can be seen
+  const sources: unknown = ir.source?.sources;
+  if (sources !== undefined) {
+    if (!Array.isArray(sources)) {
+      err("source.sources must be a list of { spec, version, label }");
+    } else {
+      const links = new Set([ir.source.spec]);
+      sources.forEach((s, i) => {
+        const at = `source.sources[${i}]`;
+        if (typeof s !== "object" || s === null || Array.isArray(s)) {
+          err(`${at} must be an object { spec, version, label }`);
+          return;
+        }
+        const { spec, version, label } = s as Record<string, unknown>;
+        if (!nonEmptyString(spec)) {
+          err(`${at}.spec (link to the source) is required`);
+        } else {
+          if (links.has(spec)) err(`${at}.spec is listed twice: ${spec}`);
+          links.add(spec);
+        }
+        if (version !== undefined && !nonEmptyString(version)) err(`${at}.version must be a non-empty string`);
+        if (label !== undefined && !nonEmptyString(label)) err(`${at}.label must be a non-empty string`);
+      });
+    }
+  }
 
   const hasStates = Array.isArray(ir.states) && ir.states.length > 0;
   const hasEvents = Array.isArray(ir.events) && ir.events.length > 0;

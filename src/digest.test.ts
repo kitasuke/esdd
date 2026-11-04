@@ -93,6 +93,23 @@ describe("renderDigest", () => {
     expect(renderDigest(model(STATELESS))).toBe(renderDigest(model(STATELESS)));
     expect(renderDigest(model(STATE_MACHINE))).toContain("## Assumptions\n\nnone");
   });
+  it("lists every further source with its version under the spec", () => {
+    const withSources = STATE_MACHINE.replace(
+      `source: { spec: "https://example.com/spec", version: "v1" }`,
+      `source:
+  spec: "https://example.com/spec"
+  version: "v1"
+  sources:
+    - { spec: "https://example.com/design", version: "2026-10-22", label: design doc }
+    - { spec: "https://example.com/screens" }`,
+    );
+    expect(renderDigest(model(withSources))).toContain(
+      "- spec: https://example.com/spec\n- version: v1\n" +
+        "- design doc: https://example.com/design (version: 2026-10-22)\n" +
+        "- source: https://example.com/screens (version: (not recorded))\n",
+    );
+  });
+
   it("renders with the labels a profile gives, over the defaults", () => {
     const out = renderDigest(model(STATE_MACHINE), { states: "Lifecycle", initial: "start", impossible: "never happens" });
     expect(out).toContain("## Lifecycle");

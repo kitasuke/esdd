@@ -445,6 +445,48 @@ scenarios:
   });
 });
 
+describe("structure: source.sources", () => {
+  const withSources = (sources: string) =>
+    MINIMAL.replace(
+      `source: { spec: "https://example.com" }`,
+      `source:\n  spec: "https://example.com"\n  sources: ${sources}`,
+    );
+  const messages = (sources: string) =>
+    errorsOf(check(withSources(sources)), "structure").map((f) => f.message);
+
+  it("accepts further sources with a link, a version and a label", () => {
+    expect(messages(`[{ spec: "https://example.com/design", version: "2026-10-22", label: design doc }]`)).toEqual([]);
+  });
+
+  it("accepts a source without a version in a draft (--approved requires it)", () => {
+    expect(messages(`[{ spec: "https://example.com/design" }]`)).toEqual([]);
+  });
+
+  it("rejects a list that is not a list of objects with a link", () => {
+    expect(messages(`"https://example.com/design"`)).toEqual([
+      "source.sources must be a list of { spec, version, label }",
+    ]);
+    expect(messages(`["https://example.com/design", { version: "v1" }]`)).toEqual([
+      "source.sources[0] must be an object { spec, version, label }",
+      "source.sources[1].spec (link to the source) is required",
+    ]);
+  });
+
+  it("rejects a source listed twice, or the same link as source.spec", () => {
+    expect(messages(`[{ spec: "https://example.com" }, { spec: "https://example.com/d" }, { spec: "https://example.com/d" }]`)).toEqual([
+      "source.sources[0].spec is listed twice: https://example.com",
+      "source.sources[2].spec is listed twice: https://example.com/d",
+    ]);
+  });
+
+  it("rejects a version or label that is not a string", () => {
+    expect(messages(`[{ spec: "https://example.com/d", version: 3, label: "" }]`)).toEqual([
+      "source.sources[0].version must be a non-empty string",
+      "source.sources[0].label must be a non-empty string",
+    ]);
+  });
+});
+
 describe("structure: comma splits in flow collections", () => {
   const STATELESS = (thenLine: string) => `
 usecase: UC-TEST-001

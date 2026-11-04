@@ -23,9 +23,17 @@ name: Order cancellation
 source:
   spec: "https://…"            # link to the spec (required)
   version: "v1"                # spec version (optional — used for drift tracking)
+  sources:                     # further sources the IR was converted from (optional)
+    - { spec: "https://…/design", version: "2026-10-22T14:10Z", label: design doc }
 ```
 
 `usecase`, `name`, `source.spec` and at least one scenario are always required.
+
+`sources` lists what else the IR was converted from besides `source.spec`: design docs, design
+files, the implementation in mode B (its repository and commit). Each entry needs `spec` (a link,
+not listed twice and not the same as `source.spec`); `version` and `label` (what the digest calls
+it) are optional in a draft. An approved IR needs a `version` for every entry, because an edit to
+any source voids the approval ([approval.md](approval.md#binding-the-approval-to-one-exact-ir)).
 `states`, `events` and `transitions` are declared together or not at all, and
 `initial` is required whenever `states` is present.
 

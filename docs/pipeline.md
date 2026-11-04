@@ -96,13 +96,13 @@ fact enters the IR silently.** Each one is recorded twice — as a delta (versio
 n+1, listed as a table in the IR's header comment) and as a reverse question to the
 owner ("the implementation does X, the spec says Y or nothing — which is right?").
 Treat a mode B run that produced no delta table and no reverse questions as a sign the
-loop is broken. Record the mode and the implementation reference
-(commit, date) in `source.version`. Read the implementation only where an IR slot
+loop is broken. Record the mode in `source.version` and the implementation reference
+(repository, commit) as an entry of `source.sources`. Read the implementation only where an IR slot
 points: branches and visible text for transitions and outcomes, validation and
 fallbacks for rules, concurrent handlers for races, form validation for inputs, flags
 that change behavior. Existing tests are secondary evidence — they show contracts that
 used to hold. Bug-report input also defaults to mode B (the fix and the code may be
-read); record the sources used in `source.version`
+read); record the sources used in `source.sources`
 ([generation.md](generation.md#bug-tickets--mechanism-scenarios)).
 
 What the trials showed:
@@ -194,7 +194,7 @@ converting; it never decides answers (no invention). These rules keep the rounds
   be written back into the spec before they count. A run may instead declare the
   ledger an addendum to the spec (for example when the spec document cannot be edited)
   — the operator declares this, with the reason, at the top of the ledger, and the
-  ledger's date is added to `source.version`. Then tag each IR entry it produced with
+  ledger is added to `source.sources` with its date as the version. Then tag each IR entry it produced with
   the answer id, and list the answers in the
   change that commits the approved IR, so reviewers can see where spec text that is
   not in the spec document came from.
