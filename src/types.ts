@@ -135,13 +135,13 @@ export interface UseCaseIR {
 export interface Cell {
   from: string;
   on: string;
-  to?: string;
-  outcome?: OutcomeItem[];
+  to?: string | undefined;
+  outcome?: OutcomeItem[] | undefined;
   /** No transition in this cell (it cannot happen, or it is ignored). Such cells are skipped by paths, races and coverage */
   impossible: boolean;
   /** The event can happen but is ignored (impossible is also true). Unlike a plain impossible cell, the trace asks for a test of it */
   ignored: boolean;
-  reason?: string;
+  reason?: string | undefined;
   /** Index of the originating entry in the transitions array (for error reporting) */
   entryIndex: number;
 }
@@ -159,7 +159,7 @@ export interface Model {
   hasStateMachine: boolean;
   states: Map<string, StateDef>;
   events: Map<string, EventDef>;
-  initial?: string;
+  initial?: string | undefined;
   /** key: `${from} ${on}` */
   cells: Map<string, Cell[]>;
 }

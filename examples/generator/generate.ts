@@ -64,7 +64,7 @@ interface ResolvedStep {
   from: string;
   to: string;
   do: { screen: string } | { fixture: string };
-  operation?: string; // bindings: integration registers its response and checks the call
+  operation?: string | undefined; // bindings: integration registers its response and checks the call
   outcomes: ResolvedOutcome[];
 }
 

@@ -454,7 +454,7 @@ function checkLiteralCoverage(
 
 export interface BindingsCheckOptions {
   /** The IR model to cross-check against (when omitted, only standalone bindings checks run) */
-  model?: Model;
+  model?: Model | undefined;
 }
 
 export function runBindingsChecks(

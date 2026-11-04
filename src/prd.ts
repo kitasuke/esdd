@@ -414,7 +414,7 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
 
   if (model.hasStateMachine) {
     // a transition or ignored declaration with a from array is one decision: render it once, naming every state
-    const reqs = new Map<string, { states: string[]; event: string; to?: string; cell: Cell }>();
+    const reqs = new Map<string, { states: string[]; event: string; to?: string | undefined; cell: Cell }>();
     // an impossible declaration with from/on arrays is one decision with one reason: render it once
     const na = new Map<number, { states: Set<string>; events: Set<string>; reason: string }>();
     for (const [sid, state] of model.states) {

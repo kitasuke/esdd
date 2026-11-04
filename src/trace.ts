@@ -108,11 +108,11 @@ export type ScenarioControls = Map<string, { status: NcStatus; source: string }[
 export interface TraceDoc {
   trace: string;
   /** node → why it has no test */
-  untested?: Record<string, string>;
+  untested?: Record<string, string> | undefined;
   /** node → IDs (`<classname>#<name>`) of existing tests that carry no tag */
-  owned_by?: Record<string, string | string[]>;
+  owned_by?: Record<string, string | string[]> | undefined;
   /** node → negative control record (for layers without a scenario file) */
-  negative_controls?: Record<string, NcEntry>;
+  negative_controls?: Record<string, NcEntry> | undefined;
 }
 
 // Same markers as checks.ts: an unanswered question left in an untested reason
