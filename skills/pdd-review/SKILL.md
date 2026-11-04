@@ -29,22 +29,26 @@ Collect these before converting. Ask for any that are missing:
    ([From constraints to IR places](../../docs/pdd.md#from-constraints-to-ir-places)). Write the
    observable consequence. The constraint is only the basis, never the outcome text. Keep the
    existing IR order
-4. Raise questions for [gaps](../../docs/pdd.md#gaps-constraints-that-say-less-than-they-seem-to),
+4. Read each thread by its content, not its resolved flag: a thread whose last comment says the
+   change was made, and the body shows it, is settled; a thread about naming or internals is not a
+   question; a change that landed in some layers only is a disagreement
+   ([Comments](../../docs/pdd.md#comments-and-open-threads))
+5. Raise questions for [gaps](../../docs/pdd.md#gaps-constraints-that-say-less-than-they-seem-to),
    [threads](../../docs/pdd.md#comments-and-open-threads) and
    [disagreements](../../docs/pdd.md#disagreements). Each question gets one proposal, a tier and who
    decides. Disagreements are always must-ask. Question ids continue the PRD's list. A question
    with an IR place carries its `TBD` there. A question with no IR place goes in the PRD frame's
    `questions`, or in the report under a note-tier id when there is no frame, so it is not lost
-5. Check, and turn the findings into questions too:
+6. Check, and turn the findings into questions too:
 
    ```bash
    npm run check -- <ir.yaml> ... --questions
    npm run check -- --prd <frame.prd.yaml>     # when a PRD frame exists
    ```
 
-6. Report the question list, and how the findings map to questions, where the run is tracked.
+7. Report the question list, and how the findings map to questions, where the run is tracked.
    Fold answers in with `npm run check -- <ir.yaml> ... --answers <ledger.yaml>`, then check again
-7. Before approval, re-read every source's edit time and look for threads opened since the
+8. Before approval, re-read every source's edit time and look for threads opened since the
    conversion. Any change voids the approval
 
 ## Do not

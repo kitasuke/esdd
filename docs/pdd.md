@@ -52,6 +52,9 @@ after saving?), ask.
 | a cascade or a foreign key | a candidate event in the usecase that sees the effect: what a note shows when its tag is deleted |
 | a permission check | a candidate "no permission" event or rule case |
 | values managed outside the feature | a candidate event: the value is disabled, renamed or removed while items use it, and what those items show |
+| who and when, as stored (one `created_by` column, the time a row was last written) | what the screen can show: a stored creator cannot back a "last edited by" display, and a time that only some edits update cannot back "sorted by last change" for the others |
+| one user action split across separate calls (save the note, then upload its attachment) | a candidate event for the second call failing after the first succeeded, and what the user sees then (a note without its attachment, an empty note) |
+| a limit stated only in a diagram note or enforced only by the client | a question to the implementation team: which layer enforces it, and what happens when two tabs or two users get past the client at once |
 
 Each row yields candidates, not answers. A constraint gives the IR its effect only as far as the
 doc states that effect; the rest becomes a question with a proposal, under the rules for questions
@@ -76,11 +79,19 @@ gap is a question, or an assumption where a basis exists:
 
 Design docs carry their review in comments. Read them; they are part of the doc as it stands.
 
-- **An unresolved thread** is an open question of the doc. Raise it as a question that references
+Judge a thread by what it says, not by its resolved flag. Authors often answer a thread, change the
+body and leave the thread open, so the flag alone overstates what is open. A thread is settled when
+its last comment says the change was made and the body shows that change. A thread about naming or
+internal design is not a question for the IR, whatever its flag; sort it like any other statement
+([above](#what-in-a-design-doc-is-spec)).
+
+- **A thread whose change landed in some layers only** (the database was made to allow an empty
+  body, the API still requires one) is a disagreement within the doc (below), not a settled thread
+- **An open thread about behavior** is an open question of the doc. Raise it as a question that references
   the thread, tagged with who decides it (the spec owner for behavior, the implementation team for
   how). If it touches behavior already in the IR, the affected cell's outcome carries the `TBD`
-- **A resolved thread whose decision is in the doc body** needs nothing more; the body is the source
-- **A resolved thread whose decision is not in the body** is a decision outside the spec. Record it
+- **A settled thread whose decision is in the doc body** needs nothing more; the body is the source
+- **A settled thread whose decision is not in the body** is a decision outside the spec. Record it
   in the ledger under `decisions:` with the thread as its `source`, and ask the owner to write it
   into the doc. Until then it counts only if the run declares the ledger an addendum
   ([pipeline.md](pipeline.md#running-a-review-round))
