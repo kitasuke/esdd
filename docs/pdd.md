@@ -55,6 +55,10 @@ after saving?), ask.
 | who and when, as stored (one `created_by` column, the time a row was last written) | what the screen can show: a stored creator cannot back a "last edited by" display, and a time that only some edits update cannot back "sorted by last change" for the others |
 | one user action split across separate calls (save the note, then upload its attachment) | a candidate event for the second call failing after the first succeeded, and what the user sees then (a note without its attachment, an empty note) |
 | a limit stated only in a diagram note or enforced only by the client | a question to the implementation team: which layer enforces it, and what happens when two tabs or two users get past the client at once |
+| a limit only the database has (`VARCHAR(20)`, no `max_len` in the API) | the same layers question: a long value fails as a database error instead of a message; and what the screen shows at the limit |
+| an update that uses only the fields it is sent, with no field mask (an empty string or an unset id means "not sent") | a rule case: can the user clear a field they filled? With this design they cannot, so a wrong entry stays |
+| an operation the design leaves out (no delete) | a candidate event: what the user does about an item added by mistake |
+| a part not built in the first release (reads go straight to the database instead of the API) | for each check the doc places in that part (an organization filter on reads), where the first release makes it instead; a check placed only in the unbuilt part is a layers question |
 
 Each row yields candidates, not answers. A constraint gives the IR its effect only as far as the
 doc states that effect; the rest becomes a question with a proposal, under the rules for questions
@@ -111,6 +115,11 @@ and carries one proposal.
 | design doc and a comment on it | a thread asks for image-only notes, the body requires text | must-ask, referencing the thread |
 | design doc and the existing implementation (mode B) | the shipped screen accepts text only, the design doc allows image-only notes | the mode B rule: a recorded delta and a reverse question; the code's behavior never enters the IR silently |
 | design doc and a design file | the design doc returns tags sorted by name, the screen design lists them in the order added | must-ask, or a question about which source owns the order |
+
+**A stale source is not a disagreement about behavior.** When one source records a later, dated
+decision (a field table noting "v2 adds *unspecified*, removes *moderate*") and the other still shows
+the old one, take the later decision as an assumption with that note as its basis, and ask that the
+stale doc be updated. Without such a record, which side is later is itself the question: must-ask.
 
 The design doc does not outrank the PRD, nor the other way around. Who decides is the owner of the
 behavior, and each answer is written back where it belongs (the PRD or the design doc) or recorded in
