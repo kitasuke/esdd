@@ -328,6 +328,13 @@ the start of their change instead of rewriting it. A scaffold written only to ma
 pass is read once and thrown away; one written to the codebase's own standard can be
 reviewed and merged. The bar:
 
+- **Read the project's rules before writing.** A project names, per platform, the
+  documents the generator reads first: the coding rules and structure, the guides for the
+  kinds of code involved (forms, data fetching, lists, styling), the component library's
+  usage notes, the app's own notes, and the domain's spec guides. A scaffold written
+  without them follows the spec and misses the conventions; reading them is what makes the
+  code reviewable. List the backend guides too, so the report can name backend work
+  precisely (for example, which loading pattern fixes a per-row query)
 - **The project's rules for product code apply in full**: its coding standards, its
   structure (logic in pure, unit-tested functions rather than inside components), its
   existing components and helpers reused rather than copied, and the same lint, type and
