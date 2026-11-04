@@ -20,8 +20,9 @@ Collect these before converting. Ask for any that are missing:
 
 ## Steps
 
-1. Record every source and its edit time in `source.version`, and the design-doc links in the IR
-   header comment ([Versions](../../docs/pdd.md#versions-and-approval-freshness))
+1. Record the PRD in `source.spec` / `source.version`, and every design doc (and design file, and
+   the implementation in mode B) in `source.sources` with its edit time
+   ([Versions](../../docs/pdd.md#versions-and-approval-freshness))
 2. Sort each statement into spec or implementation detail
    ([What in a design doc is spec](../../docs/pdd.md#what-in-a-design-doc-is-spec)). Keep the
    statements you take, with their locations

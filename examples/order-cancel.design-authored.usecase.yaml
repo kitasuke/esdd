@@ -5,7 +5,9 @@ usecase: UC-ORDER-CANCEL-001
 name: Order cancellation
 source:
   spec: "https://example.com/specs/order-cancel" # link to the spec (PRD etc.)
-  version: "PRD v1; design doc (authored) 2026-11-04"
+  version: "v1"
+  sources:
+    - { spec: "examples/order-cancel.design-authored.md", version: "2026-11-04", label: design doc }
 
 initial: PLACED
 

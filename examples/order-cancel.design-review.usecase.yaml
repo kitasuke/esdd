@@ -3,12 +3,11 @@
 # Check it: npm run check -- examples/order-cancel.design-review.usecase.yaml --questions
 usecase: UC-ORDER-CANCEL-001
 name: Order cancellation
-# Sources: PRD https://example.com/specs/order-cancel
-#          design doc https://example.com/design/order-cancel
-# Input mode: A (spec only)
 source:
   spec: "https://example.com/specs/order-cancel" # link to the spec (PRD etc.)
-  version: "PRD v1; design doc 2026-10-22T14:10Z"
+  version: "v1 (mode A)"
+  sources:
+    - { spec: "https://example.com/design/order-cancel", version: "2026-10-22T14:10Z", label: design doc }
 
 initial: PLACED
 

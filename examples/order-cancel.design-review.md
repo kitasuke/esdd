@@ -5,8 +5,8 @@ read against [order-cancel.usecase.yaml](order-cancel.usecase.yaml) and
 [order-cancel.prd.yaml](order-cancel.prd.yaml). The IR it produced is
 [order-cancel.design-review.usecase.yaml](order-cancel.design-review.usecase.yaml).
 
-Input mode A (spec only). Sources: PRD v1, design doc edited 2026-10-22T14:10Z, recorded in
-`source.version`. Check: `npm run check -- examples/order-cancel.design-review.usecase.yaml`: 0 errors and
+Input mode A (spec only). Sources: PRD v1 in `source.version`, and the design doc edited
+2026-10-22T14:10Z in `source.sources`. Check: `npm run check -- examples/order-cancel.design-review.usecase.yaml`: 0 errors and
 9 warnings, one per `TBD`. With the assumption W1 they map to Q1–Q8 below; the rest of the list (Q9,
 N1, N2) has no IR place and is carried in the PRD frame's `questions`.
 

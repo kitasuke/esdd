@@ -31,7 +31,7 @@ design doc keeps the team's own template. The method adds one behavior section a
 5. Add rows for what changes outside the feature: values managed by hand or by an admin,
    migrations of existing items, cascading deletes
 6. Keep open points in one list, each with a proposal and who decides
-7. Fold the rows into the IRs, cite the design doc and its edit time in `source.version`, and check:
+7. Fold the rows into the IRs, list the design doc and its edit time in `source.sources`, and check:
 
    ```bash
    npm run check -- <ir.yaml> ... --questions
