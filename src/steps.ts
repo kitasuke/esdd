@@ -196,7 +196,7 @@ function checkCoverage(doc: StepsDoc, model: Model, findings: Finding[]): void {
 
 export interface StepsCheckOptions {
   /** The IR model to cross-check against (when omitted, only the schema is checked) */
-  model?: Model;
+  model?: Model | undefined;
 }
 
 export function runStepsChecks(doc: StepsDoc, options: StepsCheckOptions = {}): Finding[] {

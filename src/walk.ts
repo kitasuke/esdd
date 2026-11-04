@@ -39,7 +39,7 @@ interface TargetBase {
    */
   resetTo?(state: string): Promise<void>;
   /** Fires an event that is not probed. `to` is the state the IR leads to (a fake backend may need it); absent for an ignored cell */
-  fire(event: string, step: { from: string; to?: string }): Promise<void>;
+  fire(event: string, step: { from: string; to?: string | undefined }): Promise<void>;
   /**
    * Whether the instance is in the state. undefined when nothing observable tells it apart: reported,
    * never counted as a pass. false only when the instance settled in another state; when it did not
@@ -56,7 +56,7 @@ export interface ScreenTarget extends TargetBase {
   /** Whether the event's control is offered now. Hidden or disabled is not offered; a control that answers with an error is offered */
   offered(event: string): Promise<boolean | Failed>;
   /** Fires any event, probed or not */
-  fire(event: string, step: { from: string; to?: string }): Promise<void>;
+  fire(event: string, step: { from: string; to?: string | undefined }): Promise<void>;
 }
 
 /**
@@ -69,7 +69,7 @@ export type Attempt = "accepted" | "refused" | Failed;
 /** An API. Probing an event sends its request, so the state can change */
 export interface ApiTarget extends TargetBase {
   /** Sends the event's request. `to` is the state the IR leads to, absent when the IR does not allow the event */
-  attempt(event: string, step: { from: string; to?: string }): Promise<Attempt>;
+  attempt(event: string, step: { from: string; to?: string | undefined }): Promise<Attempt>;
 }
 
 export type WalkTarget = ScreenTarget | ApiTarget;

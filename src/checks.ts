@@ -319,7 +319,7 @@ export function checkVocabulary(
 }
 
 export interface CheckOptions {
-  observationNames?: Set<string>;
+  observationNames?: Set<string> | undefined;
 }
 
 /** Run all checks */

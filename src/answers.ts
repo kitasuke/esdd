@@ -16,11 +16,11 @@ export interface Answer {
   /** The question id the answer is for (Q4, W7 — any id the IR's markers use) */
   id: string;
   /** The answer: the text that replaces the marker (a must-ask) or the applied proposal (an assumption) */
-  answer?: string;
+  answer?: string | undefined;
   /** For an assumption: the proposal stands as applied */
   accepted?: boolean;
-  by?: string;
-  at?: string;
+  by?: string | undefined;
+  at?: string | undefined;
 }
 
 export interface Ledger {
