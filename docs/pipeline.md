@@ -252,11 +252,19 @@ note tier below, which decides how a question is handled.
 | `inputs` (input × condition uncovered) | "What happens when {input} is {condition}?" | critical |
 | `escapability` / `reachability` | "{state} has no way out / no way in — is that intended?" | critical |
 | contradiction (converter finding) | "Section A says X, section B says Y — which is right?" | critical |
+| scope the owner has not decided: a use case or non-goal taken from material that only defers it ("next phase", "later"), or from the author's own reading; a non-goal that conflicts with a flow | "Does this spec build {X}?" with the questions that depend on the answer listed under it | critical, asked first |
 | `races` (same state, different actors, no declaration) | "In {state}, if {A} and {B} happen at almost the same time, which wins, and what does the user see?" | warning |
 | `pending` (TBD), undecided copy, unobservable outcome, unknown actor or surface | quote the passage and ask for the concrete value | warning |
-| candidate events missing from the universe, scope boundary, format limits | ask as a candidate | suggestion |
+| candidate events missing from the universe, format limits | ask as a candidate | suggestion |
 | `coverage` (transitions no spec flow walks), `--suggest-paths` | "Should this path be part of the spec's main use cases?" | suggestion |
 
+- **Ask scope first.** A scope question decides which other questions exist: when the owner drops
+  a use case, every question about it goes away. Put scope questions at the top of the report and
+  list under each one the questions that depend on its answer, so the owner can answer the scope
+  and skip the rest until it is settled. The checker never raises scope: it only sees the use cases
+  it was given, so the converter or the author raises it. In one trial a drafted spec turned a
+  "next phase" note into a non-goal and asked about scope only as a suggestion, while twelve critical
+  questions went to a use case the owner then dropped; the scope answer halved the next round
 - **Aggregate.** When one gap spans several cells (an event undefined in six states),
   ask once and list the cells. Do not raise the same point twice in a report. Path
   errors caused by an undefined cell are derived findings; fold them into that cell's
