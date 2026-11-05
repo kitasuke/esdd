@@ -46,6 +46,7 @@ sections:                      # free sections a profile places by id (Markdown)
   rollout: "Released to everyone at once"
 questions:                     # asked, not answered yet, and not a field of the frame or an IR
   - { question: "Can a customer cancel a gift order?", proposal: "Only the buyer can" }
+  - { question: "Does this PRD build partial cancellation?", proposal: "No", scope: true }  # scope: listed first
 ```
 
 [examples/order-cancel.prd.yaml](../examples/order-cancel.prd.yaml) is a complete frame.
@@ -94,7 +95,9 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   A marker with an id (`TBD(Q3)`) is one question wherever it appears, in a rule's case and the
   scenario that checks it or in two IRs that share the decision, so it is shown once with every
   place it appears; a marker without an id is shown at each place.
-  The frame's `questions` come next, with their proposals. The other findings follow as the checker words them (they are
+  The frame's `questions` come next, with their proposals, except the ones marked `scope: true`:
+  those come first, before every other open question, because their answers decide which of the
+  others still exist ([pipeline.md](pipeline.md#questions-and-severity), "Ask scope first"). The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race, a state nothing leads to or out of, an input cell nothing covers and an
   actor `users` does not name are worded with the profile's `undeclared` / `unraced` / `unreachable` /
   `trapped` / `uncovered` / `unknown_actor` phrase instead; races that share one event against the same
