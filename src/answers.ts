@@ -10,7 +10,8 @@
 // event brings undeclared cells with it.
 
 import { pendingMarkers } from "./text.ts";
-import { isMap, isPair, isScalar, isSeq, parseDocument, visit, type Document, type Scalar } from "yaml";
+import { isMap, isSeq, parseDocument, visit, type Document, type Scalar } from "yaml";
+import { yamlPath } from "./yaml-path.ts";
 
 export interface Answer {
   /** The question id the answer is for (Q4, W7 — any id the IR's markers use) */
@@ -97,7 +98,7 @@ export function applyAnswers(source: string, ledger: Ledger): ApplyResult {
           if (a.answer !== undefined) {
             const after = text.replace(pending, a.answer).trim();
             node.value = after;
-            replaced.push({ at: where(path, node), before: text, after });
+            replaced.push({ at: yamlPath(path, node), before: text, after });
           }
           places += 1;
           pending.lastIndex = 0;
@@ -106,7 +107,7 @@ export function applyAnswers(source: string, ledger: Ledger): ApplyResult {
         if (assumed.test(text)) {
           if (a.answer !== undefined) {
             node.value = a.answer;
-            replaced.push({ at: where(path, node), before: text, after: a.answer });
+            replaced.push({ at: yamlPath(path, node), before: text, after: a.answer });
           }
           places += 1;
         }
@@ -129,23 +130,6 @@ export function applyAnswers(source: string, ledger: Ledger): ApplyResult {
   }
   // no line wrapping, so a long answer stays on its line; flow collections and comment spacing are normalized by the library
   return { source: doc.toString({ lineWidth: 0 }), applied, unmatched };
-}
-
-/** Where a scalar sits, as the checker names places: transitions[0].outcome[1], rules[RULE-001].cases[0].expected */
-function where(path: readonly unknown[], leaf: unknown): string {
-  let out = "";
-  for (let i = 0; i < path.length; i++) {
-    const el = path[i];
-    const next = i + 1 < path.length ? path[i + 1] : leaf;
-    if (isPair(el) && isScalar(el.key)) {
-      out += out ? `.${String(el.key.value)}` : String(el.key.value);
-    } else if (isSeq(el)) {
-      const index = el.items.indexOf(next);
-      const id = isMap(next) ? next.get("id") : undefined;
-      out += typeof id === "string" ? `[${id}]` : `[${index}]`;
-    }
-  }
-  return out;
 }
 
 /** Drops the declaration of an assumption whose proposal was replaced; true when one was there */

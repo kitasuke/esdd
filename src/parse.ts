@@ -9,7 +9,9 @@ import {
   isSeq,
   parse as parseYaml,
   parseDocument,
+  visit,
 } from "yaml";
+import { yamlPath } from "./yaml-path.ts";
 import {
   cellKey,
   type Cell,
@@ -58,7 +60,9 @@ export function parseIR(source: string): ParseResult {
     return { findings };
   }
   const ir = raw as UseCaseIR;
-  for (const message of flowSplitFindings(parseDocument(source))) err(message);
+  const doc = parseDocument(source);
+  for (const message of flowSplitFindings(doc)) err(message);
+  for (const message of commentCutFindings(doc)) err(message);
 
   if (!ir.usecase || !USECASE_ID.test(ir.usecase)) {
     err(`usecase must be an ID starting with UC- (e.g. UC-ORDER-CANCEL-001)`);
@@ -380,6 +384,29 @@ function checkFlowSeq(node: unknown, at: string, out: string[]): void {
       );
     }
   });
+}
+
+/**
+ * Text cut short by " #": in YAML, " #" starts a comment, so `reason: covered in #3558 later` reads as
+ * "covered in" and the rest is silently dropped. Spec text often carries ticket numbers and hashtags.
+ * A comment the writer meant has a space after the "#" (`# note`); text cut off at " #" usually does not
+ * (`#3558`), so only that case is reported, and a real comment stays quiet. Quoting keeps the text whole
+ */
+function commentCutFindings(doc: Document): string[] {
+  const out: string[] = [];
+  visit(doc, {
+    Scalar(_key, node, path) {
+      if (node.type !== Scalar.PLAIN || typeof node.value !== "string" || !node.comment) return;
+      if (/^\s/.test(node.comment)) return;
+      const dropped = node.comment.split("\n")[0];
+      out.push(
+        `${yamlPath(path, node)}: the text was cut at " #" (YAML reads the rest as a comment), so the value is ` +
+          `"${node.value}" and "#${dropped}" is dropped. Quote the whole text ("${node.value} #${dropped}"); ` +
+          `if "#${dropped}" is meant as a comment, put a space after the "#"`,
+      );
+    },
+  });
+  return out;
 }
 
 function flowSplitFindings(doc: Document): string[] {

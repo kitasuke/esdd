@@ -487,6 +487,38 @@ describe("structure: source.sources", () => {
   });
 });
 
+describe("structure: text cut at a comment", () => {
+  const withOutcome = (outcome: string) =>
+    MINIMAL.replace('    outcome: ["reaches B"]', `    outcome:\n      - ${outcome}`);
+
+  it("reports a value cut short by ' #'", () => {
+    const messages = errorsOf(check(withOutcome("the order is held until #3558 ships")), "structure").map(
+      (f) => f.message,
+    );
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('transitions[0].outcome[0]: the text was cut at " #"');
+    expect(messages[0]).toContain('the value is "the order is held until" and "#3558 ships" is dropped');
+    expect(messages[0]).toContain('Quote the whole text ("the order is held until #3558 ships")');
+  });
+
+  it("also finds it outside outcomes, by the place the checker names", () => {
+    const src = MINIMAL.concat(`assumptions:
+  - id: W1
+    question: Is the order held?
+    proposal: held until #3558 ships
+    basis: the spec says so
+`).replace('outcome: ["reaches B"]', 'outcome: ["reaches B ASSUMED(W1)"]');
+    const messages = errorsOf(check(src), "structure").map((f) => f.message);
+    expect(messages).toEqual([expect.stringContaining("assumptions[W1].proposal: the text was cut")]);
+  });
+
+  it("does not report a comment written with a space after '#', or a quoted value", () => {
+    expect(errorsOf(check(withOutcome("reaches B # the owner confirmed this")), "structure")).toEqual([]);
+    expect(errorsOf(check(withOutcome('"held until #3558 ships"')), "structure")).toEqual([]);
+    expect(errorsOf(check(withOutcome("shown as C#")), "structure")).toEqual([]);
+  });
+});
+
 describe("structure: comma splits in flow collections", () => {
   const STATELESS = (thenLine: string) => `
 usecase: UC-TEST-001
