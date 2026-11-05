@@ -171,6 +171,22 @@ describe("renderPrd", () => {
     expect(open).not.toContain("is not among users");
   });
 
+  it("lists the frame's scope questions first, before the frame's open fields", () => {
+    const asked = frame(
+      `${FRAME}questions:\n  - { question: "Who may cancel?", proposal: the operator }\n  - { question: "Does this PRD build refunds?", proposal: not here, scope: true }\n`,
+    );
+    const open = renderPrd(asked, ucs, checkPrd(asked, [ucs[0]!.model])).split("## Open questions")[1]!;
+    const lines = open.split("\n").filter((l) => l.startsWith("- "));
+    expect(lines[0]).toBe("- Does this PRD build refunds? (proposed: not here)");
+    expect(open.indexOf("Who may cancel?")).toBeGreaterThan(open.indexOf("Goals and metrics G1 Target"));
+  });
+
+  it("refuses a scope that is not true or false", () => {
+    expect(parsePrd(`${FRAME}questions:\n  - { question: x, scope: yes please }\n`).findings.map((f) => f.message)).toEqual([
+      "questions[0]: scope must be true or false",
+    ]);
+  });
+
   it("puts the IR's open markers and its other findings in the open questions", () => {
     const pending = [{ file: "test.usecase.yaml", model: model(IR.replace("a mail is sent", "the mail subject is TBD")) }];
     const open = renderPrd(frame(), pending, []).split("## Open questions")[1]!;

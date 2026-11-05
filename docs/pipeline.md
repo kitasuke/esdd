@@ -262,7 +262,8 @@ note tier below, which decides how a question is handled.
   a use case, every question about it goes away. Put scope questions at the top of the report and
   list under each one the questions that depend on its answer, so the owner can answer the scope
   and skip the rest until it is settled. The checker never raises scope: it only sees the use cases
-  it was given, so the converter or the author raises it. In one trial a drafted spec turned a
+  it was given, so the converter or the author raises it. In a PRD frame, mark the question
+  `scope: true` and the rendered PRD lists it first ([prd.md](prd.md)). In one trial a drafted spec turned a
   "next phase" note into a non-goal and asked about scope only as a suggestion, while twelve critical
   questions went to a use case the owner then dropped; the scope answer halved the next round
 - **Aggregate.** When one gap spans several cells (an event undefined in six states),

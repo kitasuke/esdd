@@ -65,6 +65,11 @@ export interface PrdQuestion {
   question: string;
   /** The answer the author proposes, when there is a basis for one */
   proposal?: string;
+  /**
+   * A question about what the PRD builds or leaves out. Its answer decides which other questions
+   * exist, so the open questions list it first (docs/pipeline.md, "Ask scope first")
+   */
+  scope?: boolean;
 }
 
 export interface ParsePrdResult {
@@ -122,6 +127,7 @@ export function parsePrd(source: string): ParsePrdResult {
     else questions.forEach((q, i) => {
       if (!nonEmptyString(q?.question)) err(`questions[${i}]: question is required`);
       if (q?.proposal !== undefined && !nonEmptyString(q.proposal)) err(`questions[${i}]: proposal must be text`);
+      if (q?.scope !== undefined && typeof q.scope !== "boolean") err(`questions[${i}]: scope must be true or false`);
     });
   }
   if (findings.length > 0) return { findings };
@@ -634,7 +640,10 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
 function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Finding[], p: PrdProfile): string[] {
   // a marker is shown as the text the owner has to complete, under the heading the reader sees it in
   const heading = (id: string) => p.sections.find((s) => s.id === id)?.heading ?? id;
+  const asked = (q: PrdQuestion) => `- ${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`;
   const questions = [
+    // scope comes first: its answer decides which of the questions below still exist
+    ...(frame.questions ?? []).filter((q) => q.scope).map(asked),
     ...(frame.problem ? framePending(frame) : []).map((f) => {
       const where = f.goal ? `${heading(f.section)} ${f.goal.id} ${p.labels.goal_table[f.goal.column]}` : heading(f.section);
       // a metric or target alone ("TBD") does not say which goal it belongs to
@@ -643,7 +652,7 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
       const lines = f.text.split("\n").filter((l) => findPendingMarker(l)).map((l) => l.trim().replace(/^[-*]\s+/, ""));
       return `- **${where}**: ${lines.length > 0 ? lines.join(" / ") : f.text}${of}`;
     }),
-    ...(frame.questions ?? []).map((q) => `- ${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`),
+    ...(frame.questions ?? []).filter((q) => !q.scope).map(asked),
     // prd-pending, prd-questions and prd-actors are shown in the owner's words
     ...(frameFindings.some((f) => f.check === "prd-actors") ? ucs : []).flatMap(({ model }) =>
       [...model.events.values()]
