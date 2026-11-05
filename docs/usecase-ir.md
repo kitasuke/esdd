@@ -241,6 +241,10 @@ rules:
 - A plain YAML scalar that contains `: ` (a colon followed by a space) is read as a key, and the
   parse fails or silently changes shape. Prose in another language can carry such a colon in the
   middle of a sentence; quote the whole string, or use a different punctuation mark
+- ` #` (a space, then `#`) in a plain scalar starts a comment, so `reason: held until #3558 ships`
+  reads as "held until" and the rest is silently dropped. Ticket numbers and hashtags in spec text
+  hit this; quote the whole string. The checker reports a plain value followed by `#` with no space
+  after it (`#3558`), and leaves a comment written with a space (`# note`) alone
 - **Write expected / then / outcome as literals** — "shows an appropriate error" is
   forbidden. If expected stays abstract, the generated test and the implementation
   cannot share the same text, and the wording is decided implicitly during
