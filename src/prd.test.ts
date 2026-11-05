@@ -204,6 +204,16 @@ describe("renderPrd", () => {
     expect(open.match(/TBD\(Q1/g)).toHaveLength(1);
   });
 
+  it("groups a text that repeats an id with a text that carries it once", () => {
+    const ir = IR.replace(`outcome: ['"Done" is shown']`, `outcome: ['subject TBD(Q1), body TBD(Q1)']`).replace(
+      "a mail is sent",
+      "'subject TBD(Q1)'",
+    );
+    const open = renderPrd(frame(), [{ file: "test.usecase.yaml", model: model(ir) }], []).split("## Open questions")[1]!;
+    expect(open).toContain("- **Order: waiting × proceed / proceed**: subject TBD(Q1), body TBD(Q1)");
+    expect(open.split("\n").filter((l) => l.includes("TBD(Q1)"))).toHaveLength(1);
+  });
+
   it("keeps a marker without an id at each place", () => {
     const ir = IR.replace(`outcome: ['"Done" is shown']`, `outcome: ['the mail subject is TBD']`).replace("a mail is sent", "the mail subject is TBD");
     const open = renderPrd(frame(), [{ file: "test.usecase.yaml", model: model(ir) }], []).split("## Open questions")[1]!;

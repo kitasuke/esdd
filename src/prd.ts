@@ -518,7 +518,8 @@ function pendingByQuestion(ucs: LinkedUseCase[]): { places: { ir: string; where:
   for (const uc of ucs) {
     for (const x of irPending(uc.model)) {
       const place = { ir: uc.model.ir.name, where: x.where };
-      const key = pendingMarkerIds(x.text).join(",");
+      // the set of questions the text waits on: a repeated id or another order is the same set
+      const key = [...new Set(pendingMarkerIds(x.text))].sort().join(",");
       const known = key ? byIds.get(key) : undefined;
       if (known) {
         known.places.push(place);
