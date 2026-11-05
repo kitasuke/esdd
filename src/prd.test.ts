@@ -184,7 +184,7 @@ describe("renderPrd", () => {
       "'the mail subject is TBD(Q1: which subject)'",
     );
     const open = renderPrd(frame(), [{ file: "test.usecase.yaml", model: model(ir) }], []).split("## Open questions")[1]!;
-    expect(open).toContain("- **Order: waiting × proceed / Order: proceed**: the mail subject is TBD(Q1: which subject)");
+    expect(open).toContain("- **Order: waiting × proceed / proceed**: the mail subject is TBD(Q1: which subject)");
     expect(open.match(/TBD\(Q1/g)).toHaveLength(1);
   });
 
