@@ -214,7 +214,9 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    for. Name the IR items this design leaves to others (another service, another team's screen),
    so the list is visibly complete. An item nothing in the design backs (the list shows a status
    the list response does not carry) is a gap in the design: the author fills it before review; it
-   is not a question for the owner
+   is not a question for the owner. When the fill reuses an existing type or API, check how the
+   client reads it (one item or a list): a field added to a type the client can only read as a list
+   sends every row when one is needed. A precedent is a basis only if it is read the same way
 2. **Write the consequence with each constraint.** For every limit, uniqueness, request meaning,
    order, error and permission in the design, add its row. A constraint with no visible effect gets
    no row. A row whose consequence is not in any IR is new behavior: it goes back to the PRD owner
@@ -235,6 +237,15 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    ([Reviewing](#reviewing-a-design-doc), step 4). The new rule cases and cells bring their own
    questions; answer them in the doc and the IRs, then ask for approval. Folding into an approved
    IR changes it, so it needs approval again ([approval.md](approval.md#updating-an-approved-ir))
+
+**What the checks do not see.** The checker and a design-doc review stop at behavior the user can
+observe. The shape of an API, how much data it returns, its performance and its running cost are
+outside the IRs, so a poor choice there passes every check. The open points the implementation team
+decides therefore carry candidates, not decisions: write them as proposals, and have the
+implementation team read them before approval. In one trial, a drafted design doc proposed adding a
+field to a type the client can only read as a list, which returns every item's data when one is
+needed; the human-written design doc had rejected exactly that option, and the review passed it on
+unchanged.
 
 [examples/order-cancel.design-authored.md](../examples/order-cancel.design-authored.md) is a design
 doc written this way from the same decisions as the reviewed one, and
