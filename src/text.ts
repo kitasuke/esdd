@@ -38,3 +38,11 @@ export function pendingMarkers(): string[] {
 export function findPendingMarker(text: string): string | undefined {
   return pendingMarkers().find((m) => text.includes(m));
 }
+
+/** The ids of the markers that carry one in a text: TBD(Q3), TBD(Q3: what to show) */
+export function pendingMarkerIds(text: string): string[] {
+  const markers = pendingMarkers()
+    .map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  return [...text.matchAll(new RegExp(`(?:${markers})\\(([^):]+)`, "g"))].map((m) => m[1]!.trim());
+}

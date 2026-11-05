@@ -17,7 +17,7 @@ import {
   undeclaredRaces,
   unreachableStates,
 } from "./checks.ts";
-import { nonEmptyString, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
+import { nonEmptyString, outcomeTexts, pendingMarkerIds, RACE_WINNER_FIRST } from "./text.ts";
 import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, type RaceDef, cellKey } from "./types.ts";
 
 const PRD_ID = /^PRD-[A-Z0-9-]+$/;
@@ -501,6 +501,31 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
 }
 
 /** IR texts that still carry an unanswered marker, labeled by where they sit in the usecase */
+/**
+ * The IRs' open markers, one line per question. A marker with an id is one question wherever the
+ * IRs carry it (a rule's case and the scenario that checks it, or two IRs that share the decision),
+ * so it is shown once with every place it appears; a marker without an id is shown at each place
+ */
+function pendingByQuestion(ucs: LinkedUseCase[]): { places: string[]; text: string }[] {
+  const out: { places: string[]; text: string }[] = [];
+  const byIds = new Map<string, { places: string[]; text: string }>();
+  for (const uc of ucs) {
+    for (const x of irPending(uc.model)) {
+      const place = `${uc.model.ir.name}: ${x.where}`;
+      const key = pendingMarkerIds(x.text).join(",");
+      const known = key ? byIds.get(key) : undefined;
+      if (known) {
+        known.places.push(place);
+        continue;
+      }
+      const entry = { places: [place], text: x.text };
+      if (key) byIds.set(key, entry);
+      out.push(entry);
+    }
+  }
+  return out;
+}
+
 function irPending(model: Model): { where: string; text: string }[] {
   const stateName = (id: string) => model.states.get(id)?.label ?? id;
   const eventName = (id: string) => model.events.get(id)?.label ?? id;
@@ -619,7 +644,7 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
         .map((ev) => `- **${model.ir.name}**: ${fill(p.phrases.unknown_actor, { actor: ev.actor, event: model.events.get(ev.id)?.label ?? ev.id })}`),
     ),
     ...frameFindings.filter((f) => !["prd-pending", "prd-questions", "prd-actors"].includes(f.check)).map((f) => `- ${f.message}`),
-    ...ucs.flatMap((uc) => irPending(uc.model).map((x) => `- **${uc.model.ir.name}: ${x.where}**: ${x.text}`)),
+    ...pendingByQuestion(ucs).map((x) => `- **${x.places.join(" / ")}**: ${x.text}`),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];
   // an assumption shared by several IRs is declared in each (the assumptions check wants the
