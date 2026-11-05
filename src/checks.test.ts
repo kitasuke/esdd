@@ -341,6 +341,22 @@ rules:
     expect(pending[0]!.message).toContain("rules[RULE-001].cases[0]");
   });
 
+  it("a marker in a scenario's given or when produces a pending warn per key", () => {
+    const src = `
+usecase: UC-TEST-007
+name: Unanswered question test
+source: { spec: "https://example.com" }
+scenarios:
+  - id: SC-001
+    name: form submission
+    given: [the form is open, "TBD: which role opens it"]
+    when: ["submit (TBD: by button or Enter)"]
+    then: [the completion screen is shown]
+`;
+    const pending = check(src).filter((f) => f.check === "pending");
+    expect(pending.map((f) => f.message.split(":")[0])).toEqual(["scenarios[SC-001].given", "scenarios[SC-001].when"]);
+  });
+
   it("no markers means no pending findings", () => {
     const findings = check(readFileSync(PILOT, "utf8"));
     expect(findings.filter((f) => f.check === "pending")).toEqual([]);

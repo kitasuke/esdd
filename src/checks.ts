@@ -360,13 +360,15 @@ export function checkPending(model: Model): Finding[] {
     });
   });
   (model.ir.scenarios ?? []).forEach((sc) => {
-    for (const t of sc.then ?? []) {
-      // a non-string is a structure error reported elsewhere; skip it here instead of throwing
-      if (typeof t !== "string") continue;
-      const m = findPendingMarker(t);
-      if (m) {
-        push(`scenarios[${sc.id}].then`, m);
-        break;
+    for (const key of ["given", "when", "then"] as const) {
+      for (const t of sc[key] ?? []) {
+        // a non-string is a structure error reported elsewhere; skip it here instead of throwing
+        if (typeof t !== "string") continue;
+        const m = findPendingMarker(t);
+        if (m) {
+          push(`scenarios[${sc.id}].${key}`, m);
+          break;
+        }
       }
     }
   });
