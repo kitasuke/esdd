@@ -31,6 +31,14 @@ Two consequences worth stating explicitly:
   by permission or region is asserted in backend tests, which build the state cheaply
   and deterministically; an E2E test that passes through it only checks that the path works
 
+### Every platform gets unit, integration and E2E
+
+Each client the IR reaches (the web app, each mobile app) has its own unit, integration and
+E2E tests; the backend layer is shared. A project may leave a layer out on a platform it
+ranks low, and says so in its own testing guideline. The scenarios that layer would carry
+then go to E2E if they are critical, or to manual testing, and every report states that the
+platform has no tests at that layer. The method does not count the gap as covered.
+
 ### Integration on mobile apps — name the layer
 
 On the web, integration means one thing (the page against a fake server). A mobile app
