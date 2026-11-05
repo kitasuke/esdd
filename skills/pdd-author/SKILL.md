@@ -18,7 +18,9 @@ design doc keeps the team's own template. The method adds one behavior section a
 
 1. Read the IRs and list each rule, input cell, outcome, race and impossible cell this design changes
    or enforces. Name the IR items it leaves to others. An item nothing in the design backs is a
-   design gap: fill it before review, do not ask the owner
+   design gap: fill it before review, do not ask the owner. A fill that reuses an existing type or
+   API: check whether the client reads it as one item or a list
+   ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 1)
 2. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
    what the user sees, and the IR reference. A constraint with no visible effect gets no row; list
    those below the table with the reason
@@ -45,3 +47,6 @@ design doc keeps the team's own template. The method adds one behavior section a
 
 - invent a consequence the author did not state. Leave it as an open point
 - put the constraint itself (a column, an index, a status code) into an IR outcome
+- present a proposal for a point the implementation team decides as a decision. The checks stop at
+  observable behavior, so API shape, data size and performance are left for that team to review
+  ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), "What the checks do not see")
