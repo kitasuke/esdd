@@ -91,6 +91,9 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
 - **Open questions** are computed at render time, so the list cannot go stale. A `TBD` left in the
   frame or an IR is shown as the text to complete, under the heading or usecase the reader finds it
   in, not as the checker's location; a long section is shown by its lines that carry the marker.
+  A marker with an id (`TBD(Q3)`) is one question wherever it appears, in a rule's case and the
+  scenario that checks it or in two IRs that share the decision, so it is shown once with every
+  place it appears; a marker without an id is shown at each place.
   The frame's `questions` come next, with their proposals. The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race, a state nothing leads to or out of, an input cell nothing covers and an
   actor `users` does not name are worded with the profile's `undeclared` / `unraced` / `unreachable` /

@@ -135,7 +135,9 @@ assumptions:
     const other = OPEN.replace("UC-OPEN-001", "UC-OPEN-002").replace("name: Open", "name: Other");
     const md = renderQuestions([model(OPEN), model(other)]);
     expect(md.match(/\| W1 \|/g)).toHaveLength(1);
-    expect(md).toContain("**Other: waiting × proceed**: TBD(Q1: what is shown)");
+    // the marker is the same question in both IRs, so it is one line with both places
+    expect(md).toContain("**Open: waiting × proceed / Other: waiting × proceed**: TBD(Q1: what is shown)");
+    expect(md.match(/TBD\(Q1/g)).toHaveLength(1);
   });
   it("names actors from the profile when there is no frame", () => {
     const md = renderQuestions([model(OPEN)], mergeProfile({ actors: { customer: "the shopper" } }));
@@ -174,6 +176,23 @@ describe("renderPrd", () => {
     const open = renderPrd(frame(), pending, []).split("## Open questions")[1]!;
     expect(open).toContain("- **Order: proceed**: the mail subject is TBD");
     expect(open).not.toContain("unanswered spec-question marker");
+  });
+
+  it("shows a marker with an id once, with every place it appears", () => {
+    const ir = IR.replace(`outcome: ['"Done" is shown']`, `outcome: ['the mail subject is TBD(Q1: which subject)']`).replace(
+      "a mail is sent",
+      "'the mail subject is TBD(Q1: which subject)'",
+    );
+    const open = renderPrd(frame(), [{ file: "test.usecase.yaml", model: model(ir) }], []).split("## Open questions")[1]!;
+    expect(open).toContain("- **Order: waiting × proceed / proceed**: the mail subject is TBD(Q1: which subject)");
+    expect(open.match(/TBD\(Q1/g)).toHaveLength(1);
+  });
+
+  it("keeps a marker without an id at each place", () => {
+    const ir = IR.replace(`outcome: ['"Done" is shown']`, `outcome: ['the mail subject is TBD']`).replace("a mail is sent", "the mail subject is TBD");
+    const open = renderPrd(frame(), [{ file: "test.usecase.yaml", model: model(ir) }], []).split("## Open questions")[1]!;
+    expect(open).toContain("- **Order: waiting × proceed**: the mail subject is TBD");
+    expect(open).toContain("- **Order: proceed**: the mail subject is TBD");
   });
 
   it("folds the sub-sections the profile names into <details> blocks", () => {
