@@ -98,11 +98,14 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   in, not as the checker's location; a long section is shown by its lines that carry the marker.
   A marker with an id (`TBD(Q3)`) is one question wherever it appears, in a rule's case and the
   scenario that checks it or in two IRs that share the decision, so it is shown once with every
-  place it appears; a marker without an id is shown at each place.
+  place it appears; when its places carry different texts (a sub-question in one of them), every
+  distinct text is shown, joined, so no part is dropped. A marker without an id is shown at each place.
   The frame's `questions` come next, with their ids and proposals, except the ones marked `scope: true`
   and `severity: critical`: scope questions come first, before every other open question, because
   their answers decide which of the others still exist, and critical ones right after them, so a
-  decision that blocks approval is not read last ([pipeline.md](pipeline.md#questions-and-severity), "Ask scope first"). The other findings follow as the checker words them (they are
+  decision that blocks approval is not read last. A critical question that has an IR place is a
+  marker, not a frame question; a profile whose ids say the severity (`critical_ids: "^Q\\d"` when
+  critical ids start with Q) lists those markers with the critical ones too ([pipeline.md](pipeline.md#questions-and-severity), "Ask scope first"). The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race, a state nothing leads to or out of, an input cell nothing covers and an
   actor `users` does not name are worded with the profile's `undeclared` / `unraced` / `unreachable` /
   `trapped` / `uncovered` / `unknown_actor` phrase instead; races that share one event against the same
@@ -132,6 +135,7 @@ sections:              # the order and headings; replaces the default list when 
   - { id: open_questions, heading: Decisions still needed }
 fold: [not_applicable, inputs]   # sub-sections rendered as a folded <details> block (see below)
 actors: { customer: the customer, system: the app }   # names for actors the frame's users do not list (and for --questions)
+critical_ids: "^Q\\d"  # question ids that are critical: their markers and frame questions are listed right after scope
 phrases:               # sentence patterns; placeholders {state} {event} {actor} {to} {a} {b} {winner} {reason}
   transition: "In “{state}”, when {actor} chooses “{event}”, the order becomes “{to}”."
   assumed: " (assumed: {id})"   # replaces ASSUMED(<id>) in the rendered text

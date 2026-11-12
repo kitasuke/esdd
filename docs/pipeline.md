@@ -276,7 +276,10 @@ note tier below, which decides how a question is handled.
 - **Say who decides.** Tag each question with who can answer it: the spec owner, the
   implementation team, or another team (a backend, a recommendation service). Only the owner's
   questions go to the owner; the rest are answered where they belong and recorded in the same
-  ledger. In one trial this moved a third of the questions off the owner's list
+  ledger. In one trial this moved a third of the questions off the owner's list. A fact about the
+  existing system splits the same way: what the user observes (how long until a new record shows up
+  on another screen) is the owner's, as an assumption with the code as its basis; how it is achieved
+  (a sync interval, a job) is the implementation team's
 - **Keep question ids stable.** An id never changes between rounds, and ids are unique across
   every IR of one spec or PRD. An assumption used by two IRs keeps one id and is declared in each
   IR that carries its marker, with the same question, proposal and basis (the assumptions check
