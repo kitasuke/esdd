@@ -42,6 +42,8 @@ non_goals:                     # required; [] says "nothing is left out", a miss
   - "Partial cancellation"
 usecases:                      # IR files, relative to this file
   - order-cancel.usecase.yaml
+design_docs:                   # optional: the design docs of this PRD, linked as the IRs' source.sources link them
+  - { spec: "https://example.com/design/order-cancel", label: Order cancel design }   # label: the name the PRD shows
 sections:                      # free sections a profile places by id (Markdown)
   rollout: "Released to everyone at once"
 questions:                     # asked, not answered yet, and not a field of the frame or an IR
@@ -66,6 +68,7 @@ The frame and every IR it links are checked together:
 | prd-actors | every actor in the IRs' events is one of `users` (warn): a PRD that never says who an actor is leaves the reader guessing |
 | prd-usecases | no usecase linked twice |
 | prd-questions | a question in `questions` is still open (warn) |
+| prd-design-docs | a design doc a linked IR lists in `source.sources` is not in `design_docs`, or one in `design_docs` is in no IR's `source.sources` (warn). An entry counts as a design doc when the frame lists it or its `label` starts with "design doc" (a project sets other words in its config's `designDocLabels`). The first case is a design doc a later review will not find from the PRD; the second, one not read into the IRs yet, or one that states no behavior and can go |
 | prd-sections | a section the profile marks `required` is missing, or a frame section the profile does not place (warn) |
 | the IR checks | everything in [usecase-ir.md](usecase-ir.md), per linked IR |
 
@@ -138,6 +141,7 @@ digest:                # the approval digest's fixed words (--digest --profile),
 
 Built-in section ids: `summary`, `problem`, `users`, `goals`, `non_goals`, `use_case_list` (one line
 per usecase with its critical scenarios), `use_cases` (each usecase one heading level below the section),
+`design_docs` (one line per design doc; left out when the frame lists none, unless marked `always`),
 `open_questions`.
 To follow a template a team already uses, copy its headings, order and levels into the profile and add
 only the sections the checks need that the template lacks (goals with metrics, users). Phrase keys: `transition`, `stay` (a transition back to the same state), `ignored`, `impossible`, `race`, `race_first`, `undeclared`, `unraced`, `assumed`, `unreachable`, `trapped`, `uncovered`, `unknown_actor`.
@@ -212,7 +216,9 @@ assumption — never filled in silently.
    for the team to review, and only questions about behavior come back to the spec owner
    ([pipeline.md](pipeline.md#questions-and-severity), "Say who decides"). Link the design doc from
    the PRD in two places:
-   - in a frame section the profile places (`sections.design`, say), so the rendered PRD carries it;
+   - in the frame's `design_docs`, so the rendered PRD carries it and the check holds the link to the
+     IRs: a design doc an IR took something from must be listed, and a listed one must be read into
+     some IR (`prd-design-docs`);
    - where the PRD is published, the way the doc tool links documents (a child page, or a
      parent/child relation), so that a later review [finds it](pdd.md#finding-the-design-docs).
 

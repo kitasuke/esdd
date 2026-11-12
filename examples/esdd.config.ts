@@ -7,6 +7,8 @@ const config: EsddConfig = {
   actors: ["customer", "staff", "system"],
   // a marker the spec owners already write for open questions, counted like TBD
   pendingMarkers: ["OPEN QUESTION"],
+  // source.sources labels this project gives its design docs, besides the default "design doc"
+  designDocLabels: ["design doc", "tech spec"],
   // a second locator vocabulary: elements addressed by a test tag, events by a command name
   platforms: {
     mobile: {

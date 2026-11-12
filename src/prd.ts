@@ -17,6 +17,7 @@ import {
   undeclaredRaces,
   unreachableStates,
 } from "./checks.ts";
+import { config } from "./config.ts";
 import { nonEmptyString, outcomeTexts, pendingMarkerIds, RACE_WINNER_FIRST } from "./text.ts";
 import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, type RaceDef, cellKey } from "./types.ts";
 
@@ -52,6 +53,11 @@ export interface PrdFrame {
   non_goals: string[];
   /** IR files, relative to the frame file */
   usecases: string[];
+  /**
+   * The design docs that belong to this PRD (docs/pdd.md). A review finds them here, and the check
+   * compares them with the design docs the IRs list in source.sources
+   */
+  design_docs?: PrdDesignDoc[];
   /** Free sections a profile places by id (rollout, UI, …). Markdown */
   sections?: Record<string, string>;
   /**
@@ -59,6 +65,13 @@ export interface PrdFrame {
    * the IRs cannot hold until it is decided. Each is an open question; an approved frame has none
    */
   questions?: PrdQuestion[];
+}
+
+export interface PrdDesignDoc {
+  /** Link to the design doc, written exactly as the IRs write it in source.sources */
+  spec: string;
+  /** Its name in the rendered PRD (the link when omitted) */
+  label?: string;
 }
 
 export interface PrdQuestion {
@@ -117,6 +130,19 @@ export function parsePrd(source: string): ParsePrdResult {
   }
   if (!asStrings(f["non_goals"])) err("non_goals is required (write [] when nothing is left out on purpose)");
   if (!asStrings(f["usecases"]) || f["usecases"].length === 0) err("usecases must list at least one IR file");
+  const designDocs = f["design_docs"];
+  if (designDocs !== undefined) {
+    if (!Array.isArray(designDocs)) err("design_docs must be a list of { spec, label? }");
+    else {
+      const seen = new Set<string>();
+      designDocs.forEach((d, i) => {
+        if (!nonEmptyString(d?.spec)) err(`design_docs[${i}]: spec (a link to the design doc) is required`);
+        else if (seen.has(d.spec)) err(`design_docs[${i}]: ${d.spec} is listed twice`);
+        else seen.add(d.spec);
+        if (d?.label !== undefined && !nonEmptyString(d.label)) err(`design_docs[${i}]: label must be text`);
+      });
+    }
+  }
   const sections = f["sections"];
   if (sections !== undefined && (typeof sections !== "object" || sections === null || Array.isArray(sections))) {
     err("sections must be a map of section id to Markdown");
@@ -178,6 +204,8 @@ export function checkPrd(frame: PrdFrame, models: Model[]): Finding[] {
     warn("prd-questions", `an open question remains: ${q.question}. Ask the PRD owner`);
   }
 
+  findings.push(...checkDesignDocs(frame, models));
+
   const users = new Set(frame.users.map((u) => u.id));
   const seen = new Set<string>();
   for (const model of models) {
@@ -189,6 +217,48 @@ export function checkPrd(frame: PrdFrame, models: Model[]): Finding[] {
       if (!users.has(ev.actor)) {
         warn("prd-actors", `${model.ir.usecase}: the actor "${ev.actor}" of event ${ev.id} is not among users. Say who it is`);
       }
+    }
+  }
+  return findings;
+}
+
+/** Whether an IR's source.sources entry is a design doc: its label starts with a configured word */
+export function isDesignDocSource(label: string | undefined): boolean {
+  if (!label) return false;
+  const l = label.trim().toLowerCase();
+  return (config().designDocLabels ?? ["design doc"]).some((w) => l.startsWith(w.toLowerCase()));
+}
+
+/**
+ * The frame's design_docs against the design docs the IRs were converted from. A design doc an IR took
+ * something from but the PRD does not link is one a later review will not find; a design doc the PRD
+ * links but no IR took anything from is either not read yet or not a source of behavior
+ */
+function checkDesignDocs(frame: PrdFrame, models: Model[]): Finding[] {
+  const findings: Finding[] = [];
+  const listed = new Set((frame.design_docs ?? []).map((d) => d.spec));
+  const used = new Map<string, string[]>();
+  for (const model of models) {
+    for (const s of model.ir.source.sources ?? []) {
+      if (listed.has(s.spec) || isDesignDocSource(s.label)) used.set(s.spec, [...(used.get(s.spec) ?? []), model.ir.usecase]);
+    }
+  }
+  for (const [spec, usecases] of used) {
+    if (!listed.has(spec)) {
+      findings.push({
+        level: "warn",
+        check: "prd-design-docs",
+        message: `${usecases.join(", ")}: the design doc ${spec} is a source of the IR but not in design_docs. Link it from the PRD`,
+      });
+    }
+  }
+  for (const d of frame.design_docs ?? []) {
+    if (!used.has(d.spec)) {
+      findings.push({
+        level: "warn",
+        check: "prd-design-docs",
+        message: `design_docs: ${d.spec} is in no IR's source.sources. Read it into the IRs, or remove it if it states no behavior`,
+      });
     }
   }
   return findings;
@@ -277,7 +347,17 @@ export interface PrdProfile {
   };
 }
 
-export const BUILT_IN_SECTIONS = ["summary", "problem", "users", "goals", "non_goals", "use_case_list", "use_cases", "open_questions"] as const;
+export const BUILT_IN_SECTIONS = [
+  "summary",
+  "problem",
+  "users",
+  "goals",
+  "non_goals",
+  "use_case_list",
+  "use_cases",
+  "design_docs",
+  "open_questions",
+] as const;
 
 export const DEFAULT_PROFILE: PrdProfile = {
   title: true,
@@ -290,6 +370,7 @@ export const DEFAULT_PROFILE: PrdProfile = {
     { id: "goals", heading: "Goals and metrics" },
     { id: "non_goals", heading: "Non-goals" },
     { id: "use_cases", heading: "Use cases and requirements" },
+    { id: "design_docs", heading: "Design docs" },
     { id: "open_questions", heading: "Open questions" },
   ],
   phrases: {
@@ -349,12 +430,12 @@ export function mergeProfile(override: unknown): PrdProfile {
 /** Sections the profile requires that the frame does not provide, and frame sections the profile does not place */
 export function checkProfile(frame: PrdFrame, profile: PrdProfile): Finding[] {
   const placed = new Set(profile.sections.flatMap((s) => (s.id ? [s.id] : [])));
-  const unplaced = Object.keys(frame.sections ?? {})
+  const unplaced = [...Object.keys(frame.sections ?? {}), ...((frame.design_docs ?? []).length > 0 ? ["design_docs"] : [])]
     .filter((id) => !placed.has(id))
     .map((id) => ({
       level: "warn" as const,
       check: "prd-sections",
-      message: `sections.${id} is not placed by the profile, so the rendered PRD leaves it out`,
+      message: `${id === "design_docs" ? "design_docs" : `sections.${id}`} is not placed by the profile, so the rendered PRD leaves it out`,
     }));
   return [...unplaced, ...profile.sections
     .flatMap((s) => (s.id && s.required && !(BUILT_IN_SECTIONS as readonly string[]).includes(s.id) ? [{ ...s, id: s.id }] : []))
@@ -659,7 +740,8 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
         .filter((ev) => !frame.users.some((u) => u.id === ev.actor))
         .map((ev) => `- **${model.ir.name}**: ${fill(p.phrases.unknown_actor, { actor: ev.actor, event: model.events.get(ev.id)?.label ?? ev.id })}`),
     ),
-    ...frameFindings.filter((f) => !["prd-pending", "prd-questions", "prd-actors"].includes(f.check)).map((f) => `- ${f.message}`),
+    // prd-design-docs is the author's to fix (a missing link), not a decision for the owner
+    ...frameFindings.filter((f) => !["prd-pending", "prd-questions", "prd-actors", "prd-design-docs"].includes(f.check)).map((f) => `- ${f.message}`),
     ...pendingByQuestion(ucs).map((x) => `- **${placesText(x.places)}**: ${x.text}`),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];
@@ -704,6 +786,8 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
     const level = s.level ?? 2;
     // an optional free section the frame does not fill is left out; a required one shows TBD (checkProfile warns)
     if (s.id && !builtIn.has(s.id) && !s.required && !s.always && !nonEmptyString(frame.sections?.[s.id])) continue;
+    // design_docs has nothing to show for a PRD without design docs
+    if (s.id === "design_docs" && !s.always && (frame.design_docs ?? []).length === 0) continue;
     out.push(`${"#".repeat(level)} ${s.heading}`, "");
     switch (s.id) {
       case undefined:
@@ -733,6 +817,9 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
         break;
       case "use_cases":
         for (const uc of ucs) out.push(...useCaseSection(uc, frame, p, level));
+        break;
+      case "design_docs":
+        out.push(...((frame.design_docs ?? []).length > 0 ? frame.design_docs!.map((d) => (d.label ? `- [${d.label}](${d.spec})` : `- ${d.spec}`)) : ["-"]), "");
         break;
       case "open_questions":
         out.push(...openQuestions(frame, ucs, frameFindings, p));

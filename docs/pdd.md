@@ -160,6 +160,8 @@ A review starts from the PRD, and the design docs that belong to it are often on
 Look before converting, because a round that misses a design doc misses the constraints only that
 doc states:
 
+- **The PRD frame's `design_docs`**, when the PRD is written from a frame ([prd.md](prd.md#the-prd-frame)):
+  the check keeps it in step with the IRs, so it is the first place to look
 - **Every link in the PRD body**, not only the ones under a "design" heading: child pages, links
   and mentions. Judge each by the page it points to (its title or document type), not by the link
   text, which is often just "design"

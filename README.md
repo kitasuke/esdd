@@ -207,6 +207,7 @@ A project narrows or extends the checker without forking it: pass a TypeScript m
 | `inputConditions` | the default condition sets per input kind (`field` / `option`), in the team's words |
 | `pendingMarkers` | more markers that count as unanswered, besides `TBD` / `TODO` / `FIXME` / `UNRESOLVED` |
 | `platforms` | bindings platforms besides `web`, by name ([docs/bindings.md](docs/bindings.md#extending-platform-profiles)) |
+| `designDocLabels` | the label prefixes that mark a `source.sources` entry as a design doc (default `design doc`), for the PRD check `prd-design-docs` |
 | `digest` | the approval digest's fixed words (`DigestLabels` in `src/digest.ts`), for approvers who read another language |
 
 [examples/esdd.config.ts](examples/esdd.config.ts) uses every field. A project that copies `src/` into

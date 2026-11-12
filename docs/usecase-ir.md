@@ -32,7 +32,8 @@ source:
 `sources` lists what else the IR was converted from besides `source.spec`: design docs, design
 files, the implementation in mode B (its repository and commit). Each entry needs `spec` (a link,
 not listed twice and not the same as `source.spec`); `version` and `label` (what the digest calls
-it) are optional in a draft. An approved IR needs a `version` for every entry, because an edit to
+it) are optional in a draft. Label a design doc `design doc` (or `design doc: <name>`): the PRD check
+compares those entries with the frame's `design_docs` ([prd.md](prd.md#what-is-checked)). An approved IR needs a `version` for every entry, because an edit to
 any source voids the approval ([approval.md](approval.md#binding-the-approval-to-one-exact-ir)).
 `states`, `events` and `transitions` are declared together or not at all, and
 `initial` is required whenever `states` is present.
