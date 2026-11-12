@@ -73,18 +73,6 @@ impossible drops the ignoring behavior from the IR, so nothing tests it. An igno
 transition, so it creates no race or coverage obligation, but the trace gives it a node that a test must
 cover ("it arrived, and nothing changed").
 
-**A decision the system makes is its own event.** When a user's action triggers a decision the
-system makes (a check, a lookup, a validation on the server), declare the action and each answer as
-separate events: the customer's `tap_checkout` leads to a `CHECKING` state, and the server's
-`checkout_allowed`, `checkout_refused` and `check_failed` leave it. Folding the answer into the user's
-event (`tap_checkout_refused` by the customer) hides three things the IR exists to show: who decides,
-the moment the decision can fail, and what the user can do while it runs (leave, press again), which
-are cells and races of their own. It also leaves no event for the part that owns the decision to
-back in its design doc ([pdd.md](pdd.md#writing-a-design-doc)). When different parts decide different
-reasons for the same outcome (an area check owned by one service, a carrier restriction owned by
-another), give each reason its own event or condition, so each design doc can name the cells it
-backs. The outcome stays what the user sees; the event only says who answered and what.
-
 `winner: first` declares that arrival order decides the race. Fixing the winner to one of the events
 would state the wrong behavior for the order in which the other one arrives first; write an outcome that
 holds either way.
@@ -94,6 +82,21 @@ rejected, the network drops), its failure is another event of the same actor —
 `redispatch_fails`, both by the operator — usually a transition back to the state it starts from.
 Giving the failure to `system` makes the checker ask how the action races its own failure, which cannot
 happen. Keep `system` for what happens with nobody acting: a timer running out, an expiry.
+
+**A decision another part makes is its own step.** The rule above is for a failure that is part of
+the action: the action and its failure leave the same state, so they share the actor. When the action
+hands a decision to another part (a check, a lookup, a validation on the server) and the user can see
+it pending or act while it runs, split it: the customer's `tap_checkout` leads to a `CHECKING` state,
+and the server's `checkout_allowed`, `checkout_refused` and `check_failed` leave it. These events leave
+`CHECKING`, not the state `tap_checkout` leaves, so they race only what the user can do while the
+check runs (go back, press again), never the action that started them. Folding the answer into the
+user's event (`tap_checkout_refused` by the customer) hides who decides, the moment the decision can
+fail, and what the user can do while it runs, and leaves no event for the part that owns the decision
+to back in its design doc ([pdd.md](pdd.md#writing-a-design-doc)). When nothing is observable between
+the action and its answer, keep the same-actor failure event. When different parts decide different
+reasons for the same outcome (an area check owned by one service, a carrier restriction owned by
+another), give each reason its own event or condition, so each design doc can name the cells it backs.
+The outcome stays what the user sees; the event only says who answered and what.
 
 A state the usecase leaves and comes back to (the app in the background, another screen on top)
 needs one `to` for the return event. When where the user lands depends on the state they left
