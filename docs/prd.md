@@ -220,11 +220,13 @@ assumption — never filled in silently.
      IRs: a design doc an IR took something from must be listed, and a listed one must be read into
      some IR (`prd-design-docs`);
    - where the PRD is published, the way the doc tool links documents (a child page, or a
-     parent/child relation), so that a later review [finds it](pdd.md#finding-the-design-docs).
+     parent/child relation), with a title or document type that marks it as a design doc: a review
+     judges a linked page by that, so a later review [finds it](pdd.md#finding-the-design-docs).
 
-   The design doc's new rule cases and cells come back as questions in this loop (step 5), and its
-   open points with no IR place go in the frame's `questions`. List the design doc in each IR's
-   `source.sources` that takes something from it
+   The design doc's new rule cases and cells come back as questions in this loop: run step 5 again,
+   on everything the design doc added, until no error is left, before rendering. Its open points with
+   no IR place go in the frame's `questions`. List the design doc in each IR's `source.sources` that
+   takes something from it
 7. **Render** and share the document for review. Comments on it are answers: fold them into the
    frame or the IRs and render again — never edit the rendered document by hand
 8. **Approve** the IRs ([approval.md](approval.md)) and set `status: approved`; the `--prd` check

@@ -37,8 +37,11 @@ held as a frame and IRs, and the document is rendered from them; it is never edi
    implementation team: hand the draft to them, and present its design choices as proposals for
    them. Only behavior questions come back to the owner, through step 4. Link the design doc from the
    PRD: in the frame's `design_docs` (the check then holds it in step with the IRs' `source.sources`),
-   and where the PRD is published, the way the doc tool links documents, so a later review finds it
-   ([Finding the design docs](../../docs/pdd.md#finding-the-design-docs))
+   and where the PRD is published, the way the doc tool links documents, with a title or document type
+   that marks it as a design doc, so a later review finds it
+   ([Finding the design docs](../../docs/pdd.md#finding-the-design-docs)).
+   When pdd-author hands back, go through step 4 again: the rule cases, cells and open points it
+   added have not been checked or asked yet. Render only once no error is left
 6. Render, and share it for review:
 
    ```bash
