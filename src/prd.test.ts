@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { configure } from "./config.ts";
 import { parseIR } from "./parse.ts";
 import { checkPrd, checkProfile, DEFAULT_PROFILE, mergeProfile, parsePrd, renderPrd, renderQuestions } from "./prd.ts";
 import type { Model } from "./types.ts";
@@ -92,6 +93,59 @@ describe("checkPrd", () => {
   it("rejects the same usecase linked twice", () => {
     const m = model(IR);
     expect(checkPrd(frame(), [m, m]).filter((f) => f.level === "error").map((f) => f.check)).toEqual(["prd-usecases"]);
+  });
+});
+
+describe("design_docs", () => {
+  afterEach(() => configure({}));
+  const withSources = (sources: string) =>
+    model(IR.replace('source: { spec: "https://example.com/spec", version: "v1" }', `source: { spec: "https://example.com/spec", version: "v1", sources: ${sources} }`));
+  const withDocs = (docs: string) => frame(FRAME.replace("usecases:", `design_docs: ${docs}\nusecases:`));
+  const docFindings = (f: ReturnType<typeof frame>, m: Model) =>
+    checkPrd(f, [m]).filter((x) => x.check === "prd-design-docs").map((x) => `${x.level} ${x.message}`);
+
+  it("requires a link for each entry and refuses one listed twice", () => {
+    const { findings } = parsePrd(FRAME.replace("usecases:", 'design_docs: [{ label: notes }, { spec: "d" }, { spec: "d" }]\nusecases:'));
+    expect(findings.map((f) => f.message)).toEqual([
+      "design_docs[0]: spec (a link to the design doc) is required",
+      "design_docs[2]: d is listed twice",
+    ]);
+  });
+
+  it("passes when the frame lists exactly the design docs the IRs were converted from", () => {
+    const m = withSources('[{ spec: "https://example.com/design", label: design doc }, { spec: "https://example.com/repo", label: implementation }]');
+    expect(docFindings(withDocs('[{ spec: "https://example.com/design" }]'), m)).toEqual([]);
+  });
+
+  it("warns about a design doc an IR used that the PRD does not link, and one the PRD links that no IR used", () => {
+    const m = withSources('[{ spec: "https://example.com/design", label: "design doc: notes" }]');
+    expect(docFindings(withDocs('[{ spec: "https://example.com/other" }]'), m)).toEqual([
+      "warn UC-TEST-001: the design doc https://example.com/design is a source of the IR but not in design_docs. Link it from the PRD",
+      "warn design_docs: https://example.com/other is in no IR's source.sources. Read it into the IRs, or remove it if it states no behavior",
+    ]);
+    expect(docFindings(frame(), m)).toHaveLength(1);
+  });
+
+  it("recognizes design docs by the labels a project configures", () => {
+    configure({ designDocLabels: ["PDD"] });
+    const m = withSources('[{ spec: "https://example.com/design", label: "PDD notes" }, { spec: "https://example.com/x", label: design doc }]');
+    expect(docFindings(frame(), m)).toEqual([
+      "warn UC-TEST-001: the design doc https://example.com/design is a source of the IR but not in design_docs. Link it from the PRD",
+    ]);
+  });
+
+  it("lists the design docs in the rendered PRD, and leaves the section out when there are none", () => {
+    const ucs = [{ file: "test.usecase.yaml", model: model(IR) }];
+    const md = renderPrd(withDocs('[{ spec: "https://example.com/design", label: Notes design }, { spec: "https://example.com/b" }]'), ucs, []);
+    expect(md).toContain("## Design docs\n\n- [Notes design](https://example.com/design)\n- https://example.com/b\n");
+    expect(renderPrd(frame(), ucs, [])).not.toContain("## Design docs");
+  });
+
+  it("warns when the profile does not place them", () => {
+    const profile = mergeProfile({ sections: [{ id: "summary", heading: "TL;DR" }, { id: "rollout", heading: "Rollout" }] });
+    expect(checkProfile(withDocs('[{ spec: "d" }]'), profile).map((f) => f.message)).toEqual([
+      "design_docs is not placed by the profile, so the rendered PRD leaves it out",
+    ]);
   });
 });
 

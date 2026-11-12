@@ -14,6 +14,11 @@ export interface EsddConfig {
   pendingMarkers?: string[];
   /** Bindings platforms besides the built-in web, by platform name */
   platforms?: Record<string, BindingsPlatform>;
+  /**
+   * How an IR's source.sources entry is recognized as a design doc: its label starts with one of these
+   * (case-insensitive). Default ["design doc"]. The PRD check compares these entries with the frame's design_docs
+   */
+  designDocLabels?: string[];
   /** Labels of the approval digest (--digest), for approvers who read another language */
   digest?: Partial<DigestLabels>;
 }

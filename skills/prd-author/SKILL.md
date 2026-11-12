@@ -36,8 +36,8 @@ held as a frame and IRs, and the document is rendered from them; it is never edi
    owner confirms the feature needs no new API, data or limits. The design doc belongs to the
    implementation team: hand the draft to them, and present its design choices as proposals for
    them. Only behavior questions come back to the owner, through step 4. Link the design doc from the
-   PRD: in a frame section the profile places, and where the PRD is published, the way the doc tool
-   links documents, so a later review finds it
+   PRD: in the frame's `design_docs` (the check then holds it in step with the IRs' `source.sources`),
+   and where the PRD is published, the way the doc tool links documents, so a later review finds it
    ([Finding the design docs](../../docs/pdd.md#finding-the-design-docs))
 6. Render, and share it for review:
 
