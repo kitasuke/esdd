@@ -156,15 +156,20 @@ conversion; a new thread on behavior is a new question before approval.
 
 ## Finding the design docs
 
-A review starts from the PRD, and the design docs that belong to it are often only linked from it.
-Look before converting, because a round that misses a design doc misses the constraints only that
-doc states:
+A review starts from the PRD, and the design docs that belong to it are linked from it, link to it,
+or both. A feature often has several, one per part an implementation team owns (each API, each
+client), so finding one does not end the search. Look before converting, because a round that
+misses a design doc misses the constraints only that doc states:
 
 - **The PRD frame's `design_docs`**, when the PRD is written from a frame ([prd.md](prd.md#the-prd-frame)):
   the check keeps it in step with the IRs, so it is the first place to look
 - **Every link in the PRD body**, not only the ones under a "design" heading: child pages, links
   and mentions. Judge each by the page it points to (its title or document type), not by the link
   text, which is often just "design"
+- **Pages that link to the PRD.** A design doc often names its PRD in its header while the PRD never
+  links back, most of all when several teams each write one. Search the doc tool for pages that
+  contain the PRD's link or id, and judge each by its title or document type: a page that only
+  discusses the PRD (minutes, a ticket, a survey) is not a design doc
 - **Fields that relate documents**, when the doc tool keeps PRDs and design docs in one database
   with a parent/child relation. Find the field by what it relates, not by an exact name: names drift
   between the template and the live database
@@ -226,6 +231,12 @@ the PRD loop is handed to that team, and the design choices in it are proposals 
 them. A design doc written against the IRs does the same for
 the questions above: **every constraint is written together with its observable consequence**, so
 the IR takes the consequence and no reviewer has to infer it.
+
+**One design doc per part.** A feature that changes parts owned separately (an API, a mobile client,
+a web client) usually gets one design doc per part, each in its owner's template and each written
+against the IR items that part changes or enforces. Draft them that way rather than one doc for the
+whole feature: each behavior section lists its own rows, the IR items a part leaves to another part
+are named as left to that part's doc (step 1), and every one of them is linked from the PRD.
 
 The design doc stays a document in the team's own template; nothing renders it. What the method
 adds is one section and a few rules:

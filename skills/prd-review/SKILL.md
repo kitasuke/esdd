@@ -24,8 +24,8 @@ Collect these before converting. Ask for any that are missing:
 
 1. Record the PRD in `source.spec` / `source.version`, with the input mode
 2. Look for design docs ([Finding the design docs](../../docs/pdd.md#finding-the-design-docs)): the
-   frame's `design_docs` first when there is a frame, then the links in the PRD. Count a doc found in
-   several places once.
+   frame's `design_docs` first when there is a frame, then the links in the PRD, then the pages that
+   link to the PRD. A feature often has several. Count a doc found in several places once.
    - None found: a PRD-only round. Skip step 4 and do not use pdd-review
    - Some found: run pdd-review once per design doc, inside this round. It is called from here, so
      it never takes its own "started directly" branch
