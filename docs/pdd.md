@@ -115,6 +115,7 @@ and carries one proposal.
 | design doc and a comment on it | a thread asks for image-only notes, the body requires text | must-ask, referencing the thread |
 | design doc and the existing implementation (mode B) | the shipped screen accepts text only, the design doc allows image-only notes | the mode B rule: a recorded delta and a reverse question; the code's behavior never enters the IR silently |
 | design doc and a design file | the design doc returns tags sorted by name, the screen design lists them in the order added | must-ask, or a question about which source owns the order |
+| design doc and an assumption's basis | an assumption shows "last edited by" the way an existing screen does, and the design doc stores only the note's creator | must-ask: the assumption leaves the list, because the design cannot back it. Re-check every assumption whose basis is an existing screen against the design docs once they are read |
 
 **A stale source is not a disagreement about behavior.** When one source records a later, dated
 decision (a field table noting "v2 adds *unspecified*, removes *moderate*") and the other still shows
@@ -153,10 +154,36 @@ converted from, the approval is void and review starts again from that change. M
 not change a doc's edit time when a comment is added, so also look for threads opened since the
 conversion; a new thread on behavior is a new question before approval.
 
+## Finding the design docs
+
+A review starts from the PRD, and the design docs that belong to it are often only linked from it.
+Look before converting, because a round that misses a design doc misses the constraints only that
+doc states:
+
+- **Every link in the PRD body**, not only the ones under a "design" heading: child pages, links
+  and mentions. Judge each by the page it points to (its title or document type), not by the link
+  text, which is often just "design"
+- **Fields that relate documents**, when the doc tool keeps PRDs and design docs in one database
+  with a parent/child relation. Find the field by what it relates, not by an exact name: names drift
+  between the template and the live database
+- **Links the operator gives**
+
+Count the same doc found twice once. Skip a page that is still linked but deleted or merged into
+another doc (its title or status says so, or its body is empty), and say in the report which pages
+were skipped and why.
+
+**No design doc found: a PRD-only round.** Nothing in this document applies, and the round runs as
+[pipeline.md](pipeline.md#running-a-review-round) describes. **One or more found: one round for
+the PRD and all of them.** The design docs are read with the steps below inside that round, so the
+spec has one question list, one answer ledger and one report. A design doc with no PRD runs the
+same round with the design doc as `source.spec`; the PRD row of [Disagreements](#disagreements)
+does not apply.
+
 ## Reviewing a design doc
 
-The steps a reviewer (or an agent working for one) follows. The input mode, the review rounds and
-the approval are unchanged; these steps add what is specific to a design doc.
+The steps a reviewer (or an agent working for one) follows for each design doc
+[found](#finding-the-design-docs). The input mode, the review rounds and the approval are
+unchanged; these steps add what is specific to a design doc.
 
 1. **Collect the sources.** The PRD, every design doc, their comment threads, and each source's
    edit time. Declare the input mode. Record the PRD in `source.spec` / `source.version` and every
@@ -175,9 +202,13 @@ the approval are unchanged; these steps add what is specific to a design doc.
    frame, so it stays on the rendered open questions ([prd.md](prd.md#the-prd-frame)), or else
    in the report under a note-tier id. A decision found in a resolved thread goes in the ledger
    under `decisions:` as well as on the list
-5. **Check** the IRs (`npm run check -- <ir.yaml> ...`, or `--prd` with the frame). The findings
-   join the list; send it where the run is tracked and fold answers in with `--answers`
-6. **Before approval,** re-read every source's edit time and look for new threads
+5. **Hand back to the round.** The checks, the report, the answers and the re-reviews are the
+   PRD's round ([pipeline.md](pipeline.md#running-a-review-round)), not a second one: the design
+   doc's questions go on the same list, its ids continue it, and its answers go in the same ledger.
+   The report adds, per design doc, its version and the time of its newest comment, the statements
+   taken with their locations, and how each thread was read
+6. **Before approval,** re-read every source's edit time and look for threads newer than the newest
+   comment recorded at conversion ([Versions](#versions-and-approval-freshness))
 
 [examples/order-cancel.design.md](../examples/order-cancel.design.md) is a design doc for the
 order-cancel example, and [examples/order-cancel.design-review.md](../examples/order-cancel.design-review.md)
@@ -187,7 +218,10 @@ is its review: the statements sorted, the question list, and the IR it produced
 ## Writing a design doc
 
 The PRD procedure ([prd.md](prd.md#authoring-loop)) writes the PRD from the IRs so the checker's
-questions are answered while it is written. A design doc written against the IRs does the same for
+questions are answered while it is written, and by default goes on to draft the design doc and link
+it from the PRD (its step 6). The design doc stays the implementation team's: a draft started from
+the PRD loop is handed to that team, and the design choices in it are proposals until the team takes
+them. A design doc written against the IRs does the same for
 the questions above: **every constraint is written together with its observable consequence**, so
 the IR takes the consequence and no reviewer has to infer it.
 

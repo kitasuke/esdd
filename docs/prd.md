@@ -204,7 +204,22 @@ assumption — never filled in silently.
    into the frame or the IR as the behavior itself; which question it answered belongs in the
    answer ledger, not in the text the PRD renders (only `ASSUMED(<id>)` markers stay). Repeat until no
    error is left; an answer that adds an event or a state brings its own candidates and cells
-6. **Render** and share the document for review. Comments on it are answers: fold them into the
+6. **Write the design doc, and link it.** Most features need one, so by default continue straight
+   into it, against the IRs just checked ([pdd.md](pdd.md#writing-a-design-doc)). Skip it only when
+   the owner confirms the feature needs no new API, data or limits. The PRD belongs to the spec owner
+   (usually product); the design doc belongs to the implementation team (engineering). Written in this
+   loop, the design doc is therefore a draft that team takes over: its design choices are proposals
+   for the team to review, and only questions about behavior come back to the spec owner
+   ([pipeline.md](pipeline.md#questions-and-severity), "Say who decides"). Link the design doc from
+   the PRD in two places:
+   - in a frame section the profile places (`sections.design`, say), so the rendered PRD carries it;
+   - where the PRD is published, the way the doc tool links documents (a child page, or a
+     parent/child relation), so that a later review [finds it](pdd.md#finding-the-design-docs).
+
+   The design doc's new rule cases and cells come back as questions in this loop (step 5), and its
+   open points with no IR place go in the frame's `questions`. List the design doc in each IR's
+   `source.sources` that takes something from it
+7. **Render** and share the document for review. Comments on it are answers: fold them into the
    frame or the IRs and render again — never edit the rendered document by hand
-7. **Approve** the IRs ([approval.md](approval.md)) and set `status: approved`; the `--prd` check
+8. **Approve** the IRs ([approval.md](approval.md)) and set `status: approved`; the `--prd` check
    then refuses any open question

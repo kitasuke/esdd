@@ -178,8 +178,10 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
 
 ## Skills
 
-[skills/](skills/) holds agent skills that run the method: [pdd-review](skills/pdd-review/SKILL.md)
-and [pdd-author](skills/pdd-author/SKILL.md). They are thin; the method stays in `docs/`.
+[skills/](skills/) holds agent skills that run the method: [prd-review](skills/prd-review/SKILL.md),
+[pdd-review](skills/pdd-review/SKILL.md), [prd-author](skills/prd-author/SKILL.md) and
+[pdd-author](skills/pdd-author/SKILL.md). They are thin; the method stays in `docs/`.
+[skills/README.md](skills/README.md) says how they call each other.
 
 ## Single-file build
 
