@@ -1,6 +1,6 @@
 ---
 name: prd-author
-description: Write a PRD with ESDD - a PRD frame (problem, users, goals with metrics, non-goals) plus the UseCase IRs of its behavior, checked while it is written and rendered into the PRD document - then, by default, draft the design doc with pdd-author and link it from the PRD. Use when asked to write or draft a PRD, or to turn a feature idea, notes or a ticket into a PRD.
+description: Write a PRD with ESDD - a PRD frame (problem, users, goals with metrics, non-goals) plus the UseCase IRs of its behavior, checked while it is written and rendered into the PRD document - then, by default, draft the design docs with pdd-author (one, or one per part when separate teams own the parts) and link them from the PRD. Use when asked to write or draft a PRD, or to turn a feature idea, notes or a ticket into a PRD.
 ---
 
 # Writing a PRD with ESDD
@@ -32,10 +32,12 @@ held as a frame and IRs, and the document is rendered from them; it is never edi
    ```
 
    Write each answer into the frame or the IR as the behavior itself, and repeat until no error is left
-5. Draft the design doc with [pdd-author](../pdd-author/SKILL.md), against these IRs, unless the
-   owner confirms the feature needs no new API, data or limits. The design doc belongs to the
-   implementation team: hand the draft to them, and present its design choices as proposals for
-   them. Only behavior questions come back to the owner, through step 4. Link the design doc from the
+5. Draft the design docs with [pdd-author](../pdd-author/SKILL.md) against these IRs: one, or one per
+   part when separate teams own the parts (each API, each client)
+   ([One design doc, or one per part](../../docs/pdd.md#writing-a-design-doc)), unless the
+   owner confirms the feature needs no new API, data or limits. Each design doc belongs to its
+   implementation team: hand each draft to its team, and present its design choices as proposals for
+   them. Only behavior questions come back to the owner, through step 4. Link each design doc from the
    PRD: in the frame's `design_docs` (the check then holds it in step with the IRs' `source.sources`),
    and where the PRD is published, the way the doc tool links documents, with a title or document type
    that marks it as a design doc, so a later review finds it

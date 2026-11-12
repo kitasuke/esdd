@@ -210,13 +210,14 @@ assumption — never filled in silently.
    into the frame or the IR as the behavior itself; which question it answered belongs in the
    answer ledger, not in the text the PRD renders (only `ASSUMED(<id>)` markers stay). Repeat until no
    error is left; an answer that adds an event or a state brings its own candidates and cells
-6. **Write the design doc, and link it.** Most features need one, so by default continue straight
-   into it, against the IRs just checked ([pdd.md](pdd.md#writing-a-design-doc)). Skip it only when
-   the owner confirms the feature needs no new API, data or limits. The PRD belongs to the spec owner
+6. **Write the design docs, and link them.** Most features need at least one, so by default continue
+   straight into them, against the IRs just checked: one design doc, or one per part when separate
+   teams own the parts, such as each API and each client ([pdd.md](pdd.md#writing-a-design-doc)). Skip it only
+   when the owner confirms the feature needs no new API, data or limits. The PRD belongs to the spec owner
    (usually product); the design doc belongs to the implementation team (engineering). Written in this
    loop, the design doc is therefore a draft that team takes over: its design choices are proposals
    for the team to review, and only questions about behavior come back to the spec owner
-   ([pipeline.md](pipeline.md#questions-and-severity), "Say who decides"). Link the design doc from
+   ([pipeline.md](pipeline.md#questions-and-severity), "Say who decides"). Link each design doc from
    the PRD in two places:
    - in the frame's `design_docs`, so the rendered PRD carries it and the check holds the link to the
      IRs: a design doc an IR took something from must be listed, and a listed one must be read into
