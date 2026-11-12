@@ -83,6 +83,21 @@ rejected, the network drops), its failure is another event of the same actor —
 Giving the failure to `system` makes the checker ask how the action races its own failure, which cannot
 happen. Keep `system` for what happens with nobody acting: a timer running out, an expiry.
 
+**A decision another part makes is its own step.** The rule above is for a failure that is part of
+the action: the action and its failure leave the same state, so they share the actor. When the action
+hands a decision to another part (a check, a lookup, a validation on the server) and the user can see
+it pending or act while it runs, split it: the customer's `tap_checkout` leads to a `CHECKING` state,
+and the server's `checkout_allowed`, `checkout_refused` and `check_failed` leave it. These events leave
+`CHECKING`, not the state `tap_checkout` leaves, so they race only what the user can do while the
+check runs (go back, press again), never the action that started them. Folding the answer into the
+user's event (`tap_checkout_refused` by the customer) hides who decides, the moment the decision can
+fail, and what the user can do while it runs, and leaves no event for the part that owns the decision
+to back in its design doc ([pdd.md](pdd.md#writing-a-design-doc)). When nothing is observable between
+the action and its answer, keep the same-actor failure event. When different parts decide different
+reasons for the same outcome (an area check owned by one service, a carrier restriction owned by
+another), give each reason its own event or condition, so each design doc can name the cells it backs.
+The outcome stays what the user sees; the event only says who answered and what.
+
 A state the usecase leaves and comes back to (the app in the background, another screen on top)
 needs one `to` for the return event. When where the user lands depends on the state they left
 from — playing resumes, an error stays an error — do not duplicate the state per origin
