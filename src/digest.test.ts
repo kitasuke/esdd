@@ -83,6 +83,16 @@ describe("renderDigest", () => {
     expect(digest).toContain("| amount | large | **not covered** |");
   });
 
+  it("names inputs and conditions by their labels in the input table, falling back to the ids", () => {
+    const labeled = STATELESS.replace(
+      "{ id: amount, kind: option, conditions: [zero, negative, large],",
+      "{ id: amount, label: Order total, condition_labels: { zero: nothing ordered }, kind: option, conditions: [zero, negative, large],",
+    );
+    const digest = renderDigest(model(labeled));
+    expect(digest).toContain("| Order total | nothing ordered | RULE-001.cases[0] |");
+    expect(digest).toContain("| Order total | negative | not applicable — cannot happen |");
+  });
+
   it("tables the assumptions that approving accepts", () => {
     const digest = renderDigest(model(STATELESS));
     expect(digest).toContain("## Assumptions (accepted by approving)");

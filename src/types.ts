@@ -93,6 +93,10 @@ export interface InputDef {
   conditions?: string[];
   /** condition → "why this cell cannot occur / is meaningless" (the input-axis counterpart of impossible) */
   na?: Record<string, string>;
+  /** What a reader calls the input (the input-axis counterpart of a state's or event's label). Rendered text uses it; checks and covers use the id */
+  label?: string;
+  /** condition → what a reader calls it. Rendered text uses it; checks and covers use the condition */
+  condition_labels?: Record<string, string>;
 }
 
 /** The approval record an approved IR carries (docs/approval.md). Checked by approval.ts */

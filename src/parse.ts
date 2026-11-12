@@ -274,6 +274,18 @@ export function parseIR(source: string): ParseResult {
         err(`${at} (${inp.id}): na "${cond}" requires a reason (the same obligation as impossible's reason)`);
       }
     }
+    if (inp.label !== undefined && (typeof inp.label !== "string" || inp.label.trim() === "")) {
+      err(`${at} (${inp.id}): label must be non-empty text`);
+    }
+    if (inp.condition_labels !== undefined) {
+      if (typeof inp.condition_labels !== "object" || inp.condition_labels === null || Array.isArray(inp.condition_labels)) {
+        err(`${at} (${inp.id}): condition_labels must map a condition to its label`);
+      } else {
+        for (const [cond, label] of Object.entries(inp.condition_labels)) {
+          if (typeof label !== "string" || label.trim() === "") err(`${at} (${inp.id}): condition_labels "${cond}" must be non-empty text`);
+        }
+      }
+    }
   });
 
   if (findings.some((f) => f.level === "error")) {

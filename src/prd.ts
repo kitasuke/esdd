@@ -9,7 +9,9 @@ import { parse as parseYaml } from "yaml";
 import type { DigestLabels } from "./digest.ts";
 import {
   checkRaceDeclarations,
+  conditionLabel,
   findPendingMarker,
+  inputLabel,
   runChecks,
   trappedStates,
   uncoveredInputCells,
@@ -582,8 +584,10 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
     const add = (k: string, v: string) => by.set(k, [...(by.get(k) ?? []), v]);
     for (const rule of rules) for (const c of rule.cases) for (const k of [c.covers ?? []].flat()) add(k, rule.id);
     for (const sc of ir.scenarios) for (const k of [sc.covers ?? []].flat()) add(k, sc.id);
-    const rows = [...by.entries()].map(([k, v]) => [...k.split("×"), v.join(", ")]);
-    for (const inp of inputs) for (const [cond, reason] of Object.entries(inp.na ?? {})) rows.push([inp.id, cond, `n/a: ${reason}`]);
+    // the reader sees the inputs' and conditions' labels; covers keep the ids
+    const named = (id: string, cond: string) => [inputLabel(uc.model, id), conditionLabel(uc.model, id, cond)];
+    const rows = [...by.entries()].map(([k, v]) => [...named(...(k.split("×") as [string, string])), v.join(", ")]);
+    for (const inp of inputs) for (const [cond, reason] of Object.entries(inp.na ?? {})) rows.push([...named(inp.id, cond), `n/a: ${reason}`]);
     out.push(...sub("inputs", table(p.labels.input_table, rows)));
   }
 
@@ -715,7 +719,9 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
   const unreachable = unreachableStates(model).map((st) => fill(p.phrases.unreachable, { state: name.state(st) }));
   const trapped = trappedStates(model).map((st) => fill(p.phrases.trapped, { state: name.state(st) }));
   const uncovered = uncoveredInputCells(model);
-  const uncoveredQuestions = uncovered.map((c) => fill(p.phrases.uncovered, { input: c.input, condition: c.condition }));
+  const uncoveredQuestions = uncovered.map((c) =>
+    fill(p.phrases.uncovered, { input: inputLabel(model, c.input), condition: conditionLabel(model, c.input, c.condition) }),
+  );
   // findings the questions above already word for the owner
   const phrased = (f: Finding) =>
     f.check === "reachability" ||

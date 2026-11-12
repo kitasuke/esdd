@@ -446,6 +446,35 @@ rules:
     expect(errors.some((m) => m.includes("not declared in inputs: custmer"))).toBe(true);
   });
 
+  it("checks input labels: text only, and condition labels only for declared conditions", () => {
+    const src = (inputs: string) => `
+usecase: UC-TEST-011
+name: Input label test
+source: { spec: "https://example.com" }
+inputs:
+${inputs}
+scenarios:
+  - id: SC-001
+    name: happy path
+    given: [the form is open]
+    when: [submit]
+    then: [completes]
+rules:
+  - id: RULE-001
+    name: validation
+    cases:
+      - { input: {}, expected: shows an error, covers: customer×empty }
+      - { input: {}, expected: shows the limit, covers: customer×boundary }
+`;
+    expect(errorsOf(check(src("  - { id: customer, kind: field, label: Customer name, condition_labels: { empty: left blank } }")))).toEqual([]);
+    expect(errorsOf(check(src("  - { id: customer, kind: field, label: \"\" }"))).map((f) => f.message)).toContain(
+      "inputs[0] (customer): label must be non-empty text",
+    );
+    expect(errorsOf(check(src("  - { id: customer, kind: field, condition_labels: { emtpy: left blank } }")), "inputs").map((f) => f.message)).toEqual([
+      'inputs (customer): condition_labels condition "emtpy" does not exist in this input\'s condition set (conditions: empty, boundary)',
+    ]);
+  });
+
   it("use cases without a state machine require given/when/then", () => {
     const src = `
 usecase: UC-TEST-006
