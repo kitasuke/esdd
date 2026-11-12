@@ -200,9 +200,10 @@ unchanged; these steps add what is specific to a design doc.
    who decides. Ids continue the PRD's question list, so one list covers the spec. A question that
    has an IR place carries its `TBD` there, so the checker tracks it. A question with no IR place
    yet (a candidate event nobody declared, a cache the user may see, a thread about another actor)
-   produces no finding, so it is easy to lose: put it in the PRD frame's `questions` when there is a
-   frame, so it stays on the rendered open questions ([prd.md](prd.md#the-prd-frame)), or else
-   in the report under a note-tier id. A decision found in a resolved thread goes in the ledger
+   produces no finding, so it is easy to lose. One for the spec owner goes in the PRD frame's
+   `questions` when there is a frame, so it stays on the rendered open questions
+   ([prd.md](prd.md#the-prd-frame)), or else in the report under a note-tier id; one for the
+   implementation team goes in the report and the design doc's open points, not in the frame. A decision found in a resolved thread goes in the ledger
    under `decisions:` as well as on the list
 5. **Hand back to the round.** The checks, the report, the answers and the re-reviews are the
    PRD's round ([pipeline.md](pipeline.md#running-a-review-round)), not a second one: the design
@@ -254,7 +255,9 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    client reads it (one item or a list): a field added to a type the client can only read as a list
    sends every row when one is needed. A precedent is a basis only if it is read the same way
 2. **Write the consequence with each constraint.** For every limit, uniqueness, request meaning,
-   order, error and permission in the design, add its row. A constraint with no visible effect gets
+   order, error and permission in the design, add its row. When the design is read from the existing
+   implementation, a consequence it supplies is still a proposal until the owner states it: a
+   question, or an assumption with the code as its basis, never an outcome written as decided. A constraint with no visible effect gets
    no row. A row whose consequence is not in any IR is new behavior: it goes back to the PRD owner
    as a question, and the design doc does not decide it alone. The other way round, when the
    design cannot back what an IR item says (one stored creator, an IR that shows "last edited
@@ -268,10 +271,13 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
 5. **Keep open points in one list.** Each with a proposal and who decides, in the doc rather than
    only in comment threads, and each resolved thread's decision written into the body
 6. **Fold into the IRs and check.** Add the rows' consequences to the IRs, list the design doc in
-   `source.sources` with its edit time, and run the checker. An open point with an IR place goes there as a `TBD`; one
-   with no IR place goes in the PRD frame's `questions`, as in a review
-   ([Reviewing](#reviewing-a-design-doc), step 4). The new rule cases and cells bring their own
-   questions; answer them in the doc and the IRs, then ask for approval. Folding into an approved
+   the `source.sources` of every IR it backs or adds to, with its edit time, and run the checker. An
+   open point with an IR place goes there as a `TBD`; one with no IR place goes in the PRD frame's
+   `questions` when the owner decides it, and stays in this doc's open points when the
+   implementation team does ([Reviewing](#reviewing-a-design-doc), step 4). The new rule cases and cells bring their own
+   questions; answer them in the doc and the IRs, then ask for approval. A design doc drafted from
+   the PRD's loop ([prd.md](prd.md#authoring-loop), step 6) hands these back to that loop instead,
+   so the PRD and the design doc are checked and approved together. Folding into an approved
    IR changes it, so it needs approval again ([approval.md](approval.md#updating-an-approved-ir))
 
 **What the checks do not see.** The checker and a design-doc review stop at behavior the user can

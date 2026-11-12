@@ -46,9 +46,10 @@ design_docs:                   # optional: the design docs of this PRD, linked a
   - { spec: "https://example.com/design/order-cancel", label: Order cancel design }   # label: the name the PRD shows
 sections:                      # free sections a profile places by id (Markdown)
   rollout: "Released to everyone at once"
-questions:                     # asked, not answered yet, and not a field of the frame or an IR
-  - { question: "Can a customer cancel a gift order?", proposal: "Only the buyer can" }
-  - { question: "Does this PRD build partial cancellation?", proposal: "No", scope: true }  # scope: listed first
+questions:                     # the owner's, asked, not answered yet, and not a field of the frame or an IR
+  - { id: W2, question: "Can a customer cancel a gift order?", proposal: "Only the buyer can" }
+  - { id: Q1, question: "Does this PRD build partial cancellation?", proposal: "No", scope: true }  # scope: listed first
+  - { id: Q2, question: "Is a canceled order refunded at once?", severity: critical }   # critical: listed right after scope
 ```
 
 [examples/order-cancel.prd.yaml](../examples/order-cancel.prd.yaml) is a complete frame.
@@ -68,7 +69,7 @@ The frame and every IR it links are checked together:
 | prd-actors | every actor in the IRs' events is one of `users` (warn): a PRD that never says who an actor is leaves the reader guessing |
 | prd-usecases | no usecase linked twice |
 | prd-questions | a question in `questions` is still open (warn) |
-| prd-design-docs | a design doc a linked IR lists in `source.sources` is not in `design_docs`, or one in `design_docs` is in no IR's `source.sources` (warn). An entry counts as a design doc when the frame lists it or its `label` starts with "design doc" (a project sets other words in its config's `designDocLabels`). The first case is a design doc a later review will not find from the PRD; the second, one not read into the IRs yet, or one that states no behavior and can go |
+| prd-design-docs | a design doc a linked IR lists in `source.sources` is not in `design_docs`, or one in `design_docs` is in no IR's `source.sources` (warn). Compared by `spec` as written; the rendered PRD shows that link as it is, so a local path resolves from where the PRD is read only once the design doc is published and the link replaced. An entry counts as a design doc when the frame lists it or its `label` starts with "design doc" (a project sets other words in its config's `designDocLabels`). The first case is a design doc a later review will not find from the PRD; the second, one not read into the IRs yet, or one that neither backs nor adds any IR item and can go |
 | prd-sections | a section the profile marks `required` is missing, or a frame section the profile does not place (warn) |
 | the IR checks | everything in [usecase-ir.md](usecase-ir.md), per linked IR |
 
@@ -98,9 +99,10 @@ npm run check -- --prd <frame.prd.yaml> [--profile <profile.yaml>] --render
   A marker with an id (`TBD(Q3)`) is one question wherever it appears, in a rule's case and the
   scenario that checks it or in two IRs that share the decision, so it is shown once with every
   place it appears; a marker without an id is shown at each place.
-  The frame's `questions` come next, with their proposals, except the ones marked `scope: true`:
-  those come first, before every other open question, because their answers decide which of the
-  others still exist ([pipeline.md](pipeline.md#questions-and-severity), "Ask scope first"). The other findings follow as the checker words them (they are
+  The frame's `questions` come next, with their ids and proposals, except the ones marked `scope: true`
+  and `severity: critical`: scope questions come first, before every other open question, because
+  their answers decide which of the others still exist, and critical ones right after them, so a
+  decision that blocks approval is not read last ([pipeline.md](pipeline.md#questions-and-severity), "Ask scope first"). The other findings follow as the checker words them (they are
   already questions; ids in them are replaced by labels). An undeclared cell or race, a state nothing leads to or out of, an input cell nothing covers and an
   actor `users` does not name are worded with the profile's `undeclared` / `unraced` / `unreachable` /
   `trapped` / `uncovered` / `unknown_actor` phrase instead; races that share one event against the same
@@ -201,8 +203,8 @@ assumption — never filled in silently.
    and the checker then asks for its cells. A candidate the owner rejects is written down too: as
    a `non_goals` entry when it is out of scope, or as an `impossible` declaration with the reason
    when it cannot occur. That way the rendered PRD records the decision, and the next reader does
-   not ask again. A candidate the owner has not answered yet goes into the frame's `questions`, so
-   it stays on the open questions instead of being lost
+   not ask again. A candidate the owner has not answered yet goes into the frame's `questions`, with
+   its id and severity from the question list, so it stays on the open questions instead of being lost
 5. **Check** with `--prd`. The findings are the question list. Ask them, or apply a proposed answer
    as an assumption where [pipeline.md](pipeline.md#accept-by-default) allows it. Write an answer
    into the frame or the IR as the behavior itself; which question it answered belongs in the
@@ -223,10 +225,19 @@ assumption — never filled in silently.
      parent/child relation), with a title or document type that marks it as a design doc: a review
      judges a linked page by that, so a later review [finds it](pdd.md#finding-the-design-docs).
 
-   The design doc's new rule cases and cells come back as questions in this loop: run step 5 again,
-   on everything the design doc added, until no error is left, before rendering. Its open points with
-   no IR place go in the frame's `questions`. List the design doc in each IR's `source.sources` that
-   takes something from it
+   The design doc's new rule cases and cells come back as questions in this loop: run steps 4 and 5
+   again, on everything the design doc added, until no error is left, before rendering. Step 4
+   matters as much as the check: the checker only closes over what the author declared, and the
+   design doc's own refusals, limits and timing (a date in the future, a value cleared by an import)
+   bring candidates nobody declared. Of its open points with no IR place, the owner's go in the
+   frame's `questions`; the implementation team's stay in the design doc's open-point list, so the
+   rendered PRD carries only the owner's decisions. List the design doc in the `source.sources` of
+   every IR it backs or adds to.
+
+   When the design material is the existing implementation, the consequences it brings are
+   proposals, not decided behavior: each one the owner has not stated is a question, or an
+   assumption with the code as its basis ([pipeline.md](pipeline.md#input-modes--who-answers-the-questions),
+   mode B: no code-derived fact enters the IR silently)
 7. **Render** and share the document for review. Comments on it are answers: fold them into the
    frame or the IRs and render again — never edit the rendered document by hand
 8. **Approve** the IRs ([approval.md](approval.md)) and set `status: approved`; the `--prd` check

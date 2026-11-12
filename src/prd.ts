@@ -74,7 +74,11 @@ export interface PrdDesignDoc {
   label?: string;
 }
 
+const SEVERITIES = ["critical", "warning", "suggestion"] as const;
+
 export interface PrdQuestion {
+  /** The question's id on the round's question list (Q1, W3, …), shown with it and kept between rounds */
+  id?: string;
   question: string;
   /** The answer the author proposes, when there is a basis for one */
   proposal?: string;
@@ -83,6 +87,11 @@ export interface PrdQuestion {
    * exist, so the open questions list it first (docs/pipeline.md, "Ask scope first")
    */
   scope?: boolean;
+  /**
+   * Its severity (docs/pipeline.md, "Questions and severity"). A critical question is listed right
+   * after the scope questions, before the frame's open fields
+   */
+  severity?: (typeof SEVERITIES)[number];
 }
 
 export interface ParsePrdResult {
@@ -154,6 +163,8 @@ export function parsePrd(source: string): ParsePrdResult {
       if (!nonEmptyString(q?.question)) err(`questions[${i}]: question is required`);
       if (q?.proposal !== undefined && !nonEmptyString(q.proposal)) err(`questions[${i}]: proposal must be text`);
       if (q?.scope !== undefined && typeof q.scope !== "boolean") err(`questions[${i}]: scope must be true or false`);
+      if (q?.id !== undefined && !nonEmptyString(q.id)) err(`questions[${i}]: id must be text`);
+      if (q?.severity !== undefined && !SEVERITIES.includes(q.severity)) err(`questions[${i}]: severity must be one of ${SEVERITIES.join(" / ")}`);
     });
   }
   if (findings.length > 0) return { findings };
@@ -201,7 +212,7 @@ export function checkPrd(frame: PrdFrame, models: Model[]): Finding[] {
   }
 
   for (const q of frame.questions ?? []) {
-    warn("prd-questions", `an open question remains: ${q.question}. Ask the PRD owner`);
+    warn("prd-questions", `an open question remains: ${q.id ? `${q.id}: ` : ""}${q.question}. Ask the PRD owner`);
   }
 
   findings.push(...checkDesignDocs(frame, models));
@@ -721,10 +732,13 @@ function irQuestions(model: Model, frame: PrdFrame, p: PrdProfile): string[] {
 function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Finding[], p: PrdProfile): string[] {
   // a marker is shown as the text the owner has to complete, under the heading the reader sees it in
   const heading = (id: string) => p.sections.find((s) => s.id === id)?.heading ?? id;
-  const asked = (q: PrdQuestion) => `- ${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`;
+  const asked = (q: PrdQuestion) => `- ${q.id ? `**${q.id}** ` : ""}${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`;
+  const critical = (q: PrdQuestion) => !q.scope && q.severity === "critical";
   const questions = [
     // scope comes first: its answer decides which of the questions below still exist
     ...(frame.questions ?? []).filter((q) => q.scope).map(asked),
+    // then the critical ones, so a decision that blocks approval is not read last
+    ...(frame.questions ?? []).filter(critical).map(asked),
     ...(frame.problem ? framePending(frame) : []).map((f) => {
       const where = f.goal ? `${heading(f.section)} ${f.goal.id} ${p.labels.goal_table[f.goal.column]}` : heading(f.section);
       // a metric or target alone ("TBD") does not say which goal it belongs to
@@ -733,7 +747,7 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
       const lines = f.text.split("\n").filter((l) => findPendingMarker(l)).map((l) => l.trim().replace(/^[-*]\s+/, ""));
       return `- **${where}**: ${lines.length > 0 ? lines.join(" / ") : f.text}${of}`;
     }),
-    ...(frame.questions ?? []).filter((q) => !q.scope).map(asked),
+    ...(frame.questions ?? []).filter((q) => !q.scope && !critical(q)).map(asked),
     // prd-pending, prd-questions and prd-actors are shown in the owner's words
     ...(frameFindings.some((f) => f.check === "prd-actors") ? ucs : []).flatMap(({ model }) =>
       [...model.events.values()]

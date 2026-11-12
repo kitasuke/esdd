@@ -23,7 +23,7 @@ held as a frame and IRs, and the document is rendered from them; it is never edi
    `source.spec` names the frame. Cells the owner did not talk about stay undeclared
 3. Ask what nobody declared: the candidate events, actors, outcomes and screens of the loop's step 4,
    each with a proposal. Write a rejected candidate down as a non-goal or an `impossible` with its
-   reason, and an unanswered one in the frame's `questions`
+   reason, and an unanswered one in the frame's `questions` with its id and severity
 4. Check, and ask the findings as questions with a proposal and a tier
    ([pipeline.md](../../docs/pipeline.md#questions-and-severity)):
 
@@ -40,8 +40,12 @@ held as a frame and IRs, and the document is rendered from them; it is never edi
    and where the PRD is published, the way the doc tool links documents, with a title or document type
    that marks it as a design doc, so a later review finds it
    ([Finding the design docs](../../docs/pdd.md#finding-the-design-docs)).
-   When pdd-author hands back, go through step 4 again: the rule cases, cells and open points it
-   added have not been checked or asked yet. Render only once no error is left
+   When pdd-author hands back, go through steps 3 and 4 again: the rule cases, cells and open points
+   it added have not been checked or asked yet, and the checker alone finds nothing it was not given,
+   so ask what the design doc's refusals, limits and timing bring that nobody declared. Of the open
+   points with no IR place, only the owner's go in the frame's `questions`; the implementation
+   team's stay in the design doc. List the design doc in the `source.sources` of every IR it backs or
+   adds to. Render only once no error is left
 6. Render, and share it for review:
 
    ```bash
