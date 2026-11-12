@@ -5,7 +5,7 @@
 // assumptions, coverage) can actually be read. It is deterministic, so diffing it against the
 // previous approval's digest shows exactly what a re-approval changes (docs/approval.md).
 
-import { inputConditions } from "./checks.ts";
+import { conditionLabel, inputConditions, inputLabel } from "./checks.ts";
 import { config } from "./config.ts";
 import { RACE_WINNER_FIRST, outcomeTexts } from "./text.ts";
 import { type Model, type OutcomeItem, cellKey } from "./types.ts";
@@ -173,7 +173,7 @@ function inputsSection(model: Model): string[] {
       const na = inp.na?.[cond];
       const by = coveredBy.get(`${inp.id}×${cond}`);
       const how = na !== undefined ? `${l.not_applicable} — ${na}` : by ? by.join(" / ") : `**${l.not_covered}**`;
-      out.push(`| ${inp.id} | ${cond} | ${how.replaceAll("|", "\\|")} |`);
+      out.push(`| ${inputLabel(model, inp.id)} | ${conditionLabel(model, inp.id, cond)} | ${how.replaceAll("|", "\\|")} |`);
     }
   }
   out.push("");

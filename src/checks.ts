@@ -392,6 +392,16 @@ export function inputConditions(model: Model): Map<string, string[]> {
   return map;
 }
 
+/** What a reader calls an input: its label, or its id when it has none */
+export function inputLabel(model: Model, id: string): string {
+  return model.ir.inputs?.find((inp) => inp.id === id)?.label ?? id;
+}
+
+/** What a reader calls an input's condition: its label from condition_labels, or the condition itself */
+export function conditionLabel(model: Model, id: string, condition: string): string {
+  return model.ir.inputs?.find((inp) => inp.id === id)?.condition_labels?.[condition] ?? condition;
+}
+
 function toCoversArray(v: string | string[] | undefined): string[] {
   if (v === undefined) return [];
   return Array.isArray(v) ? v : [v];
@@ -423,15 +433,17 @@ export function checkInputs(model: Model): Finding[] {
   const findings: Finding[] = [];
   const conds = inputConditions(model);
 
-  // Are the na conditions declared?
+  // Are the na conditions and the labeled conditions declared?
   for (const inp of inputs) {
-    for (const cond of Object.keys(inp.na ?? {})) {
-      if (!(conds.get(inp.id) ?? []).includes(cond)) {
-        findings.push({
-          level: "error",
-          check: "inputs",
-          message: `inputs (${inp.id}): na condition "${cond}" does not exist in this input's condition set (conditions: ${(conds.get(inp.id) ?? []).join(", ")})`,
-        });
+    for (const [field, keys] of [["na", Object.keys(inp.na ?? {})], ["condition_labels", Object.keys(inp.condition_labels ?? {})]] as const) {
+      for (const cond of keys) {
+        if (!(conds.get(inp.id) ?? []).includes(cond)) {
+          findings.push({
+            level: "error",
+            check: "inputs",
+            message: `inputs (${inp.id}): ${field === "na" ? "na" : "condition_labels"} condition "${cond}" does not exist in this input's condition set (conditions: ${(conds.get(inp.id) ?? []).join(", ")})`,
+          });
+        }
       }
     }
   }

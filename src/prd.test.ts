@@ -536,6 +536,27 @@ scenarios:
     expect(open).not.toContain("uncovered.");
   });
 
+  it("words an uncovered input cell and the input table with the input's labels", () => {
+    const form = model(`
+usecase: UC-TEST-012
+name: Contact
+source: { spec: "https://example.com/spec" }
+inputs:
+  - { id: email, label: Email address, kind: field, condition_labels: { empty: left blank }, na: { boundary: "no length limit" } }
+rules:
+  - id: RULE-001
+    name: required
+    cases:
+      - { input: {}, expected: the save button stays disabled }
+scenarios:
+  - { id: SC-001, name: send, given: [the form is open], when: [send], then: [sent] }
+`);
+    const md = renderPrd(frame(), [{ file: "t.usecase.yaml", model: form }], [], mergeProfile({ phrases: { uncovered: "{input}: {condition}?" } }));
+    expect(md).toContain("Email address: left blank?");
+    expect(md).not.toContain("email: empty?");
+    expect(md).toMatch(/\| Email address \| boundary \| [^|]*no length limit/);
+  });
+
   it("writes a race declaration that names several states and events as one sentence", () => {
     const trip = model(`
 usecase: UC-TEST-009

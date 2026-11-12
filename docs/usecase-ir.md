@@ -181,7 +181,15 @@ inputs:
     kind: field
     conditions: [empty, malformed, boundary]   # the condition set can be overridden
     na: { boundary: "fixed 7 digits, so no boundary exists" }
+    label: Postal code                         # optional: what a reader calls the input
+    condition_labels: { malformed: not 7 digits }  # optional: what a reader calls a condition
 ```
+
+`label` and `condition_labels` are the input-axis counterpart of a state's or event's `label`:
+optional, and used wherever the IR is rendered for a reader (the questions for uncovered cells, the
+rendered PRD's input table, the digest), with the id or the condition shown where none is given.
+Covers, checks and traces keep using the ids. A `condition_labels` key must be one of the input's
+conditions, like an `na` key.
 
 The default conditions cover only edge cases: the valid-value happy path is owned by
 the scenarios. `required: true` on an input is optional metadata; the checker does not
