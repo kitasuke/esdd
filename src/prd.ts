@@ -819,7 +819,9 @@ export function renderPrd(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: 
         for (const uc of ucs) out.push(...useCaseSection(uc, frame, p, level));
         break;
       case "design_docs":
-        out.push(...((frame.design_docs ?? []).length > 0 ? frame.design_docs!.map((d) => (d.label ? `- [${d.label}](${d.spec})` : `- ${d.spec}`)) : ["-"]), "");
+        // a PRD without design docs keeps only the heading when the profile marks it always, like any empty section
+        for (const d of frame.design_docs ?? []) out.push(d.label ? `- [${d.label}](${d.spec})` : `- ${d.spec}`);
+        out.push("");
         break;
       case "open_questions":
         out.push(...openQuestions(frame, ucs, frameFindings, p));

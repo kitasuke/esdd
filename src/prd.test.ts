@@ -141,6 +141,12 @@ describe("design_docs", () => {
     expect(renderPrd(frame(), ucs, [])).not.toContain("## Design docs");
   });
 
+  it("keeps only the heading when marked always and the frame lists none", () => {
+    const ucs = [{ file: "test.usecase.yaml", model: model(IR) }];
+    const profile = mergeProfile({ sections: [{ id: "design_docs", heading: "Design docs", always: true }, { id: "rollout", heading: "Rollout" }] });
+    expect(renderPrd(frame(), ucs, [], profile)).toBe("# Test feature\n\n`PRD-TEST` · draft\n\n## Design docs\n\n## Rollout\n\nall at once\n");
+  });
+
   it("warns when the profile does not place them", () => {
     const profile = mergeProfile({ sections: [{ id: "summary", heading: "TL;DR" }, { id: "rollout", heading: "Rollout" }] });
     expect(checkProfile(withDocs('[{ spec: "d" }]'), profile).map((f) => f.message)).toEqual([
