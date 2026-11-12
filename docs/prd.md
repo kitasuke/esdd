@@ -209,8 +209,8 @@ assumption — never filled in silently.
    answer ledger, not in the text the PRD renders (only `ASSUMED(<id>)` markers stay). Repeat until no
    error is left; an answer that adds an event or a state brings its own candidates and cells
 6. **Write the design docs, and link them.** Most features need at least one, so by default continue
-   straight into them, against the IRs just checked: one design doc per part the implementation
-   teams own, such as each API and each client ([pdd.md](pdd.md#writing-a-design-doc)). Skip it only
+   straight into them, against the IRs just checked: one design doc, or one per part when separate
+   teams own the parts, such as each API and each client ([pdd.md](pdd.md#writing-a-design-doc)). Skip it only
    when the owner confirms the feature needs no new API, data or limits. The PRD belongs to the spec owner
    (usually product); the design doc belongs to the implementation team (engineering). Written in this
    loop, the design doc is therefore a draft that team takes over: its design choices are proposals

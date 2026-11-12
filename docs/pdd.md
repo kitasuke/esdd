@@ -232,11 +232,13 @@ them. A design doc written against the IRs does the same for
 the questions above: **every constraint is written together with its observable consequence**, so
 the IR takes the consequence and no reviewer has to infer it.
 
-**One design doc per part.** A feature that changes parts owned separately (an API, a mobile client,
-a web client) usually gets one design doc per part, each in its owner's template and each written
-against the IR items that part changes or enforces. Draft them that way rather than one doc for the
-whole feature: each behavior section lists its own rows, the IR items a part leaves to another part
-are named as left to that part's doc (step 1), and every one of them is linked from the PRD.
+**One design doc, or one per part.** A feature that changes several parts (an API, a mobile client,
+a web client) can have one design doc with a section per part, or one design doc per part. Follow
+how the parts are owned and reviewed: one team that owns and reviews them all writes one doc;
+separate teams each write their own, in their own template. A part the feature does not change
+needs neither a doc nor a section. Either way, each part's rows are written against the IR items it
+changes or enforces, the IR items it leaves to another part are named (step 1), and every design
+doc is linked from the PRD.
 
 The design doc stays a document in the team's own template; nothing renders it. What the method
 adds is one section and a few rules:

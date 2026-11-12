@@ -18,8 +18,8 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 - the PRD (or PRD frame) and the feature's IRs, approved or in review
 - the design decisions the author has made so far: schema, API, limits, management of values
 - the team's design-doc template, if one exists
-- which part this doc covers, when the feature has several design docs (one API, one client), and the
-  IR items the other parts' docs cover
+- the parts this doc covers: all of them with a section each, or one part when separate teams own the
+  parts and each writes its own doc (one API, one client); then also the IR items the other docs cover
 
 ## Steps
 
