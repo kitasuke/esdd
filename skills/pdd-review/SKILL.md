@@ -47,8 +47,9 @@ prd-review passes these. Ask for any that are missing:
    [disagreements](../../docs/pdd.md#disagreements), including an assumption whose basis the design
    doc contradicts. Each question gets one proposal, a tier and who decides. Disagreements are always
    must-ask. Ids continue the round's list. A question with an IR place carries its `TBD` there. A
-   question with no IR place goes in the PRD frame's `questions`, or in the report under a note-tier
-   id when there is no frame, so it is not lost
+   question with no IR place goes in the report so it is not lost; the spec owner's also go in the
+   PRD frame's `questions` when there is a frame, with their id and severity, and the implementation
+   team's do not
 6. Hand back to prd-review: the questions, the statements taken with their locations, how each
    thread was read, the design doc's version and the time of its newest comment
 

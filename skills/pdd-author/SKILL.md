@@ -28,7 +28,9 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
    ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 1)
 2. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
    what the user sees, and the IR reference. A constraint with no visible effect gets no row; list
-   those below the table with the reason
+   those below the table with the reason. When the design is read from the existing implementation,
+   a consequence it supplies is a proposal until the owner states it: a question, or an assumption
+   with the code as its basis ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 2)
 3. A row whose consequence is in no IR is new behavior. Ask the PRD owner, with a proposal. Do not
    decide it in the design doc: the row says `proposed:` with the open point, and "none yet" in the
    IR column. When the design cannot back an IR item, change the design; ask the owner only if
@@ -38,15 +40,20 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 5. Add rows for what changes outside the feature: values managed by hand or by an admin,
    migrations of existing items, cascading deletes
 6. Keep open points in one list, each with a proposal and who decides
-7. Fold the rows into the IRs, list the design doc and its edit time in `source.sources`, and check:
+7. Fold the rows into the IRs, list the design doc and its edit time in the `source.sources` of every
+   IR it backs or adds to, and check:
 
    ```bash
    npm run check -- <ir.yaml> ... --questions
    ```
 
-   An open point with an IR place goes there as a `TBD`; one without goes in the PRD frame's
-   `questions`. Answer what the new cells bring, in the doc and the IRs, then ask for approval
-   ([docs/approval.md](../../docs/approval.md)). Folding into an approved IR needs approval again
+   An open point with an IR place goes there as a `TBD`. One without stays in this doc's open-point
+   list when the implementation team decides it, and goes in the PRD frame's `questions` (with its id
+   and severity) when the spec owner does. Answer what the new cells bring, in the doc and the IRs,
+   then ask for approval ([docs/approval.md](../../docs/approval.md)). Folding into an approved IR
+   needs approval again. When prd-author called this skill, skip the checks and the approval here:
+   hand the IR changes and the open points back, and the PRD's loop checks them with the PRD and
+   approves once
 
 ## Do not
 

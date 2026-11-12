@@ -155,6 +155,35 @@ describe("design_docs", () => {
   });
 });
 
+describe("frame questions with id and severity", () => {
+  const ucs = [{ file: "test.usecase.yaml", model: model(IR) }];
+  const withQuestions = (qs: string) => frame(FRAME.replace("sections:", `questions:\n${qs}\nsections:`));
+
+  it("lists scope first, then critical, then the open fields and the rest, each with its id", () => {
+    const f = withQuestions(
+      [
+        '  - { id: R1, question: "Is a reminder sent?", severity: suggestion }',
+        '  - { id: Q2, question: "Can it be undone?", proposal: "No", severity: critical }',
+        '  - { id: Q1, question: "Does this PRD build refunds?", scope: true }',
+      ].join("\n"),
+    );
+    const md = renderPrd(f, ucs, checkPrd(f, ucs.map((u) => u.model)));
+    const at = (s: string) => md.indexOf(s);
+    expect(at("**Q1** Does this PRD build refunds?")).toBeGreaterThan(-1);
+    expect(at("**Q1** Does")).toBeLessThan(at("**Q2** Can it be undone? (proposed: No)"));
+    expect(at("**Q2** Can")).toBeLessThan(at("(faster)"));
+    expect(at("(faster)")).toBeLessThan(at("**R1** Is a reminder sent?"));
+    expect(checkPrd(f, []).filter((x) => x.check === "prd-questions").map((x) => x.message)).toContain(
+      "an open question remains: Q2: Can it be undone?. Ask the PRD owner",
+    );
+  });
+
+  it("refuses an unknown severity", () => {
+    const { findings } = parsePrd(FRAME.replace("sections:", 'questions:\n  - { question: "x", severity: high }\nsections:'));
+    expect(findings.map((f) => f.message)).toEqual(["questions[0]: severity must be one of critical / warning / suggestion"]);
+  });
+});
+
 describe("checkProfile", () => {
   it("warns about sections the profile requires but the frame lacks, and frame sections it does not place", () => {
     const profile = mergeProfile({ sections: [{ id: "summary", heading: "Summary" }, { id: "ui", heading: "UI", required: true }] });
