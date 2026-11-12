@@ -1,12 +1,17 @@
 ---
 name: pdd-author
-description: Write a design doc (technical or product design doc) against the UseCase IRs of its feature with ESDD, so that each constraint (limit, uniqueness, request meaning, order, error, permission) is written with its observable consequence and an IR reference, layers agree, and open points are one list with proposals. Use when asked to write or draft a design doc for a feature that has a PRD or IRs.
+description: Write a design doc (technical or product design doc) against the UseCase IRs of its feature with ESDD, so that each constraint (limit, uniqueness, request meaning, order, error, permission) is written with its observable consequence and an IR reference, layers agree, and open points are one list with proposals. Use when asked to write or draft a design doc for a feature that has a PRD or IRs; prd-author also calls it, by default, after the PRD's IRs are checked.
 ---
 
 # Writing a design doc with ESDD
 
 The method is [docs/pdd.md](../../docs/pdd.md#writing-a-design-doc). This skill only runs it. The
 design doc keeps the team's own template. The method adds one behavior section and a few rules.
+
+The design doc belongs to the implementation team (engineering); the PRD belongs to the spec owner.
+When [prd-author](../prd-author/SKILL.md) calls this skill, the result is a draft for that team: its
+design choices are proposals for them, and only behavior questions go back to the spec owner, through
+the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 
 ## Inputs
 
