@@ -32,7 +32,9 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
    what the user sees, and the IR reference. A constraint with no visible effect gets no row; list
    those below the table with the reason. When the design is read from the existing implementation,
    a consequence it supplies is a proposal until the owner states it: a question, or an assumption
-   with the code as its basis ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 2)
+   with the code as its basis ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 2).
+   That includes text copied from the existing screen (a toast, a label): an assumption with the file
+   as its basis, never a literal in an outcome without one
 3. A row whose consequence is in no IR is new behavior. Ask the PRD owner, with a proposal. Do not
    decide it in the design doc: the row says `proposed:` with the open point, and "none yet" in the
    IR column. When the design cannot back an IR item, change the design; ask the owner only if
