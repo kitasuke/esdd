@@ -48,7 +48,8 @@ Collect these before converting. Ask for any that are missing:
 7. Report once, where the run is tracked: the sources with their versions (for each design doc, also
    the time of its newest comment), the question list with a "who decides" column, the assumptions,
    and the mapping from findings to questions. For each design doc, add what pdd-review hands back
-   (the statements taken, the thread readings, the pages skipped)
+   (the statements taken, the thread readings, the pages skipped). With several design docs, list
+   the IR items that none of them backs or names as left to another part
 8. Fold answers in with `npm run check -- <ir.yaml> ... --answers <ledger.yaml>`, then check every
    IR again. A re-review after the spec changed converts it again rather than patching the IRs,
    and sorts the questions into answered, open and new

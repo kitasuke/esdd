@@ -1,6 +1,6 @@
 ---
 name: pdd-review
-description: Read a design doc (technical or product design doc - APIs, data model, limits, review threads) into the UseCase IRs of its feature with ESDD. Takes the observable consequences of its constraints into the IRs, and raises gaps, open threads and disagreements (with the PRD, within the doc, with the implementation, with an assumption) as questions. Runs inside prd-review's round, which owns the checks, the report and the answers. Use when asked to review a design doc, read a design doc into the IRs, or check a design doc against the PRD.
+description: Read a design doc (technical or product design doc - APIs, data model, limits, review threads) into the UseCase IRs of its feature with ESDD. Takes the observable consequences of its constraints into the IRs, and raises gaps, open threads and disagreements (with the PRD, within the doc, with another design doc of the same PRD, with the implementation, with an assumption) as questions. Runs inside prd-review's round, which owns the checks, the report and the answers. Use when asked to review a design doc, read a design doc into the IRs, or check a design doc against the PRD.
 ---
 
 # Reading a design doc with ESDD
@@ -45,7 +45,8 @@ prd-review passes these. Ask for any that are missing:
 5. Raise questions for [gaps](../../docs/pdd.md#gaps-constraints-that-say-less-than-they-seem-to),
    [threads](../../docs/pdd.md#comments-and-open-threads) and
    [disagreements](../../docs/pdd.md#disagreements), including an assumption whose basis the design
-   doc contradicts. Each question gets one proposal, a tier and who decides. Disagreements are always
+   doc contradicts and a different constraint another design doc of the round already put on the
+   same IR item. Each question gets one proposal, a tier and who decides. Disagreements are always
    must-ask. Ids continue the round's list. A question with an IR place carries its `TBD` there. A
    question with no IR place goes in the report so it is not lost; the spec owner's also go in the
    PRD frame's `questions` when there is a frame, with their id and severity, and the implementation

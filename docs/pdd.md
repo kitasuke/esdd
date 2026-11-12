@@ -112,6 +112,7 @@ and carries one proposal.
 | --- | --- | --- |
 | design doc and PRD | the PRD says a note keeps up to 20 tags, the design doc caps it at 10 | must-ask to the spec owner. A design doc that only **adds** a limit the PRD is silent on is not a disagreement: take it, with the design doc as its source, and ask only if the limit changes what the PRD promises |
 | design doc and itself | the database allows an empty note body, the API requires `min_len = 1` | must-ask: "can a note be saved without text?" The proposal is what the user meets today (the stricter layer at the boundary they reach), but the answer decides which layer is wrong |
+| design doc and another design doc of the same PRD | the API's design doc caps the list at 50 items, the web client's lays out pages of 60; or the API's returns an empty list on failure while the mobile client's shows an error for it | must-ask, quoting both docs. The proposal is what the user meets where the two parts meet (the stricter part at the boundary). Who decides is the owners of both docs, or the spec owner when either side changes what the PRD promises |
 | design doc and a comment on it | a thread asks for image-only notes, the body requires text | must-ask, referencing the thread |
 | design doc and the existing implementation (mode B) | the shipped screen accepts text only, the design doc allows image-only notes | the mode B rule: a recorded delta and a reverse question; the code's behavior never enters the IR silently |
 | design doc and a design file | the design doc returns tags sorted by name, the screen design lists them in the order added | must-ask, or a question about which source owns the order |
@@ -200,7 +201,9 @@ unchanged; these steps add what is specific to a design doc.
 3. **Map** each spec statement to its IR place (constraints table). Where the IR already exists,
    add rule cases, input cells and candidate events to it, keeping its order
    ([approval.md](approval.md#updating-an-approved-ir)); otherwise draft the IRs from the PRD and
-   the design doc together
+   the design doc together. With several design docs, compare each statement with what the docs
+   read before it already put in the same IR place: a different constraint on the same item is a
+   [disagreement between design docs](#disagreements), not a second answer
 4. **Raise questions** for gaps, open threads and disagreements, each with a proposal, a tier and
    who decides. Ids continue the PRD's question list, so one list covers the spec. A question that
    has an IR place carries its `TBD` there, so the checker tracks it. A question with no IR place
@@ -214,7 +217,9 @@ unchanged; these steps add what is specific to a design doc.
    PRD's round ([pipeline.md](pipeline.md#running-a-review-round)), not a second one: the design
    doc's questions go on the same list, its ids continue it, and its answers go in the same ledger.
    The report adds, per design doc, its version and the time of its newest comment, the statements
-   taken with their locations, and how each thread was read
+   taken with their locations, and how each thread was read. With several design docs, it also
+   lists the IR items that no design doc backs or names as left to another part: a gap between the
+   parts that no single doc shows
 6. **Before approval,** re-read every source's edit time and look for threads newer than the newest
    comment recorded at conversion ([Versions](#versions-and-approval-freshness))
 
