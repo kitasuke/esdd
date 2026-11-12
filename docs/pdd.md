@@ -269,7 +269,9 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    `source.sources` with its edit time, and run the checker. An open point with an IR place goes there as a `TBD`; one
    with no IR place goes in the PRD frame's `questions`, as in a review
    ([Reviewing](#reviewing-a-design-doc), step 4). The new rule cases and cells bring their own
-   questions; answer them in the doc and the IRs, then ask for approval. Folding into an approved
+   questions; answer them in the doc and the IRs, then ask for approval. A design doc drafted from
+   the PRD's loop ([prd.md](prd.md#authoring-loop), step 6) hands these back to that loop instead,
+   so the PRD and the design doc are checked and approved together. Folding into an approved
    IR changes it, so it needs approval again ([approval.md](approval.md#updating-an-approved-ir))
 
 **What the checks do not see.** The checker and a design-doc review stop at behavior the user can

@@ -46,7 +46,9 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 
    An open point with an IR place goes there as a `TBD`; one without goes in the PRD frame's
    `questions`. Answer what the new cells bring, in the doc and the IRs, then ask for approval
-   ([docs/approval.md](../../docs/approval.md)). Folding into an approved IR needs approval again
+   ([docs/approval.md](../../docs/approval.md)). Folding into an approved IR needs approval again.
+   When prd-author called this skill, skip the checks and the approval here: hand the IR changes and
+   the open points back, and the PRD's loop checks them with the PRD and approves once
 
 ## Do not
 
