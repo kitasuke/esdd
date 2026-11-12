@@ -305,6 +305,12 @@ export interface PrdProfile {
    */
   actors: Record<string, string>;
   /**
+   * A regular expression for the question ids a project gives critical questions (e.g. "^Q\\d" when
+   * ids start with Q for critical). A marker or frame question whose id matches is listed with the
+   * critical ones, right after the scope questions. Omitted, only `severity: critical` marks one
+   */
+  critical_ids?: string;
+  /**
    * Sentence patterns (EARS style). Placeholders: {state} {event} {actor} {to} {a} {b} {winner} {reason}.
    * Outcomes are listed under the sentence, one per line
    */
@@ -434,6 +440,7 @@ export function mergeProfile(override: unknown): PrdProfile {
     sections: Array.isArray(o.sections) ? o.sections : DEFAULT_PROFILE.sections,
     fold: Array.isArray(o.fold) ? o.fold : DEFAULT_PROFILE.fold,
     actors: o.actors && typeof o.actors === "object" ? { ...o.actors } : DEFAULT_PROFILE.actors,
+    ...(typeof o.critical_ids === "string" ? { critical_ids: o.critical_ids } : {}),
     phrases: { ...DEFAULT_PROFILE.phrases, ...(o.phrases ?? {}) },
     labels: { ...DEFAULT_PROFILE.labels, ...(o.labels ?? {}) },
     digest: o.digest && typeof o.digest === "object" ? { ...o.digest } : DEFAULT_PROFILE.digest,
@@ -608,19 +615,29 @@ function useCaseSection(uc: LinkedUseCase, frame: PrdFrame, p: PrdProfile, level
  * IRs carry it (a rule's case and the scenario that checks it, or two IRs that share the decision),
  * so it is shown once with every place it appears; a marker without an id is shown at each place
  */
-function pendingByQuestion(ucs: LinkedUseCase[]): { places: { ir: string; where: string }[]; text: string }[] {
-  const out: { places: { ir: string; where: string }[]; text: string }[] = [];
-  const byIds = new Map<string, { places: { ir: string; where: string }[]; text: string }>();
+interface PendingQuestion {
+  places: { ir: string; where: string }[];
+  ids: string[];
+  /** Every distinct text the marker carries, in the order met: one question can be worded in parts */
+  texts: string[];
+}
+
+function pendingByQuestion(ucs: LinkedUseCase[]): PendingQuestion[] {
+  const out: PendingQuestion[] = [];
+  const byIds = new Map<string, PendingQuestion>();
   for (const uc of ucs) {
     for (const x of irPending(uc.model)) {
       const place = { ir: uc.model.ir.name, where: x.where };
-      const key = pendingMarkerIds(x.text).join(",");
+      const ids = pendingMarkerIds(x.text);
+      const key = ids.join(",");
       const known = key ? byIds.get(key) : undefined;
       if (known) {
         known.places.push(place);
+        // a second text under the same id is a part of the question (a sub-question), not a duplicate
+        if (!known.texts.includes(x.text)) known.texts.push(x.text);
         continue;
       }
-      const entry = { places: [place], text: x.text };
+      const entry = { places: [place], ids, texts: [x.text] };
       if (key) byIds.set(key, entry);
       out.push(entry);
     }
@@ -739,12 +756,20 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
   // a marker is shown as the text the owner has to complete, under the heading the reader sees it in
   const heading = (id: string) => p.sections.find((s) => s.id === id)?.heading ?? id;
   const asked = (q: PrdQuestion) => `- ${q.id ? `**${q.id}** ` : ""}${q.question}${q.proposal ? ` (${p.labels.proposal}: ${q.proposal})` : ""}`;
-  const critical = (q: PrdQuestion) => !q.scope && q.severity === "critical";
+  const criticalId = (ids: string[]) => {
+    if (!p.critical_ids) return false;
+    const re = new RegExp(p.critical_ids);
+    return ids.some((id) => re.test(id));
+  };
+  const critical = (q: PrdQuestion) => !q.scope && (q.severity === "critical" || (q.id !== undefined && criticalId([q.id])));
+  const pending = pendingByQuestion(ucs);
+  const pendingLine = (x: PendingQuestion) => `- **${placesText(x.places)}**: ${x.texts.join(" / ")}`;
   const questions = [
     // scope comes first: its answer decides which of the questions below still exist
     ...(frame.questions ?? []).filter((q) => q.scope).map(asked),
     // then the critical ones, so a decision that blocks approval is not read last
     ...(frame.questions ?? []).filter(critical).map(asked),
+    ...pending.filter((x) => criticalId(x.ids)).map(pendingLine),
     ...(frame.problem ? framePending(frame) : []).map((f) => {
       const where = f.goal ? `${heading(f.section)} ${f.goal.id} ${p.labels.goal_table[f.goal.column]}` : heading(f.section);
       // a metric or target alone ("TBD") does not say which goal it belongs to
@@ -762,7 +787,7 @@ function openQuestions(frame: PrdFrame, ucs: LinkedUseCase[], frameFindings: Fin
     ),
     // prd-design-docs is the author's to fix (a missing link), not a decision for the owner
     ...frameFindings.filter((f) => !["prd-pending", "prd-questions", "prd-actors", "prd-design-docs"].includes(f.check)).map((f) => `- ${f.message}`),
-    ...pendingByQuestion(ucs).map((x) => `- **${placesText(x.places)}**: ${x.text}`),
+    ...pending.filter((x) => !criticalId(x.ids)).map(pendingLine),
     ...ucs.flatMap((uc) => irQuestions(uc.model, frame, p).map((q) => `- **${uc.model.ir.name}**: ${q}`)),
   ];
   // an assumption shared by several IRs is declared in each (the assumptions check wants the

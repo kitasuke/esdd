@@ -178,6 +178,19 @@ describe("frame questions with id and severity", () => {
     );
   });
 
+  it("lists an IR marker whose id the profile marks critical before the frame's open fields", () => {
+    const m = model(IR.replace(`outcome: ['"Done" is shown']`, `outcome: ['"Done" is shown', "TBD(Q1: is a mail sent?)"]`).replace("a mail is sent]", "'TBD(Q1: to whom?)']"));
+    const f = withQuestions('  - { id: R1, question: "Is a reminder sent?" }');
+    const plain = renderPrd(f, [{ file: "t", model: m }], []);
+    // one id, two texts: both parts of the question are kept
+    expect(plain).toContain("TBD(Q1: is a mail sent?) / TBD(Q1: to whom?)");
+    const q1 = "TBD(Q1: is a mail sent?) / TBD(Q1: to whom?)";
+    expect(plain.indexOf(q1)).toBeGreaterThan(plain.indexOf("(faster)"));
+    const md = renderPrd(f, [{ file: "t", model: m }], [], mergeProfile({ critical_ids: "^Q\\d" }));
+    expect(md.indexOf(q1)).toBeLessThan(md.indexOf("(faster)"));
+    expect(md.indexOf("(faster)")).toBeLessThan(md.indexOf("**R1** Is a reminder sent?"));
+  });
+
   it("refuses an unknown severity", () => {
     const { findings } = parsePrd(FRAME.replace("sections:", 'questions:\n  - { question: "x", severity: high }\nsections:'));
     expect(findings.map((f) => f.message)).toEqual(["questions[0]: severity must be one of critical / warning / suggestion"]);
