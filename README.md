@@ -167,7 +167,8 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
   IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
   acceptance-first with declaration-only stubs, semantic drivers, the graph walk, pattern registries,
   generation decision records, test data and side effects, tests ahead of the implementation,
-  mechanism scenarios for bug tickets, no false greens, visual evidence, handling Red).
+  mechanism scenarios for bug tickets, no false greens, visual evidence, handling Red, which steps of a
+  run wait for which, and measuring the generator with blind trials and a regression set).
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
   the IR, its bindings, its step definitions and a pattern registry by the example generator in [examples/generator/](examples/generator/)
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, what the
