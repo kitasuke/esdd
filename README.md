@@ -152,9 +152,9 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
 ## Documentation
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
-  two phases (drift detection vs co-generation), input modes, running review rounds
-  (questions and severity, proposed answers, checking the facts a question states, accept-by-default assumptions,
-  the scope of a proposal, bulk overrides, the answer ledger), diff-editability, and target IRs
+  two phases (drift detection vs co-generation), input modes, running review rounds (writing the
+  questions, collecting the answers, severity, accept-by-default assumptions, the scope of a
+  proposal), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/prd.md](docs/prd.md) — writing the PRD itself from the IRs: the PRD frame (problem, users,
   goals with metrics, non-goals), its checks, the rendered PRD (EARS-style requirements, acceptance
@@ -164,14 +164,16 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
   within the doc, with the implementation), and design-doc versions in approval freshness; plus
   writing a design doc whose constraints carry their observable consequences
 - [docs/bindings.md](docs/bindings.md) — the bindings (locator/literal contract) format
-- [docs/generation.md](docs/generation.md) — generation-side rules and principles (the
-  IR-to-code conversion rules for tests and product code, step definitions and scenario files, test layers incl. mobile,
-  acceptance-first with declaration-only stubs, semantic drivers, the graph walk, pattern registries,
-  generation decision records, test data and side effects, tests ahead of the implementation,
-  mechanism scenarios for bug tickets, no false greens, visual evidence, handling Red, which steps of a
-  run wait for which, and measuring the generator with blind trials and a regression set).
+- [docs/generation.md](docs/generation.md) — generation-side rules: test layers (incl. mobile), the
+  IR-to-code conversion for tests and product code (step definitions and scenario files), test data
+  and side effects, tests ahead of the implementation, acceptance-first,
+  semantic drivers, the graph walk, pattern registries and decision records, bug tickets, no
+  false greens, visual evidence, and handling Red.
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
   the IR, its bindings, its step definitions and a pattern registry by the example generator in [examples/generator/](examples/generator/)
+- [docs/runs.md](docs/runs.md) — operating generation runs: which steps wait for which, what runs
+  locally and what in CI, and measuring the generator (marking generated changes, blind trials,
+  a regression set)
 - [docs/approval.md](docs/approval.md) — approved IRs: the approval record, `--approved`, what the
   approver reads (`--digest` and the diff from the last approval), binding the approval to one exact IR,
   sending an approval back, partial approval, and order-preserving updates
