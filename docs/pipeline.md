@@ -123,7 +123,11 @@ What the trials showed:
 A review round turns check results into questions, collects answers, and repeats until
 the IR can be approved. The converter's job is a faithful conversion, turning check
 results into questions, and adding contradictions or ambiguities it noticed while
-converting; it never decides answers (no invention). These rules keep the rounds short:
+converting; it never decides answers (no invention). The rules below keep the rounds short:
+how the questions are written, how the answers are collected, how severe each question is,
+which ones are asked rather than assumed, and how far a proposal reaches.
+
+### Writing the questions
 
 - **Every finding becomes a question in the first round.** Map each error and each
   pending marker to some question (aggregating is fine — one question per decision),
@@ -194,11 +198,15 @@ converting; it never decides answers (no invention). These rules keep the rounds
   continue across passes, so a later pass does not re-ask an earlier one
 - **Accept by default; ask only what must be asked** (below). Owners should spend their
   time on the decisions that need them, not on confirming the obvious one by one
+
+### Collecting the answers
+
 - **Override in bulk.** Let the owner reply with ranges — `OK: W1–W8` confirms, `W4: "…"`
   replaces one. A reply that matches neither form is not counted; ask again. In an
   interactive session, a form with the proposals pre-selected does the same job: one row
-  per question with "proposal" or "change" (free text only for change), questions from
-  one IR at a time, critical first. A note the owner adds to a choice is part of the answer
+  per question with "proposal" or "change" (free text only for change), or, where the
+  question offers options, those options with the proposal pre-selected and free text for
+  anything else; questions from one IR at a time, critical first. A note the owner adds to a choice is part of the answer
   and wins over the option's description where they differ; words the note quotes (a label,
   a message) are used verbatim and replace the proposed literal. If the note cannot be
   followed, the question is reopened, not moved to the change's review
