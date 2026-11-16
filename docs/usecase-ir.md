@@ -277,6 +277,10 @@ rules:
 - The checker tracks `TBD` / `TODO` / `FIXME` / `UNRESOLVED` as pending warns — in
   transition and race outcomes, transition reasons, rule case `expected` and scenario
   `then`. Zero warns = every question answered, which is the approval condition
+- **Order records that can share a time.** A list ordered by time, where one write can create
+  two records with the same time (an activity ends and the next one starts), needs a rule that
+  orders them; otherwise the order falls to ids or keys, and the screen can show the later step
+  above the earlier one. When the spec does not say, it is a question
 
 ## Assumptions and the question list
 

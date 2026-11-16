@@ -255,6 +255,12 @@ regenerated, and tests for removed nodes are deleted. A leftover tag fails `trac
 Do not hand-edit a generated test body; change the IR, or the adapter for implementation
 vocabulary.
 
+On a screen that already exists, a case the screen handles but no test covers gets a test only
+when this change runs through it (it uses a constant, function or component the change
+alters); otherwise it is listed as handled without a test. A table whose completeness the type
+checker already enforces is not checked again through the screen. Where a nearby test exists,
+add the expectation to it rather than writing a new one.
+
 ## Test data, side effects, and tests ahead of the implementation
 
 Steps and assertions derive mechanically from the IR. Three things around them do not,
@@ -533,6 +539,11 @@ draft change → its CI runs the full suite
   change is open and takes its check results from that change's CI. Nothing waits for it:
   neither fixing CI nor ending the run. In a trial that opens no change, it starts when the
   implementer finishes
+- **Ask a person for what only a person can give, at the start.** A step that will need
+  something only a person can provide (a sign-in to the shared environment, a saved session
+  that may have expired, access to a service) is checked when the run starts, not when the step
+  comes. Found expired at the step, it cannot run in that run; asked at the start, the person
+  fixes it while the other steps go on. The run never signs in or types credentials itself
 - **Record each step's time.** Note the start and end of every step, one row per step
   including those that ran in parallel, and put a table of minutes in the change's
   description. Without it, a faster run cannot be told from a lucky one, and the slowest
@@ -771,7 +782,9 @@ happened. Guard against it while writing and after running:
   passes a wrong one
 - **Count a Green only after a negative control.** Break the expectation or change the
   fake's response, and confirm the test fails once. Report Greens without one as
-  "Green (no negative control yet)"
+  "Green (no negative control yet)". A mutation that only adds a branch aimed at the test's
+  own value (if the input is exactly the fixture's, do something else) proves nothing and does
+  not count; break the behavior the test claims, the way a real defect would
 - **Inverting an assertion is not always a control.** An absence check ("the notice is
   hidden") passes at once, before an action's response has rendered, so turning a presence
   check into an absence check can stay Green against a working implementation. Withhold the
@@ -894,10 +907,16 @@ to the answer:
   but not the generator's conclusions, compares with the person's change: each feature, each
   fix the person made after their first commit (would the generated code have needed it too),
   the scope, and each stopped question (was it the person's actual decision, and was the
-  proposal theirs)
+  proposal theirs). A question that touches something the person changed after their first
+  commit (in a later commit or change) cannot be scored from that commit: it counts as neither
+  a hit nor a miss, and the evaluation says so
 
 Measure a new rule on a ticket it was not written from: on its own ticket, its example is in
 the rule's text.
+
+A generator does not give the same answers twice. In one replay of past questions, rerunning
+the same arm changed two of six answers. Treat a difference of two questions or fewer between
+two variants as noise, and run each variant at least twice before comparing.
 
 ### A regression set
 
