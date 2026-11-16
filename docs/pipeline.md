@@ -138,6 +138,16 @@ converting; it never decides answers (no invention). These rules keep the rounds
   inventing new wording. A proposal is not an answer: for a must-ask question it stays
   out of the IR, and the question counts as open until the owner accepts or replaces it.
   Ask open-ended questions that have no proposal as free text
+- **Options beside the proposal change one thing at a time.** When a question offers options
+  (a sheet the owner picks from), vary them along the question's axes one at a time from the
+  proposal: where the thing goes, its form, the condition it shows under, which surface
+  carries it. Options that all share the proposal's surface or form leave the owner only free
+  text for the rest. When the spec's own words name a form ("the name copies on click"),
+  that literal reading is always an option, next to the form a similar feature uses. For
+  wording that does not say what to change ("make it clearer"), take the options from the
+  places where components of the same kind on the same screen already differ. In a replay of
+  past questions, more than a third of the proposals that missed the owner's answer had no
+  option matching it either
 - **Check the existing screen before using it as a basis.** When a proposal says "the
   same as existing X" (the same situation's text, the neighboring column, existing
   values on the same screen), look up how X appears today — in the client code, its
@@ -188,7 +198,10 @@ converting; it never decides answers (no invention). These rules keep the rounds
   replaces one. A reply that matches neither form is not counted; ask again. In an
   interactive session, a form with the proposals pre-selected does the same job: one row
   per question with "proposal" or "change" (free text only for change), questions from
-  one IR at a time, critical first
+  one IR at a time, critical first. A note the owner adds to a choice is part of the answer
+  and wins over the option's description where they differ; words the note quotes (a label,
+  a message) are used verbatim and replace the proposed literal. If the note cannot be
+  followed, the question is reopened, not moved to the change's review
 - **Ask where the run is tracked.** Send the question list to the place that tracks this
   run (the issue that will also hold its approval; a comment on the spec document when
   nothing else tracks the run), take the answers there, and do not move the conversation
@@ -337,7 +350,9 @@ strongest to weakest — a weaker source decides only what the stronger ones lea
 2. What the owner wrote before work started: the title, the body, and the comments on the
    ticket, in time order. A later statement widens an earlier one ("this one too", "while
    we're at it"); only an explicit exclusion ("only X", "not Y") narrows. A list in the body is
-   a minimum, and agreeing to an order ("first", "for now") narrows nothing
+   a minimum, and agreeing to an order ("first", "for now") narrows nothing. The descriptions of
+   earlier changes made for the same ticket are read too: a follow-up one of them settles
+   ("fixed in a separate change", "released after X") is a decision, not a question
 3. The title's words. A component word (a table, a card, a row) means the whole component, not
    the part that matches a modifier; when the code and tests call a component by that word, the
    word reaches what they call by it
@@ -353,6 +368,18 @@ and how widely a component is used. Another screen that shows the same fact is o
 while it keeps showing correct facts under the current definition. If the change would leave it
 empty, failing, or contradicting the rest of its page, it is in scope, and its fix ships before
 the change that breaks it.
+
+An answer reaches what it names. "Remove X" does not take X's neighbors with it (the empty
+state shown beside X, say); where removing X would leave nothing on screen, the existing display
+stays. Guidance or a control added for a reason (the spec says the user sees it and realizes
+they must act) shows only in the states where that reason holds; showing it elsewhere is an
+option, not the assumption.
+
+When the whole of what the ticket names needs backend work, but a narrower source the product
+already reads gives a correct part of it (no wrong rows, only missing ones), ask whether to ship
+that part first. It is must-ask, since only the owner can accept the gap, and the question names
+what will be missing. The proposal is to ship the part; the rest stays as follow-up work.
+A question whose answer cannot turn into code yet (it waits on that backend work) says so.
 
 When the sources leave the reach unclear, the applied assumption takes the surer scope and the
 other is always an option. With no named extension, the surer scope is what sits in the same
