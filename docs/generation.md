@@ -662,7 +662,10 @@ instantiate(bindings vocabulary)**:
    registry's `selects_on` is the only basis for selection)
 2. Read the pattern's **exemplar (a real file)** and follow its structure, error
    handling, and placement. When the spec names an existing screen to match, that
-   screen overrides the registry's exemplar
+   screen overrides the registry's exemplar. To copy where something is placed, follow an
+   existing feature whose slot holds the same content (a heading with only an id and one
+   with a name and an id are different shapes). Having to overlap or squeeze existing
+   content to fit the copy is the sign that the exemplar does not fit
 3. Materialize the vocabulary from the bindings / IR literals (the no-invention rule)
 4. When you meet a shape with no matching pattern, **extend the registry first**,
    then generate
