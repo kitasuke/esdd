@@ -156,6 +156,13 @@ converting; it never decides answers (no invention). These rules keep the rounds
   becomes a must-ask question: "what does X show today — please transcribe it into the spec". This is
   the one place mode A reads the implementation, and only for how the existing thing is
   displayed; the new feature's behavior still comes from the spec and the answers
+- **Check every fact a question states, not only its basis.** Before the question list goes
+  out, check each claim it makes about the existing product — in its context, its reason and
+  each option (a cited file and line, what an existing screen does) — against the base version
+  the run works from. Fix or drop what does not hold, and rewrite an option whose meaning
+  changes with it. What the code cannot settle (data in an environment, someone's intent) is
+  marked unverified, not stated as fact. The report says how many claims were checked and how
+  many fixed. In one trial an option rested on something the similar existing screen did not do
 - **Displayed text the spec does not give is referenced, not written.** The outcome says
   what is visible (an error is shown, the list is empty, a toast appears) and points to
   where the text lives: "an error is shown (text: design file, element 3-a, error state)".
@@ -317,6 +324,41 @@ columns that show a plain `0`, "the same as a failed load of column X" when X ac
 fills failures with zero, and a half-width currency symbol where the table uses
 full-width. Each forced the approval to be redone, and each would have been caught in
 round one by the check above.
+
+### Scope of a proposal
+
+A short spec (a ticket, a bug report) rarely says how far a change reaches, so each proposal
+and each applied assumption needs a scope. In blind trials against human implementations,
+proposals missed it both ways: four reached past what the ticket named, three stopped short of
+it. The rule: **change everything the spec names, and nothing outside it.** What names it, from
+strongest to weakest — a weaker source decides only what the stronger ones leave open:
+
+1. The owner's answers
+2. What the owner wrote before work started: the title, the body, and the comments on the
+   ticket, in time order. A later statement widens an earlier one ("this one too", "while
+   we're at it"); only an explicit exclusion ("only X", "not Y") narrows. A list in the body is
+   a minimum, and agreeing to an order ("first", "for now") narrows nothing
+3. The title's words. A component word (a table, a card, a row) means the whole component, not
+   the part that matches a modifier; when the code and tests call a component by that word, the
+   word reaches what they call by it
+4. When the title names no surface, the surfaces the body and its screenshots show
+5. In a review task that states the form to reach ("only Y may do X", in the done condition or
+   in parentheses), only the places that break the form. The others become options of a
+   question, one of them "add nothing outside the named scope"
+
+Some things neither widen nor narrow it: the stated purpose of an earlier change on the same
+ticket (a field "added to show the count" does not narrow "who"), the means the ticket
+suggests, similar existing screens (including one showing the same fact from the other side),
+and how widely a component is used. Another screen that shows the same fact is out of scope
+while it keeps showing correct facts under the current definition. If the change would leave it
+empty, failing, or contradicting the rest of its page, it is in scope, and its fix ships before
+the change that breaks it.
+
+When the sources leave the reach unclear, the applied assumption takes the surer scope and the
+other is always an option. With no named extension, the surer scope is what sits in the same
+component and is changed through the same control; the rest of the page is an option. If the
+other option changes what the product shows today, the question is must-ask. Nothing inside
+the named scope is trimmed for being small.
 
 ## Editable by diff
 

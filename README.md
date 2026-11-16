@@ -153,7 +153,8 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
 
 - [docs/pipeline.md](docs/pipeline.md) — the pipeline: the single approval point, the
   two phases (drift detection vs co-generation), input modes, running review rounds
-  (questions and severity, proposed answers, accept-by-default assumptions, bulk overrides, the answer ledger), diff-editability, and target IRs
+  (questions and severity, proposed answers, checking the facts a question states, accept-by-default assumptions,
+  the scope of a proposal, bulk overrides, the answer ledger), diff-editability, and target IRs
 - [docs/usecase-ir.md](docs/usecase-ir.md) — the UseCase IR format and its authoring modes
 - [docs/prd.md](docs/prd.md) — writing the PRD itself from the IRs: the PRD frame (problem, users,
   goals with metrics, non-goals), its checks, the rendered PRD (EARS-style requirements, acceptance
