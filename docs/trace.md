@@ -108,6 +108,8 @@ several tags.
   `RULE-001-c1` vs `-c10` are not confused)
 - A tag naming a node missing from the IR is a `trace-tag` error (a typo, or a node
   removed from the IR)
+- Write the tag as literal text, not built from variables: tag coverage (below) reads the
+  sources without running them
 
 ## Tag coverage — every scenario and rule case named before the first run (`--tags`)
 
@@ -129,6 +131,13 @@ case as unnamed.
 - Pass the test files the change adds or edits. When an existing test already confirms a node,
   add the tag to its name
 - A rule case may be named in an `it.each` table row instead of the title
+- Write each tag as literal text in the test source. `--tags` reads the sources without
+  evaluating them, so a tag the code builds at runtime is not counted: a template string such
+  as `` `${UC}__SC-001` ``, or a table row that holds only `node: "RULE-001-c1"` and composes
+  the tag in the title. Spell the whole `<usecase>__<node>` in the title or the table row. In
+  one trial a generated Integration suite of 4 files tagged all 50 nodes by interpolation, and
+  tag coverage read 0 named and 50 unnamed; with the tags written as literals it read 48 of 50
+  named, which surfaced 2 rule cases with no test and 3 tags naming nodes removed from the IR
 - Tags on comment lines do not count
 - A scenario or rule case that still carries a pending marker is reported as `pending`, not an
   error: its expected result is not decided yet
