@@ -98,7 +98,7 @@ several tags.
 | Tool | Example |
 | --- | --- |
 | Playwright | `test("UC-ORDER-CANCEL-001__SC-002 cancellation before packing …", …)` |
-| vitest (rules) | `it.each(cases)("UC-ORDER-CANCEL-001__RULE-001-c$caseNo $input", …)` |
+| vitest (rules) | `it.each([{ tag: "UC-ORDER-CANCEL-001__RULE-001-c1", … }, …])("$tag $input", …)` |
 | JUnit (JVM) | ``fun `UC-ORDER-CANCEL-001__SC-002_cancel_before_packing`()`` |
 | Go | `t.Run("UC-ORDER-CANCEL-001__RULE-001-c2", …)` |
 
@@ -130,11 +130,13 @@ case as unnamed.
 
 - Pass the test files the change adds or edits. When an existing test already confirms a node,
   add the tag to its name
-- A rule case may be named in an `it.each` table row instead of the title
+- A rule case may be named in an `it.each` table row instead of the title, as in the vitest
+  example under Tags: each row holds the whole tag
 - Write each tag as literal text in the test source. `--tags` reads the sources without
   evaluating them, so a tag the code builds at runtime is not counted: a template string such
-  as `` `${UC}__SC-001` ``, or a table row that holds only `node: "RULE-001-c1"` and composes
-  the tag in the title. Spell the whole `<usecase>__<node>` in the title or the table row. In
+  as `` `${UC}__SC-001` ``, a title placeholder such as `RULE-001-c$caseNo` (read as
+  `RULE-001-c`, a `trace-tag` error), or a table row that holds only `node: "RULE-001-c1"` and
+  composes the tag in the title. Spell the whole `<usecase>__<node>` in the title or the table row. In
   one trial a generated Integration suite of 4 files tagged all 50 nodes by interpolation, and
   tag coverage read 0 named and 50 unnamed; with the tags written as literals it read 48 of 50
   named, which surfaced 2 rule cases with no test and 3 tags naming nodes removed from the IR
