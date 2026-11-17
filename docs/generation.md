@@ -723,6 +723,12 @@ happened. Guard against it while writing and after running:
   "Green (no negative control yet)". A mutation that only adds a branch aimed at the test's
   own value (if the input is exactly the fixture's, do something else) proves nothing and does
   not count; break the behavior the test claims, the way a real defect would
+- **Break each branch the change added, once.** One mutation per added branch (usually two or
+  three), never existing branches. It counts as caught only when the test that names the
+  branch fails on a mismatched expectation; a timeout is rerun, not counted. A mutation that
+  survives means no test checks that branch: fix the test (or send a frozen suite back to its
+  author) and rerun that mutation. The verification section lists each broken branch and the
+  test that caught it
 - **Inverting an assertion is not always a control.** An absence check ("the notice is
   hidden") passes at once, before an action's response has rendered, so turning a presence
   check into an absence check can stay Green against a working implementation. Withhold the
