@@ -206,11 +206,12 @@ function renderStep(s: ResolvedStep | Omit<ResolvedStep, "transition" | "to">, l
   if (layer === "integration" && s.operation && "to" in s) lines.push(`  expect(h.fake.calls(${ts(s.event)})).toHaveLength(1);`);
 }
 
-function renderTest(f: ScenarioFile, layer: "integration" | "e2e"): string | undefined {
+// The tag is written as literal text: --tags reads the sources without evaluating them.
+function renderTest(uc: string, f: ScenarioFile, layer: "integration" | "e2e"): string | undefined {
   const fixture = layer === "integration" ? "page" : "browser";
   const harness = layer === "integration" ? "integrationHarness" : "e2eHarness";
   const lines = [
-    `test(\`\${UC}__${f.node} ${f.name}\`, async ({ ${fixture} }) => {`,
+    `test(${ts(`${uc}__${f.node} ${f.name}`)}, async ({ ${fixture} }) => {`,
     ...f.questions.map((q) => `  // question: ${q}`),
     `  const h = await ${harness}(${fixture});`,
     `  const orderId = await h.fixtures.${f.start.fixture}(); // ${f.start.state}`,
@@ -244,7 +245,7 @@ function renderTest(f: ScenarioFile, layer: "integration" | "e2e"): string | und
 
 function renderPlaywright(inputs: Inputs, files: ScenarioFile[], layer: "integration" | "e2e"): string {
   const uc = inputs.model.ir.usecase;
-  const tests = files.filter((f) => f.layers.includes(layer)).flatMap((f) => renderTest(f, layer) ?? []);
+  const tests = files.filter((f) => f.layers.includes(layer)).flatMap((f) => renderTest(uc, f, layer) ?? []);
   const nodes = files.filter((f) => f.layers.includes(layer) && tests.some((t) => t.includes(`__${f.node} `))).map((f) => f.node);
   const scope = layer === "integration" ? "every scenario and every race's losing side" : "critical: true scenarios only";
   const extra =
@@ -279,7 +280,7 @@ function renderUnit(inputs: Inputs): Map<string, string> {
     const nodes = rule.cases.map((_, i) => `${rule.id}-c${i + 1}`);
     const cases = rule.cases.map((c, i) => {
       const d = def.cases[i]!;
-      return `  { caseNo: ${i + 1}, input: ${ts(c.input)}, expected: ${ts(c.expected)}, args: ${ts(d.args)}, returns: ${ts(d.returns)} },`;
+      return `  { tag: ${ts(`${inputs.model.ir.usecase}__${nodes[i]}`)}, input: ${ts(c.input)}, expected: ${ts(c.expected)}, args: ${ts(d.args)}, returns: ${ts(d.returns)} },`;
     });
     out.set(
       `${def.function.from.replace(/^\.\//, "").replace(/\.ts$/, "")}.test.ts`,
@@ -288,14 +289,12 @@ function renderUnit(inputs: Inputs): Map<string, string> {
         `import { describe, expect, it } from "vitest";`,
         `import { ${def.function.name} } from ${ts(def.function.from)};`,
         "",
-        `const UC = ${ts(inputs.model.ir.usecase)};`,
-        "",
         "const cases = [",
         ...cases,
         "] as const;",
         "",
         `describe(${ts(`${rule.id} ${rule.name}`)}, () => {`,
-        `  it.each(cases)(\`\${UC}__${rule.id}-c$caseNo $input\`, ({ args, returns }) => {`,
+        `  it.each(cases)("$tag $input", ({ args, returns }) => {`,
         `    expect(${def.function.name}(...(args as Parameters<typeof ${def.function.name}>))).toEqual(returns);`,
         "  });",
         "});",

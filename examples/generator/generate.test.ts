@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { EXAMPLE, generate, loadInputs, resolve } from "./generate.ts";
 import { loadRegistry, select } from "./product.ts";
+import { checkTagCoverage } from "../../src/trace.ts";
 
 const inputs = () => loadInputs(EXAMPLE.ir, EXAMPLE.bindings, EXAMPLE.steps);
 
@@ -31,6 +32,16 @@ describe("example generator", () => {
     const integration = generate(inputs()).get("order-cancel.integration.ts") ?? "";
     expect(integration).toContain("__RACE-PLACED-pack-cancel-outcome ");
     expect(integration).not.toContain("__RACE-PACKED-hand_over-cancel-outcome ");
+  });
+
+  it("writes every tag as literal text, so --tags names every scenario and rule case", () => {
+    const i = inputs();
+    const sources = [...generate(i)]
+      .filter(([path]) => /\.(test|integration|e2e)\.ts$/.test(path))
+      .map(([path, text]) => ({ path, text }));
+    const { rows, findings } = checkTagCoverage(i.model, sources);
+    expect(rows.filter((r) => r.status !== "named").map((r) => r.id)).toEqual([]);
+    expect(findings).toEqual([]);
   });
 });
 

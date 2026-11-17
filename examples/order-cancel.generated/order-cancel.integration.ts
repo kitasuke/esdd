@@ -9,7 +9,7 @@ const UC = "UC-ORDER-CANCEL-001";
 // Printed right after the assert of a transition outcome passes (docs/trace.md)
 const outcome = (node: string) => console.log(`[ESDD-OUTCOME] ${UC}__${node}`);
 
-test(`${UC}__SC-001 an order progresses to delivered`, async ({ page }) => {
+test("UC-ORDER-CANCEL-001__SC-001 an order progresses to delivered", async ({ page }) => {
   const h = await integrationHarness(page);
   const orderId = await h.fixtures.paidOrder(); // PLACED
 
@@ -38,7 +38,7 @@ test(`${UC}__SC-001 an order progresses to delivered`, async ({ page }) => {
   outcome("T-HANDED_OVER-complete-o1");
 });
 
-test(`${UC}__SC-002 cancellation before packing completes free of charge`, async ({ page }) => {
+test("UC-ORDER-CANCEL-001__SC-002 cancellation before packing completes free of charge", async ({ page }) => {
   const h = await integrationHarness(page);
   const orderId = await h.fixtures.paidOrder(); // PLACED
 
@@ -53,7 +53,7 @@ test(`${UC}__SC-002 cancellation before packing completes free of charge`, async
   expect(h.fake.calls("cancel")).toHaveLength(1);
 });
 
-test(`${UC}__SC-003 cancellation after packing completes with a fee notice`, async ({ page }) => {
+test("UC-ORDER-CANCEL-001__SC-003 cancellation after packing completes with a fee notice", async ({ page }) => {
   // question: given "one packed order exists" describes PACKED, but the path starts at PLACED — the path is walked
   const h = await integrationHarness(page);
   const orderId = await h.fixtures.paidOrder(); // PLACED
@@ -80,7 +80,7 @@ test(`${UC}__SC-003 cancellation after packing completes with a fee notice`, asy
   expect(h.fake.calls("cancel")).toHaveLength(1);
 });
 
-test(`${UC}__RACE-PLACED-pack-cancel-outcome pack loses to cancel`, async ({ page }) => {
+test("UC-ORDER-CANCEL-001__RACE-PLACED-pack-cancel-outcome pack loses to cancel", async ({ page }) => {
   const h = await integrationHarness(page);
   const orderId = await h.fixtures.paidOrder(); // PLACED
   const screen = await h.screen("staff", orderId);
