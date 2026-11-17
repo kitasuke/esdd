@@ -149,7 +149,9 @@ which ones are asked rather than assumed, and how far a proposal reaches.
   text for the rest. When the spec's own words name a form ("the name copies on click"),
   that literal reading is always an option, next to the form a similar feature uses. For
   wording that does not say what to change ("make it clearer"), take the options from the
-  places where components of the same kind on the same screen already differ. In a replay of
+  places where components of the same kind on the same screen already differ: differences on
+  one axis (the same component, the same form) are options of one question, and a difference
+  on another axis is a question of its own, since one question lets the owner pick only one. In a replay of
   past questions, more than a third of the proposals that missed the owner's answer had no
   option matching it either
 - **Check the existing screen before using it as a basis.** When a proposal says "the
@@ -369,13 +371,15 @@ strongest to weakest — a weaker source decides only what the stronger ones lea
    in parentheses), only the places that break the form. The others become options of a
    question, one of them "add nothing outside the named scope"
 
-Some things neither widen nor narrow it: the stated purpose of an earlier change on the same
-ticket (a field "added to show the count" does not narrow "who"), the means the ticket
+Some things neither widen nor narrow it, and none of them is the surer side below: the stated
+purpose and the added scope of an earlier change on the same ticket (a field "added to show the
+count" does not narrow "who"), a recommendation about where the work goes, the means the ticket
 suggests, similar existing screens (including one showing the same fact from the other side),
 and how widely a component is used. Another screen that shows the same fact is out of scope
 while it keeps showing correct facts under the current definition. If the change would leave it
 empty, failing, or contradicting the rest of its page, it is in scope, and its fix ships before
-the change that breaks it.
+the change that breaks it. A fact the ticket asks for that an earlier change did not add, but the
+screen can build from data it already reads, is frontend work, not a new backend contract.
 
 An answer reaches what it names. "Remove X" does not take X's neighbors with it (the empty
 state shown beside X, say); where removing X would leave nothing on screen, the existing display
