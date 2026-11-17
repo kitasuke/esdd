@@ -5,15 +5,13 @@
 import { describe, expect, it } from "vitest";
 import { cancellationTerms } from "./cancellation-terms.ts";
 
-const UC = "UC-ORDER-CANCEL-001";
-
 const cases = [
-  { caseNo: 1, input: "cancellation before packing (PLACED)", expected: "cancellation fee is $0", args: ["PLACED"], returns: { kind: "free", feeCents: 0 } },
-  { caseNo: 2, input: "cancellation after packing (PACKED)", expected: "show the fee notice \"Cancellations after packing incur a handling fee\"", args: ["PACKED"], returns: { kind: "fee_notice", notice: "cancellation_fee_notice" } },
+  { tag: "UC-ORDER-CANCEL-001__RULE-001-c1", input: "cancellation before packing (PLACED)", expected: "cancellation fee is $0", args: ["PLACED"], returns: { kind: "free", feeCents: 0 } },
+  { tag: "UC-ORDER-CANCEL-001__RULE-001-c2", input: "cancellation after packing (PACKED)", expected: "show the fee notice \"Cancellations after packing incur a handling fee\"", args: ["PACKED"], returns: { kind: "fee_notice", notice: "cancellation_fee_notice" } },
 ] as const;
 
 describe("RULE-001 cancellation fee", () => {
-  it.each(cases)(`${UC}__RULE-001-c$caseNo $input`, ({ args, returns }) => {
+  it.each(cases)("$tag $input", ({ args, returns }) => {
     expect(cancellationTerms(...(args as Parameters<typeof cancellationTerms>))).toEqual(returns);
   });
 });
