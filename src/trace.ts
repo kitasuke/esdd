@@ -963,15 +963,20 @@ export interface TagCoverageRow {
 // Tags on comment lines do not count: a comment saying a node is left to another test names no test
 const COMMENT_LINE = /^\s*(\/\/|\/\*|\*|#)/;
 
-/** Scenario and rule-case ids whose own text still carries a pending marker (the answer is not in yet) */
+/**
+ * Scenario and rule-case ids whose expectations still carry a pending marker. The fields are the
+ * pending check's (checkPending): a scenario's given / when / then and a rule case's expected — a
+ * marker word in a name or an input does not make the node pending
+ */
 function pendingTagNodes(model: Model): Set<string> {
   const ids = new Set<string>();
+  const pendingText = (v: unknown) => typeof v === "string" && findPendingMarker(v) !== undefined;
   for (const sc of model.ir.scenarios ?? []) {
-    if (findPendingMarker(JSON.stringify(sc))) ids.add(sc.id);
+    if ([...(sc.given ?? []), ...(sc.when ?? []), ...(sc.then ?? [])].some(pendingText)) ids.add(sc.id);
   }
   for (const rule of model.ir.rules ?? []) {
     rule.cases.forEach((c, i) => {
-      if (findPendingMarker(JSON.stringify(c))) ids.add(ruleCaseNodeId(rule.id, i));
+      if (pendingText(c.expected)) ids.add(ruleCaseNodeId(rule.id, i));
     });
   }
   return ids;

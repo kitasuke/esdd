@@ -718,6 +718,25 @@ scenarios:
     ]);
   });
 
+  it("reads pending markers only in given / when / then and expected, not in a name or an input", () => {
+    const markerOutsideExpectations = parseIR(`
+usecase: UC-TEST-002
+name: TODO list
+source: { spec: "https://example.com" }
+rules:
+  - id: RULE-001
+    name: TODO list
+    cases:
+      - { input: add a TODO item, expected: the item is listed }
+scenarios:
+  - { id: SC-001, name: Adding a TODO item, given: [an empty list], when: [add an item], then: [the item is listed] }
+`).model!;
+    expect(checkTagCoverage(markerOutsideExpectations, []).rows.map((r) => `${r.id} ${r.status}`)).toEqual([
+      "SC-001 unnamed",
+      "RULE-001-c1 unnamed",
+    ]);
+  });
+
   it("does not count a tag on a comment line", () => {
     expect(
       messages([
