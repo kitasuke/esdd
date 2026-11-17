@@ -178,7 +178,9 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
   approver reads (`--digest` and the diff from the last approval), binding the approval to one exact IR,
   sending an approval back, partial approval, and order-preserving updates
 - [docs/trace.md](docs/trace.md) — the behavior trace: cross-checks that every IR node
-  is confirmed by a test that actually ran (`--results`), with negative-control records
+  is confirmed by a test that actually ran (`--results`), with negative-control records; and tag
+  coverage (`--tags`), which checks from the test sources alone that every scenario and rule case
+  is named by a test, before anything runs
 
 ## Skills
 

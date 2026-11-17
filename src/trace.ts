@@ -941,3 +941,95 @@ export function traceSummary(rows: TraceRow[]): string {
     ` — NC verified ${nc("verified")} / pending ${nc("pending")} / not-applicable ${nc("not-applicable")} / missing ${nc("missing")}`
   );
 }
+
+// ---- tag coverage (static, before any test runs) ----
+
+export interface TestSource {
+  path: string;
+  text: string;
+}
+
+export type TagCoverageStatus = "named" | "unnamed" | "pending";
+
+export interface TagCoverageRow {
+  id: string;
+  kind: "scenario" | "rule_case";
+  label: string;
+  status: TagCoverageStatus;
+  /** Files whose tests name this node */
+  files: string[];
+}
+
+// Tags on comment lines do not count: a comment saying a node is left to another test names no test
+const COMMENT_LINE = /^\s*(\/\/|\/\*|\*|#)/;
+
+/** Scenario and rule-case ids whose own text still carries a pending marker (the answer is not in yet) */
+function pendingTagNodes(model: Model): Set<string> {
+  const ids = new Set<string>();
+  for (const sc of model.ir.scenarios ?? []) {
+    if (findPendingMarker(JSON.stringify(sc))) ids.add(sc.id);
+  }
+  for (const rule of model.ir.rules ?? []) {
+    rule.cases.forEach((c, i) => {
+      if (findPendingMarker(JSON.stringify(c))) ids.add(ruleCaseNodeId(rule.id, i));
+    });
+  }
+  return ids;
+}
+
+/**
+ * Static tag coverage: is every scenario and rule case named by `<usecase>__<node>` in at least
+ * one test source file? Runs no test and reads no results, so it fits before the first run, where
+ * the full trace (runTrace) needs results. It catches cases nobody wrote a test for, which
+ * breaking the branches the author wrote (mutation) cannot. A rule case may be named in an
+ * `it.each` table row rather than the title. Nodes with a pending marker are reported as pending,
+ * not errors.
+ */
+export function checkTagCoverage(
+  model: Model,
+  sources: TestSource[],
+): { rows: TagCoverageRow[]; findings: Finding[] } {
+  const usecase = model.ir.usecase;
+  const nodes = enumerateNodes(model);
+  // Every taggable id takes part in the longest match, so SC-001-t1 is not read as SC-001
+  const nodeIds = new Set(nodes.filter((n) => n.taggable).map((n) => n.id));
+  const findings: Finding[] = [];
+  const named = new Map<string, Set<string>>();
+
+  for (const src of sources) {
+    src.text.split("\n").forEach((line, i) => {
+      if (COMMENT_LINE.test(line)) return;
+      const { nodes: hit, unknown } = extractTags(line, usecase, nodeIds);
+      for (const id of hit) named.set(id, (named.get(id) ?? new Set()).add(src.path));
+      for (const id of unknown) {
+        findings.push({
+          level: "error",
+          check: "trace-tag",
+          message: `${src.path}:${i + 1}: ${usecase}__${id} names no node in the IR (a typo, or the node was removed from the IR)`,
+        });
+      }
+    });
+  }
+
+  const pending = pendingTagNodes(model);
+  const rows: TagCoverageRow[] = [];
+  for (const n of nodes) {
+    if (n.kind !== "scenario" && n.kind !== "rule_case") continue;
+    const files = [...(named.get(n.id) ?? [])];
+    const status: TagCoverageStatus = files.length > 0 ? "named" : pending.has(n.id) ? "pending" : "unnamed";
+    rows.push({ id: n.id, kind: n.kind, label: n.label, status, files });
+    if (status === "unnamed") {
+      findings.push({
+        level: "error",
+        check: "tag-coverage",
+        message: `${n.id}: no test names ${usecase}__${n.id} — ${n.label}`,
+      });
+    }
+  }
+  return { rows, findings };
+}
+
+export function tagCoverageSummary(rows: TagCoverageRow[]): string {
+  const count = (s: TagCoverageStatus) => rows.filter((r) => r.status === s).length;
+  return `tag coverage: ${rows.length} scenarios and rule cases — named ${count("named")} / unnamed ${count("unnamed")} / pending ${count("pending")}`;
+}

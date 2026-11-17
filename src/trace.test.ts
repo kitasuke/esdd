@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseIR } from "./parse.ts";
 import {
+  checkTagCoverage,
   collectScenarioControls,
   enumerateNodes,
   extractTags,
@@ -665,5 +666,88 @@ describe("parseTrace", () => {
   it("errors on unknown keys and a missing trace", () => {
     expect(errorChecks(parseTrace("untested: {}").findings)).toEqual(["trace-schema"]);
     expect(errorChecks(parseTrace("trace: UC-A-1\nextra: 1").findings)).toEqual(["trace-schema"]);
+  });
+});
+
+describe("checkTagCoverage", () => {
+  const model = parseIR(`
+usecase: UC-TEST-001
+name: Remembered filter
+source: { spec: "https://example.com" }
+rules:
+  - id: RULE-001
+    name: Remembered filter
+    cases:
+      - { input: pick a filter, expected: remembered }
+      - { input: sign out, expected: forgotten }
+      - { input: session expires, expected: "TBD(Q1: forget it too?)" }
+scenarios:
+  - { id: SC-001, name: The picked filter stays, given: [signed in], when: [pick a filter], then: [the same filter is selected] }
+  - { id: SC-002, name: Signing out forgets it, given: [a filter was picked], when: [sign out], then: [no filter is selected] }
+`).model!;
+  const messages = (sources: { path: string; text: string }[]) =>
+    checkTagCoverage(model, sources).findings.map((f) => `${f.check} ${f.message}`);
+
+  it("errors on every scenario and rule case no test names", () => {
+    expect(
+      messages([
+        { path: "page.spec.ts", text: 'test("UC-TEST-001__SC-001 the picked filter stays", async () => {});' },
+        { path: "filter.test.ts", text: 'it.each([{ tag: "UC-TEST-001__RULE-001-c1", input: "a" }])("$tag $input", () => {});' },
+      ]),
+    ).toEqual([
+      "tag-coverage SC-002: no test names UC-TEST-001__SC-002 — Signing out forgets it",
+      'tag-coverage RULE-001-c2: no test names UC-TEST-001__RULE-001-c2 — Remembered filter: "sign out" → forgotten',
+    ]);
+  });
+
+  it("passes when every node is named, and reports a case with a pending marker as pending", () => {
+    const { rows, findings } = checkTagCoverage(model, [
+      {
+        path: "page.spec.ts",
+        text: ['test("UC-TEST-001__SC-001 …", async () => {});', 'test("UC-TEST-001__SC-002 …", async () => {});'].join("\n"),
+      },
+      { path: "filter.test.ts", text: '["UC-TEST-001__RULE-001-c1", "UC-TEST-001__RULE-001-c2"]' },
+    ]);
+    expect(findings).toEqual([]);
+    expect(rows.map((r) => `${r.id} ${r.status}`)).toEqual([
+      "SC-001 named",
+      "SC-002 named",
+      "RULE-001-c1 named",
+      "RULE-001-c2 named",
+      "RULE-001-c3 pending",
+    ]);
+  });
+
+  it("does not count a tag on a comment line", () => {
+    expect(
+      messages([
+        {
+          path: "page.spec.ts",
+          text: [
+            "// UC-TEST-001__SC-002 is left to the existing sign-out test",
+            'test("UC-TEST-001__SC-001 …", async () => {});',
+            '["UC-TEST-001__RULE-001-c1", "UC-TEST-001__RULE-001-c2"]',
+          ].join("\n"),
+        },
+      ]),
+    ).toEqual(["tag-coverage SC-002: no test names UC-TEST-001__SC-002 — Signing out forgets it"]);
+  });
+
+  it("errors on a tag naming a node missing from the IR", () => {
+    expect(
+      messages([
+        {
+          path: "page.spec.ts",
+          text: [
+            'test("UC-TEST-001__SC-001 …", async () => {});',
+            'test("UC-TEST-001__SC-02 …", async () => {});',
+            'test("UC-TEST-001__SC-002 …", async () => {});',
+            '["UC-TEST-001__RULE-001-c1", "UC-TEST-001__RULE-001-c2"]',
+          ].join("\n"),
+        },
+      ]),
+    ).toEqual([
+      "trace-tag page.spec.ts:2: UC-TEST-001__SC-02 names no node in the IR (a typo, or the node was removed from the IR)",
+    ]);
   });
 });

@@ -4,7 +4,7 @@
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] [--definitions <definitions.yaml>]
 //                   [--bindings <bindings.yaml>] [--steps <steps.yaml>] [--suggest-paths] [--json] [--strict]
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
-//                   [--trace <trace.yaml>] [--scenarios <dir>] [--approved]
+//                   [--trace <trace.yaml>] [--scenarios <dir>] [--tags <test file> ...] [--approved]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest [--profile <profile.yaml>]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --answers <ledger.yaml>
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --questions [--profile <profile.yaml>]
@@ -20,6 +20,8 @@
 // actually ran (the behavior trace — docs/trace.md). --trace holds the untested / owned_by /
 // negative_controls declarations. --scenarios reads negative_control.controls[].nodes from
 // scenario files and checks that every node Green through a direct test has a negative control.
+// --tags reads test source files (no results) and checks that every scenario and rule case is named
+// by `<usecase>__<node>` in at least one of them — tag coverage, before any test runs (docs/trace.md).
 // --approved checks the IRs as approved IRs (docs/approval.md): the approval record and spec version
 // are required, the file name must match the usecase id, and pending markers become errors.
 // --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
@@ -52,6 +54,7 @@ import { checkPrd, checkProfile, type LinkedUseCase, mergeProfile, parsePrd, ren
 import { parseSteps, runStepsChecks } from "./steps.ts";
 import { suggestPaths } from "./paths.ts";
 import {
+  checkTagCoverage,
   collectScenarioControls,
   formatTraceTable,
   LAYERS,
@@ -62,6 +65,9 @@ import {
   parseTrace,
   runTrace,
   type ScenarioControls,
+  tagCoverageSummary,
+  type TagCoverageRow,
+  type TestSource,
   type TestCaseResult,
   type TraceDoc,
   type TraceRow,
@@ -76,6 +82,7 @@ interface Args {
   results: { layer: Layer; path: string }[];
   scenarios?: string;
   traces: string[];
+  tags: string[];
   definitions?: string;
   suggest: boolean;
   json: boolean;
@@ -104,6 +111,7 @@ function parseArgs(argv: string[]): Args {
     steps: [],
     results: [],
     traces: [],
+    tags: [],
     suggest: false,
     json: false,
     strict: false,
@@ -137,6 +145,9 @@ function parseArgs(argv: string[]): Args {
       args.results.push({ layer: layer as Layer, path: v.slice(eq + 1) });
     } else if (a === "--scenarios") {
       args.scenarios = argv[++i];
+    } else if (a === "--tags") {
+      const p = argv[++i];
+      if (p) args.tags.push(p);
     } else if (a === "--trace") {
       const p = argv[++i];
       if (p) args.traces.push(p);
@@ -326,7 +337,7 @@ async function main(): Promise<void> {
   }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--config <config.ts>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--tags <test file> ...] [--config <config.ts>]",
     );
     process.exit(2);
   }
@@ -411,6 +422,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   const testResults = args.results.length > 0 ? loadResults(args.results) : undefined;
+  const testSources: TestSource[] = args.tags.map((path) => ({ path, text: readOrExit(path) }));
   const scenarioControls = args.scenarios ? loadScenarioControls(args.scenarios) : undefined;
   const traceDocs = new Map<string, TraceDoc>();
   const traceFindings: Finding[] = [];
@@ -455,6 +467,7 @@ async function main(): Promise<void> {
     let findings: Finding[] = [...parseFindings];
     let suggestions: string[][] = [];
     let traceRows: TraceRow[] | undefined;
+    let tagRows: TagCoverageRow[] | undefined;
     if (model) {
       findings.push(...runChecks(model, { observationNames }));
       if (args.suggest) suggestions = suggestPaths(model);
@@ -463,6 +476,11 @@ async function main(): Promise<void> {
         const trace = runTrace(model, testResults, traceDocs.get(model.ir.usecase), scenarioControls);
         findings.push(...trace.findings);
         traceRows = trace.rows;
+      }
+      if (testSources.length > 0) {
+        const tags = checkTagCoverage(model, testSources);
+        findings.push(...tags.findings);
+        tagRows = tags.rows;
       }
       if (args.approved) {
         findings = escalatePending(findings);
@@ -482,6 +500,7 @@ async function main(): Promise<void> {
         findings,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
         trace: traceRows,
+        tags: tagRows,
       });
       continue;
     }
@@ -522,6 +541,12 @@ async function main(): Promise<void> {
     if (suggestions.length > 0) {
       console.log("  suggested paths for uncovered transitions:");
       suggestions.forEach((p, i) => console.log(`    path ${i + 1}: [${p.join(", ")}]`));
+    }
+    if (tagRows) {
+      console.log(`\n${tagCoverageSummary(tagRows)}`);
+      for (const r of tagRows) {
+        console.log(`  ${r.status.padEnd(7)} ${r.id}${r.files.length > 0 ? `  ${r.files.join(", ")}` : ""}`);
+      }
     }
     if (traceRows) {
       console.log(`\n${traceSummary(traceRows)}\n`);

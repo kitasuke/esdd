@@ -109,6 +109,32 @@ several tags.
 - A tag naming a node missing from the IR is a `trace-tag` error (a typo, or a node
   removed from the IR)
 
+## Tag coverage — every scenario and rule case named before the first run (`--tags`)
+
+The trace below needs results, so it comes after tests run. `--tags <test file>` (repeatable)
+checks something cheaper first, from the test sources alone: every scenario and every rule
+case of the IR is named by `<usecase>__<node>` in at least one of the files. Nothing runs.
+
+```
+node src/cli.ts <ir.yaml> --tags <test file> [--tags <test file> ...]
+```
+
+Use it when the code's author also writes the tests. Breaking each branch the author added
+(mutation) proves those tests fail without the change, but it only breaks branches that were
+written: a case nobody wrote — neither code nor test — survives it. In one trial the author
+wrote six tests for a remembered selection and none for "signing out forgets it", which the
+spec stated; mutation passed, and tag coverage would have reported that scenario and its rule
+case as unnamed.
+
+- Pass the test files the change adds or edits. When an existing test already confirms a node,
+  add the tag to its name
+- A rule case may be named in an `it.each` table row instead of the title
+- Tags on comment lines do not count
+- A scenario or rule case that still carries a pending marker is reported as `pending`, not an
+  error: its expected result is not decided yet
+- The text output lists each scenario and rule case as `named` / `unnamed` / `pending`; with
+  `--json`, each IR entry carries the same rows under `tags`
+
 ## Results (JUnit XML)
 
 Most runners emit JUnit XML (vitest `--reporter=junit`, Playwright `--reporter=junit`,
@@ -202,6 +228,7 @@ question is asked of the source node. The trace table's NC column shows `verifie
 | --- | --- | --- |
 | trace-uncovered | error | a node no test (direct or derived) confirms and no `untested` declares |
 | trace-tag | error | a tag / marker naming a node missing from the IR; a marker naming a non-outcome node |
+| tag-coverage | error | (`--tags`) a scenario or rule case no test source names; pending ones are reported, not errors |
 | trace-owned-by | error | `owned_by` naming a missing node, or a test not in the results |
 | trace-untested | error | `untested` naming a missing node or with an empty reason (warn if the node has a test) |
 | trace-usecase | error | trace.yaml's target differs from the IR, or its IR is not among the inputs |
@@ -221,3 +248,6 @@ The trace guarantees that a test carrying the node's tag ran with that result, a
 negative control **record exists**. It does not guarantee the record was actually
 measured, or that the broken oracle was the outcome's claim itself — reading
 `observed_failure` and the evidence remains a human job.
+
+Tag coverage guarantees only that a tag is present. Whether the tagged test asserts the
+node's `then` / `expected` is a review job.
