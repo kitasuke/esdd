@@ -614,7 +614,21 @@ instantiate(bindings vocabulary)**:
    screen overrides the registry's exemplar. To copy where something is placed, follow an
    existing feature whose slot holds the same content (a heading with only an id and one
    with a name and an id are different shapes). Having to overlap or squeeze existing
-   content to fit the copy is the sign that the exemplar does not fit
+   content to fit the copy is the sign that the exemplar does not fit. Copying a container
+   (a menu of actions) copies the criterion behind it, not only its form: read why the
+   exemplar put some actions in and left others out (how often they are used, whether they
+   can be undone, whether they move the item on or end it), sort this component's actions by
+   that criterion one by one, and copy the order, the colors (a destructive color for ending
+   actions) and the separators too. An action the criterion does not cover stays where it is.
+   When the criterion cannot be read, put in only the kinds of action the exemplar puts in (in
+   one trial, a menu meant for rare actions that cannot be undone was copied with an action
+   that moves the item on, in the same color; the person put in only the ending action).
+   Name things the way the app does: a field and its choices by the value (a state's noun),
+   an action by what it does, phrased like the app's other menus and buttons ("mark as done",
+   not "done"). A component turned into another kind keeps none of its old names unchecked
+   (a select turned into a menu kept the select's label and items). When a copied function
+   would differ only in a value (a key, a message), do not copy it: make the value a parameter
+   and call the one function from both places
 3. Materialize the vocabulary from the bindings / IR literals (the no-invention rule)
 4. When you meet a shape with no matching pattern, **extend the registry first**,
    then generate
@@ -734,6 +748,14 @@ happened. Guard against it while writing and after running:
   check into an absence check can stay Green against a working implementation. Withhold the
   fixture instead (for a race, the fake's rejection of the loser), and generate absence
   outcomes after a presence assertion that waits for the response
+- **Wait for the state the test relies on, and check pages by their content.** Before going
+  back or leaving a page, wait until every value the screen fills in after loading is on
+  screen (a field selected from it, a list filtered by it). Leaving earlier passes a broken
+  history: a fill-in that wrongly adds a history entry has not run yet, so going back still
+  works (in one trial, that mutation passed a frozen suite). A page a test opens, returns to or moves to is checked by content
+  that appears only after its data loads (a cell in a row), not by its heading or address: a
+  heading shows in the loading placeholder too (in one trial, a test checked the page it went
+  back to by heading and address, and passed on the placeholder)
 - **A Green against a stand-in is not a Green against the real system.** A test that
   passed against a scaffold or a simulated backend has verified the test, not
   the product; report which target each layer ran against

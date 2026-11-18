@@ -154,6 +154,31 @@ which ones are asked rather than assumed, and how far a proposal reaches.
   on another axis is a question of its own, since one question lets the owner pick only one. In a replay of
   past questions, more than a third of the proposals that missed the owner's answer had no
   option matching it either
+- **A similar feature that differs from the spec's words is always an option.** When a
+  similar existing feature behaves differently from the literal reading of the spec on some
+  axis, that axis's question offers both: "the same as existing X" (citing the file and line)
+  and "as the spec says", each with its behavior and how it differs from the other. A
+  difference written only in a table or a note cannot be picked (in one trial, the owner chose
+  the similar feature's behavior, which the generator had found and tabled, and no option
+  offered it). If the axis has no question yet, add one to the change's questions. The
+  proposal stays the similar feature unless the spec's text describes that axis, and the
+  other is never dropped. "The same as X" means the same contents, not only the same form:
+  an option that copies X's container (a menu, say) sorts this component's actions by the
+  criterion X used ([Pattern registry](generation.md#pattern-registry-select--instantiate),
+  step 2) and says in its description which go in and which stay out. An option with X's form
+  and other contents is not called "the same as X"; its label names the difference (in five
+  trials in a row, the proposal put every action into the copied form, and the owner fixed the
+  contents in a note)
+- **Ask about the component's own surface, not only its differences.** Comparing with similar
+  components finds only the forms those components have. Also list what the target component
+  shows, region by region (header, body, footer), and ask about the crowded places — several
+  controls of one kind side by side (toggles, action buttons), or code that works around lack
+  of room (truncation, a maximum width, a comment about keeping things on one line) — with
+  "keep as is" and a rearrangement (merge the controls, split the row) as options. When the
+  questions are cut to a few, keep first what affects the whole component, not what matches
+  the title's modifier, and move the rest to the change's questions (in four trials in a row,
+  only differences from similar components were asked, and neither of the two rearrangements
+  the person made inside the component was in any question)
 - **Check the existing screen before using it as a basis.** When a proposal says "the
   same as existing X" (the same situation's text, the neighboring column, existing
   values on the same screen), look up how X appears today — in the client code, its
@@ -365,7 +390,15 @@ strongest to weakest — a weaker source decides only what the stronger ones lea
    ("fixed in a separate change", "released after X") is a decision, not a question
 3. The title's words. A component word (a table, a card, a row) means the whole component, not
    the part that matches a modifier; when the code and tests call a component by that word, the
-   word reaches what they call by it
+   word reaches what they call by it. Look the name up the way the code, tests, fakes and
+   displayed text may call the component, not only verbatim: its parts (the modifier and the
+   component word apart), the name with a word between them (a state, as in "active card"),
+   and the component's name in code. A name with a state word in it identifies the component;
+   it does not narrow the change to that state (in one trial, a state word in the name led to
+   a one-state option that stopped the run, and the person changed the component in every
+   state). Reading the reach is a question only when the readings change different components
+   or screens: a single component drawn the same in every state is settled here, and narrowing
+   it to one state is an option that adds a branch the component does not have
 4. When the title names no surface, the surfaces the body and its screenshots show
 5. In a review task that states the form to reach ("only Y may do X", in the done condition or
    in parentheses), only the places that break the form. The others become options of a
