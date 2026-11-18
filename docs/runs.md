@@ -23,7 +23,14 @@ draft change → its CI runs the full suite
   integration tests and their fake without seeing the implementation: its inputs are the
   spec, the IR, the base code and what the backend actually does. Both start from the same
   base in separate working copies; the implementer does not read the author's tests and does
-  not write integration tests for the author's scenarios. When the author is done, the
+  not write integration tests for the author's scenarios. Decide whether to use an author as
+  soon as the IR passes its checks, and start it then: none of its inputs comes from the
+  implementer's steps, and it is the longest path of the run. Parts that wait for an answer
+  are left out of its brief and added in a round after the answer. The brief names, for this
+  change's pages (including the page the user goes back to), what a test must wait for before
+  it acts or asserts: each test defect sent back to the author costs another round of
+  freezing, checks and broken branches (in one trial, two rounds took about 25 minutes). When
+  the author is done, the
   implementer takes the author's commit as it is, freezes it, and fixes the implementation
   until the suite is Green without editing it. A scenario that stays Red is handled as in
   [acceptance-first](generation.md#acceptance-first): a different reading of the spec is a question; a
@@ -31,12 +38,27 @@ draft change → its CI runs the full suite
   tell two controls with the same name apart) goes back to the author, and the fixed suite is
   frozen again
 - **Use a separate author only for risky changes.** An author catches readings of the spec
-  the implementer missed (in one trial, input made only of spaces), but adds about half an
-  hour to a run. Use one when the change touches state transitions or races, money, an action
-  the user cannot undo from the screen (delete, confirm, send — clearing a value that can be
-  set again does not count), permissions (three or more axes the screen receives as different
-  responses), or a write to state other users or screens read. Copying a similar dialog or flow
-  on the same screen does not count on its own. Otherwise the implementer writes the tests,
+  and assumptions the implementer got wrong (in trials, input made only of spaces, and a wrong
+  premise about a transition), but adds about half an hour to a run. Use one when the change
+  touches:
+  - state that outlives the screen: a value the screen writes that decides what shows after
+    leaving the page, reloading, going back, in another tab or at the next sign-in — writes to
+    storage or cookies, and writes that fill in, normalize or replace the address before the
+    user has chosen anything
+  - a race: another action, another user or a poll changes the same value at the same time,
+    and the order changes what the screen shows
+  - money; an action the user cannot undo from the screen (delete, confirm, send — clearing a
+    value that can be set again does not count); permissions (three or more axes the screen
+    receives as different responses); or a write to state other users or screens read
+
+  Decide it from one sentence, written from the spec and the base code, on what the change
+  writes, where, and when it is read again — not from whether the IR has transitions or races
+  (in two trials of the same spec, only how the IR was written decided whether an author ran).
+  A page change one decision settles, copying the user's own choice into the address (going
+  back returns to before the choice), and opening or closing a part of the screen are neither
+  state that outlives the screen nor a race. Copying a similar dialog or flow on the same
+  screen does not count on its own. The description names each item that applied, with the
+  value written and when it is read again. Otherwise the implementer writes the tests,
   and two checks keep them honest:
   - **Every node is named by a test.** Each scenario and rule case is carried by some test's
     tag ([trace.md](trace.md#tags--put-usecase__node-in-the-test-name)), checked before the
@@ -59,7 +81,8 @@ draft change → its CI runs the full suite
   the type checker, the unit tests and the tests related to the change. Choose related tests by
   what the change renders: the tests of the pages that render a changed file, and the tests
   that open those pages by address, following changed routes and operations to their users;
-  when a change cannot be traced, run the whole project and say why. Selecting by imports
+  when a change cannot be traced, run the whole project and say why. A change to types only
+  (the compiled code is the same as the base's) selects no tests. Selecting by imports
   misses components a test does not import, and selects nearly everything once a shared part
   changes (in one trial, about 750 tests against 9 files traced by page). The whole project and
   the production build run in the draft change's CI; a failure far from the change shows up
@@ -75,10 +98,45 @@ draft change → its CI runs the full suite
   development server is rerun on one worker before it counts as failed. A test the change did
   not add or touch that still fails is run once on the base first: if it fails there too, it
   is pre-existing, recorded as such and left to CI, which is cheaper than repeating it on the
-  change
+  change. When the server the tests run against stops partway, only the tests that use it
+  fail: restart it and rerun those tests once; if it stops again, record an environment
+  failure with its log line and run nothing more against it (in one trial, repeating tests
+  against a stopped server took about 50 minutes). A fix sent back to the author that changes
+  only its test files — not the fake, the fixtures or the product code — after the suite
+  passed on the previous version does not rerun the suite: rerun the changed files, the tag
+  check, the fast checks, the changed tests' screenshots and the broken branches those tests
+  name, and say in the verification section "suite passed at <commit>; since then only
+  <files> changed". A changed fake reruns the suite
 - **Run independent checks at the same time**: the related-checks suite, the broken-branch
   runs (each in its own throwaway working copy), and checks that each build their own copy of
   the base
+- **Don't wait idle for the author.** Between committing the implementation and receiving the
+  author's suite, run what does not depend on that suite, fixing and committing what it finds:
+  the fast checks (types, unit tests, lint, formatting, freshness of generated files), the
+  review points other than tests, the list of E2E tests the change touches, preparing the
+  broken-branch working copies, and, if the machine has room, the production build and
+  screenshots of existing tests that end in a state the change made visible (none if no
+  existing test reaches it; in one trial 113 tests that did not reach it took four minutes and
+  competed with the author's runs). What depends on the author's suite waits until it is
+  frozen: the related-checks suite, the broken branches and the tag check. In one trial the
+  implementer spent 19 of the author's 24 minutes waiting
+- **Write the description while the slow checks run.** Draft it during the related-checks suite
+  and the broken-branch runs, and fill in only what their results decide afterwards (the
+  verification table, whether manual testing is needed, the screenshots, the step times). A
+  part belongs to the second group if a failing check that leads to a code fix would change
+  it. After such a fix, check the parts that describe the code (what changed, what to look at,
+  what it reaches) against the fixed diff. In one trial, a description started after the
+  checks took one to six more minutes
+- **An unanswered question holds the merge, not the writing.** A run that starts before
+  every must-ask answer is in (a ticket whose owner answers later) writes the part a question
+  touches on its proposed answer and tests it like the rest. The description lists, per
+  question, the files and tests that change if the answer differs. The change stays a draft,
+  and neither the approval nor the merge happens until the answers are in. Only what reverting
+  cannot undo once merged — money, deleting data, widening permissions, sending anything
+  outside — waits unwritten, and the description says so. Writing only the parts every answer
+  leaves the same can drop the spec's main change: in one trial, three of the spec's four
+  examples stayed unfixed and the fix meant redoing the change, while a wrong proposal costs
+  only the files and tests already listed. When nothing can be written, no change opens
 - **Hand mechanical work to a faster model.** Running checks and picking the table and the
   failing lines out of their output, taking screenshots, drafting the description from the
   run's facts: these go to a faster, cheaper agent that returns only the result. Judgment stays
@@ -138,14 +196,15 @@ to the answer:
 - **The answer is out of reach**: a repository with only the base commit, no fetching, and no
   reading of other trials' notes. A refused command is reported, not worked around
 - **Two stages.** First with no one to answer, as a real run without the owner would go. Only
-  if it stopped on must-ask questions, a second stage where whoever runs the trial answers as
+  if it left must-ask questions waiting, a second stage where whoever runs the trial answers as
   the owner, from the person's first commit alone; a question that commit does not settle is
   answered "not decided there", with nothing more of the person's design
 - **An evaluator that did not generate**, given the spec, the IR, the diffs and the questions
   but not the generator's conclusions, compares with the person's change: each feature, each
   fix the person made after their first commit (would the generated code have needed it too),
-  the scope, and each stopped question (was it the person's actual decision, and was the
-  proposal theirs). A question that touches something the person changed after their first
+  the scope, and each must-ask question (was it the person's actual decision, was the
+  proposal theirs, and did the fixes a different answer needed stay within the files and tests
+  the description listed). A question that touches something the person changed after their first
   commit (in a later commit or change) cannot be scored from that commit: it counts as neither
   a hit nor a miss, and the evaluation says so
 
