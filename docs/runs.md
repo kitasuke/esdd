@@ -36,7 +36,14 @@ draft change → its CI runs the full suite
   [acceptance-first](generation.md#acceptance-first): a different reading of the spec is a question; a
   test defect (it passes without checking the state its name claims, or its locator cannot
   tell two controls with the same name apart) goes back to the author, and the fixed suite is
-  frozen again
+  frozen again. Mark the freeze in the history so it can be checked, not just promised: the
+  author's commits carry a fixed trailer (taking the commit as it is keeps the message), the
+  frozen files are the files those commits added, and the freeze starts at the first of them.
+  A check before the change opens fails when an author's commit touches anything but tests and
+  fakes, or when a later commit without the trailer touches a frozen file. Files the change
+  only edits are not frozen, since the implementer may have to fix existing fixtures. A
+  re-freeze is another commit with the same trailer. If the step times show an author ran but
+  no commit has the trailer, fail too — otherwise a forgotten trailer silently turns the check off
 - **Use a separate author only for risky changes.** An author catches readings of the spec
   and assumptions the implementer got wrong (in trials, input made only of spaces, and a wrong
   premise about a transition), but adds about half an hour to a run. Use one when the change
