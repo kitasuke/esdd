@@ -230,7 +230,12 @@ the slots are one possible shape, not something the checker enforces.
   ([pattern registry](#pattern-registry-select--instantiate))
 - **Vocabulary from the bindings only**: element names, copy and API operations
 - **A rule is implemented once**: as the pure function its unit tests import. The
-  component calls that function and does not reimplement the rule
+  component calls that function and does not reimplement the rule. Since every decision is a rule
+  ([usecase-ir.md](usecase-ir.md#scenarios--rules)), a component holds no branch that decides a
+  value; a branch left there needs a recorded reason (rendering one of two parts, for example)
+- **Sweep what the change alters**: after writing, walk the IR's `existing` list against the
+  diff ([usecase-ir.md](usecase-ir.md#existing--the-contracts-a-change-touches)), so no name,
+  comment, test title or count keeps its old meaning
 - **No behavior the IR lacks**: no handler for an `impossible` cell, no user-visible state
   the IR does not name. A value the IR leaves open, such as an amount, goes on the
   question list rather than into a constant
@@ -741,7 +746,12 @@ happened. Guard against it while writing and after running:
   three), never existing branches. It counts as caught only when the test that names the
   branch fails on a mismatched expectation; a timeout is rerun, not counted. A mutation that
   survives means no test checks that branch: fix the test (or send a frozen suite back to its
-  author) and rerun that mutation. The verification section lists each broken branch and the
+  author) and rerun that mutation. A surviving mutation is never evidence that the branch is dead: do not
+  delete it. A branch whose difference the suite cannot observe (a library's contract, such as a
+  callback that must emit a value before it completes; a log level; state no screen shows) gets a
+  unit test of that difference, or stays with the reason written in the verification section.
+  Delete it only when reading the base and the change shows that no path changes what is
+  returned, called or shown, and record that reason The verification section lists each broken branch and the
   test that caught it
 - **Inverting an assertion is not always a control.** An absence check ("the notice is
   hidden") passes at once, before an action's response has rendered, so turning a presence

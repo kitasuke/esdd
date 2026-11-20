@@ -229,6 +229,70 @@ literal keys in [bindings](bindings.md) are spec-vocabulary ids (in the spec's l
 keep its own vocabulary. Bindings event keys name IR events: in states mode they are the
 ASCII event ids; in form mode, which has no IR events, they are spec vocabulary too.
 
+### Existing region — the states a change joins (mode B)
+
+When a change adds an element to an existing region of a screen (a card, a dialog, a row of a
+list) or alters one, the new element must say what it shows in every state the region already
+shows: loading, a failed fetch, an unknown value, no permission, empty. A spec usually describes
+only the new element, so these cells are the ones nobody decides. Read the region's states from the
+implementation and declare them as an input axis, then name the region:
+
+```yaml
+region: { name: the contract card, axis: contract fetch }
+
+inputs:
+  - id: contract fetch
+    kind: option
+    conditions: [loaded, failed, none]   # the states the card shows today, read from the code
+
+assumptions:
+  - id: B1
+    question: When the contract fetch fails, what does the new account-manager row show?
+    proposal: '"Unknown", like the card's other rows'
+    basis: "<base>:src/ContractCard.tsx:40 shows every row as Unknown when the fetch fails"
+```
+
+Every rule case of the new element then covers a cell of that axis, so an undecided
+new element × existing state is an uncovered cell, and the checker asks it. The states are
+code-derived facts, so the mode B obligation applies ([pipeline.md](pipeline.md#input-modes--who-answers-the-questions)):
+each existing behavior is an assumption with the line as its basis, and the new element's behavior
+the spec does not state is a reverse question. A region that is itself a state machine may use
+states and events instead.
+
+The checker (`region`) requires the axis to exist with at least two conditions, and at least one
+`existing` ref of kind `state` (the line that renders a state). It cannot tell whether the axis
+lists every state; that is the reviewer's job, as with any input.
+
+### existing — the contracts a change touches
+
+A change also alters the meaning of things already written: a function whose condition narrows,
+a comment that describes the old rule, a test title that names the old state, an assertion that
+counts rows. Tests that name the IR's scenarios do not see them, and an author who writes tests
+without reading the implementation cannot find them. List them in the IR, read from the code:
+
+```yaml
+existing:
+  - id: EXIST-001
+    concept: the number of empty markers on the card   # what the change alters
+    terms: ["—", toHaveCount]                          # words that find more lines bound to it
+    refs:
+      - kind: test-title          # state | identifier | comment | test-title | assertion
+        at: src/card.test.ts:120  # <file>:<line> at the base revision
+        text: shows no contract and no invoice
+        decision: update          # update: this change edits it / keep: it stays, with the reason
+        reason: the new row adds a third marker, so the title names it too
+```
+
+- One entry per concept the change alters (a state the new element joins, the range of a
+  decision, a count, a name). Its refs are every identifier, doc comment, test title and counting
+  assertion bound to it; search the changed area and its shared parent with the terms
+- After writing the change, verify the list against the diff: every `update` line changed, and a
+  search of the terms in the changed directories finds nothing the refs do not list (add each hit
+  as `update` or as `keep` with its reason). A frozen author's suite is given the test-title and
+  assertion refs, so it knows which existing tests the change moves; the generator edits them
+- The checker checks the shape (`structure`); verifying refs against the base revision and the
+  diff needs the repository, so it belongs to the generation tooling
+
 ## scenarios / rules
 
 ```yaml
@@ -277,6 +341,17 @@ rules:
 - The checker tracks `TBD` / `TODO` / `FIXME` / `UNRESOLVED` as pending warns — in
   transition and race outcomes, transition reasons, rule case `expected` and scenario
   `then`. Zero warns = every question answered, which is the approval condition
+- **Every decision is a rule.** Classification (an enum or an error kind mapped to what is
+  shown), building the values a request sends, and mapping a state to its display go in `rules`
+  with a case table, even when the spec does not write them as a table. Rules become pure
+  functions with unit tests ([generation.md](generation.md#product-code)), so no decision stays
+  inline in a component
+- **Cases that tell branches apart.** Every rule has at least two cases whose `expected` differ;
+  a table with one answer cannot tell its branches apart (the checker's `rules`). An ordering or
+  paging rule has cases for both directions — ascending and descending, or the next and the
+  previous page (the checker finds these rules by their words; a project adds its own words in
+  the config). Fixtures come from the cases: each test's data holds at least two items that
+  differ in what the test asserts, and enum values are the ones the server's code returns
 - **Order records that can share a time.** A list ordered by time, where one write can create
   two records with the same time (an activity ends and the next one starts), needs a rule that
   orders them; otherwise the order falls to ids or keys, and the screen can show the later step

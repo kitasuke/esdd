@@ -19,6 +19,17 @@ export interface EsddConfig {
    * (case-insensitive). Default ["design doc"]. The PRD check compares these entries with the frame's design_docs
    */
   designDocLabels?: string[];
+  /**
+   * Words that mark a rule as an ordering or paging rule, and the words for each direction, added to the
+   * built-in English ones (checks.ts checkRuleCases), for a team that writes rules in its own language
+   */
+  ruleDirections?: {
+    ordering?: string[];
+    ascending?: string[];
+    descending?: string[];
+    next?: string[];
+    previous?: string[];
+  };
   /** Labels of the approval digest (--digest), for approvers who read another language */
   digest?: Partial<DigestLabels>;
 }

@@ -245,6 +245,37 @@ export function parseIR(source: string): ParseResult {
     if (!r?.cases?.length) err(`${at}: at least one case is required`);
   });
 
+  // region / existing (shape only; checks.ts checkRegion and checkRuleCases read them)
+  if (ir.region !== undefined) {
+    const r = ir.region as unknown as Record<string, unknown> | null;
+    if (typeof r !== "object" || r === null || typeof r["name"] !== "string" || r["name"].trim() === "" || typeof r["axis"] !== "string" || r["axis"].trim() === "") {
+      err("region: needs name and axis (the input id whose conditions are the region's existing states)");
+    }
+  }
+  const EXISTING_ID = /^EXIST-[A-Z0-9-]+$/;
+  const REF_KINDS = new Set(["state", "identifier", "comment", "test-title", "assertion"]);
+  if (ir.existing !== undefined && !Array.isArray(ir.existing)) err("existing: must be a list");
+  (Array.isArray(ir.existing) ? ir.existing : []).forEach((e, i) => {
+    const at = `existing[${i}]`;
+    if (!e?.id || !EXISTING_ID.test(e.id)) err(`${at}: id must be an ID starting with EXIST-`);
+    if (typeof e?.concept !== "string" || e.concept.trim() === "") err(`${at}: concept is required`);
+    if (!Array.isArray(e?.terms) || e.terms.length === 0 || e.terms.some((t) => typeof t !== "string" || t.trim() === "")) {
+      err(`${at}: terms must be a non-empty list of strings`);
+    }
+    if (!Array.isArray(e?.refs) || e.refs.length === 0) {
+      err(`${at}: refs must be a non-empty list`);
+      return;
+    }
+    e.refs.forEach((ref, j) => {
+      const rat = `${at}.refs[${j}]`;
+      if (!REF_KINDS.has(ref?.kind)) err(`${rat}: kind must be one of ${[...REF_KINDS].join(" | ")}`);
+      if (typeof ref?.at !== "string" || !/^.+:[1-9][0-9]*$/.test(ref.at)) err(`${rat}: at must be <file>:<line>`);
+      if (typeof ref?.text !== "string" || ref.text.trim() === "") err(`${rat}: text is required`);
+      if (ref?.decision !== "update" && ref?.decision !== "keep") err(`${rat}: decision must be update or keep`);
+      if (typeof ref?.reason !== "string" || ref.reason.trim() === "") err(`${rat}: reason is required`);
+    });
+  });
+
   // inputs (input-axis declarations; the semantic cell-coverage check is checks.ts checkInputs)
   const INPUT_KINDS = new Set(["field", "option"]);
   const inputIds = new Set<string>();
