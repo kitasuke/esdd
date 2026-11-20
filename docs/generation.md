@@ -174,7 +174,13 @@ question list.
   scenarios to share setup; share it through fixtures instead
 - **Header**: every generated file starts with the IR path, the `source.version` it was
   approved at, the nodes it covers, and the no-invention line. A header whose version
-  differs from the approved IR shows in review that the file is stale
+  differs from the approved IR shows in review that the file is stale. The path must exist
+  after the change merges: never point at a draft IR in an uncommitted working directory. When
+  no IR is committed, a test points at the committed scenario file it follows, and the scenario
+  file says that no IR is committed and that it is the source. Check it mechanically — resolve
+  every header path against the commit and fail on draft paths or files that are not there.
+  Examples in the docs count: in one repository the only example of a code header pointed at
+  the draft directory, and a dozen committed files did the same
 - **Test bodies use IR vocabulary only**: they call the
   [semantic driver](#semantic-driver-vocabulary-isolation) with event names and bindings
   literal keys. Locators, copy, routes and widget quirks live in the adapter, which reads
