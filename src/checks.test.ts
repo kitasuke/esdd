@@ -655,6 +655,7 @@ ${thenLine}
     name: range
     cases:
       - { input: 1, expected: [1, 200] }
+      - { input: 2, expected: [2, 300] }
 `);
     for (const src of [block, quoted, separate, numbers]) {
       expect(errorsOf(check(src))).toEqual([]);

@@ -133,6 +133,42 @@ export interface SourceRef {
   label?: string;
 }
 
+/**
+ * The existing screen region a change adds to or alters (mode B). The region's current states are an input
+ * axis read from the implementation, so every new element × existing state cell needs a stance (docs/usecase-ir.md)
+ */
+export interface RegionDef {
+  name: string;
+  /** The id of the input whose conditions are the region's existing states */
+  axis: string;
+}
+
+export type ExistingRefKind = "state" | "identifier" | "comment" | "test-title" | "assertion";
+
+/** One existing line bound to a concept the change touches */
+export interface ExistingRef {
+  kind: ExistingRefKind;
+  /** <file>:<line> at the base revision */
+  at: string;
+  /** Text found on that line (or within two lines of it) at the base revision */
+  text: string;
+  /** update: the change edits it; keep: it stays, for the reason given */
+  decision: "update" | "keep";
+  reason: string;
+}
+
+/**
+ * A concept whose meaning the change alters, with every existing identifier, comment, test title and
+ * assertion bound to it (docs/usecase-ir.md "existing"). Read from the implementation in mode B
+ */
+export interface ExistingDef {
+  id: string;
+  concept: string;
+  /** Search terms that find further lines bound to the concept */
+  terms: string[];
+  refs: ExistingRef[];
+}
+
 export interface UseCaseIR {
   usecase: string;
   name: string;
@@ -146,6 +182,8 @@ export interface UseCaseIR {
   scenarios: ScenarioDef[];
   rules?: RuleDef[];
   assumptions?: AssumptionDef[];
+  region?: RegionDef;
+  existing?: ExistingDef[];
 }
 
 // One cell of the transition matrix, after expanding array-form from/on declarations.

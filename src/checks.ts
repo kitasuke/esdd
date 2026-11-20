@@ -513,11 +513,91 @@ export function checkInputs(model: Model): Finding[] {
   return findings;
 }
 
+const DIRECTION_WORDS = {
+  ordering: ["sort", "ordering", "order by", "paging", "pagination", "page"],
+  ascending: ["ascending", "asc", "oldest first", "smallest first"],
+  descending: ["descending", "desc", "newest first", "largest first"],
+  next: ["next page", "next"],
+  previous: ["previous page", "previous", "prev"],
+};
+
+function directionWords(kind: keyof typeof DIRECTION_WORDS): string[] {
+  return [...DIRECTION_WORDS[kind], ...(config().ruleDirections?.[kind] ?? [])].map((w) => w.toLowerCase());
+}
+
+function mentions(text: string, kind: keyof typeof DIRECTION_WORDS): boolean {
+  const t = text.toLowerCase();
+  return directionWords(kind).some((w) => t.includes(w));
+}
+
+/**
+ * Distinguishing cases: every rule has two cases whose expected differ (a table with one answer cannot tell
+ * its branches apart), and an ordering or paging rule has cases for both directions
+ */
+export function checkRuleCases(model: Model): Finding[] {
+  const findings: Finding[] = [];
+  for (const rule of model.ir.rules ?? []) {
+    const cases = rule.cases ?? [];
+    // A case still waiting for the owner's answer is already on the question list
+    if (cases.some((c) => findPendingMarker(JSON.stringify(c.expected ?? "")) !== undefined)) continue;
+    if (new Set(cases.map((c) => JSON.stringify(c.expected))).size < 2) {
+      findings.push({
+        level: "error",
+        check: "rules",
+        message: `rules[${rule.id}]: needs at least two cases whose expected differ — which input gives the other answer? (with one answer, a test cannot tell the rule's branches apart)`,
+      });
+    }
+    const inputs = cases.map((c) => (typeof c.input === "string" ? c.input : JSON.stringify(c.input ?? "")));
+    if (!mentions(`${rule.name ?? ""} ${inputs.join(" ")}`, "ordering")) continue;
+    const both = (a: keyof typeof DIRECTION_WORDS, b: keyof typeof DIRECTION_WORDS) =>
+      inputs.some((t) => mentions(t, a)) && inputs.some((t) => mentions(t, b));
+    if (!both("ascending", "descending") && !both("next", "previous")) {
+      findings.push({
+        level: "error",
+        check: "rules",
+        message: `rules[${rule.id}]: an ordering or paging rule needs cases for both directions (ascending and descending, or the next and the previous page) — what does the other direction show?`,
+      });
+    }
+  }
+  return findings;
+}
+
+/** Region: a change to an existing region lists the region's existing states as an axis, read from the implementation */
+export function checkRegion(model: Model): Finding[] {
+  const region = model.ir.region;
+  if (!region) return [];
+  const findings: Finding[] = [];
+  const axis = (model.ir.inputs ?? []).find((i) => i.id === region.axis);
+  if (!axis) {
+    findings.push({
+      level: "error",
+      check: "region",
+      message: `region (${region.name}): inputs has no axis "${region.axis}" — which states does the region show today?`,
+    });
+  } else if ((inputConditions(model).get(axis.id) ?? []).length < 2) {
+    findings.push({
+      level: "error",
+      check: "region",
+      message: `region (${region.name}): axis "${region.axis}" needs the region's existing states as its conditions (at least two)`,
+    });
+  }
+  if (!(model.ir.existing ?? []).some((e) => (e.refs ?? []).some((r) => r.kind === "state"))) {
+    findings.push({
+      level: "error",
+      check: "region",
+      message: `region (${region.name}): existing needs at least one ref of kind state — the line of the implementation that shows each existing state`,
+    });
+  }
+  return findings;
+}
+
 export function runChecks(model: Model, options: CheckOptions = {}): Finding[] {
   const findings: Finding[] = [];
   findings.push(...checkPending(model));
   findings.push(...checkAssumptions(model));
   findings.push(...checkInputs(model));
+  findings.push(...checkRuleCases(model));
+  findings.push(...checkRegion(model));
   if (model.hasStateMachine) {
     findings.push(...checkDeterminism(model));
     findings.push(...checkExhaustiveness(model));

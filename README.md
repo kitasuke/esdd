@@ -102,6 +102,8 @@ phrased as a question for the author and the spec owner.
 | race obligation | if events of different actors are both possible in a state, a `races` winner declaration is required (one of the two events, or `first` when arrival order decides) |
 | path validity / coverage | every scenario `path` is executable, and every transition is exercised by a scenario |
 | input axis matrix | every `inputs` field/option × condition cell takes a stance via `covers` or `na` + reason |
+| rules | every rule has two cases whose `expected` differ, and an ordering or paging rule has cases for both directions (rules whose cases still wait on a `TBD` are skipped) |
+| region | an IR that names an existing `region` lists its states as an input axis (two conditions or more) and has an `existing` ref of kind `state` |
 | pending | tracks unanswered markers such as `TBD` / `TODO` as warns |
 
 **bindings** (`docs/bindings.md`):
