@@ -20,6 +20,7 @@ import {
   type Model,
   type RaceDecl,
   type RaceDef,
+  RULE_KINDS,
   type UseCaseIR,
 } from "./types.ts";
 import { config } from "./config.ts";
@@ -243,7 +244,27 @@ export function parseIR(source: string): ParseResult {
     const at = `rules[${i}]`;
     if (!r?.id || !RULE_ID.test(r.id)) err(`${at}: id must be an ID starting with RULE-`);
     if (!r?.cases?.length) err(`${at}: at least one case is required`);
+    if (r?.kind !== undefined && !(RULE_KINDS as readonly unknown[]).includes(r.kind)) {
+      err(`${at}: kind must be one of ${RULE_KINDS.join(" / ")}`);
+    }
+    if (r?.property !== undefined && (typeof r.property !== "string" || r.property.trim() === "")) {
+      err(`${at}: property must be a sentence`);
+    }
+    if (r?.kind !== undefined && r?.property === undefined) {
+      err(`${at}: a rule with a kind needs property — the one sentence its cases are examples of`);
+    }
   });
+  if (ir.rule_kinds_na !== undefined) {
+    const na = ir.rule_kinds_na as unknown;
+    if (typeof na !== "object" || na === null || Array.isArray(na)) {
+      err("rule_kinds_na: must map a rule kind to the reason the usecase needs no rule of that kind");
+    } else {
+      for (const [kind, reason] of Object.entries(na)) {
+        if (!(RULE_KINDS as readonly string[]).includes(kind)) err(`rule_kinds_na: ${kind} is not a rule kind (${RULE_KINDS.join(" / ")})`);
+        if (typeof reason !== "string" || reason.trim() === "") err(`rule_kinds_na.${kind}: needs the reason`);
+      }
+    }
+  }
 
   // region / existing (shape only; checks.ts checkRegion and checkRuleCases read them)
   if (ir.region !== undefined) {

@@ -550,7 +550,7 @@ export function checkRuleCases(model: Model): Finding[] {
       });
     }
     const inputs = cases.map((c) => (typeof c.input === "string" ? c.input : JSON.stringify(c.input ?? "")));
-    if (!mentions(`${rule.name ?? ""} ${inputs.join(" ")}`, "ordering")) continue;
+    if (rule.kind !== "order" && !mentions(`${rule.name ?? ""} ${inputs.join(" ")}`, "ordering")) continue;
     const both = (a: keyof typeof DIRECTION_WORDS, b: keyof typeof DIRECTION_WORDS) =>
       inputs.some((t) => mentions(t, a)) && inputs.some((t) => mentions(t, b));
     if (!both("ascending", "descending") && !both("next", "previous")) {
@@ -562,6 +562,51 @@ export function checkRuleCases(model: Model): Finding[] {
     }
   }
   return findings;
+}
+
+/**
+ * Rule kinds: where the IR shows that a kind of promise is at stake, a rule of that kind exists or
+ * rule_kinds_na says why none is needed. Declared races mean two actors can act on the same thing at
+ * once, so the spec owes a sentence on what must never come out of it
+ */
+export function checkRuleKinds(model: Model): Finding[] {
+  const findings: Finding[] = [];
+  const declared = new Set((model.ir.rules ?? []).map((r) => r.kind).filter((k) => k !== undefined));
+  const na = model.ir.rule_kinds_na ?? {};
+  const races = model.ir.races ?? [];
+  if (races.length > 0 && !declared.has("never") && na.never === undefined) {
+    findings.push({
+      level: "warn",
+      check: "rule-kinds",
+      message:
+        `${races.length} race(s) are declared, but no rule of kind never says what must not come out of them — ` +
+        "what must never happen when these events collide? (or declare rule_kinds_na.never with the reason none is needed)",
+    });
+  }
+  return findings;
+}
+
+/** What one run of the checks looked at, and what it cannot see, so a clean result is not read as more than it is */
+export function checkScope(model: Model): { checked: string[]; not_checked: string[] } {
+  const checked: string[] = [];
+  if (model.hasStateMachine) {
+    checked.push(
+      `state machine: ${model.states.size} states × ${model.events.size} events, ${(model.ir.races ?? []).length} race(s) between two events`,
+    );
+  }
+  const inputs = model.ir.inputs ?? [];
+  if (inputs.length > 0) checked.push(`inputs: ${inputs.length}`);
+  const rules = model.ir.rules ?? [];
+  if (rules.length > 0) {
+    const cases = rules.reduce((n, r) => n + (r.cases?.length ?? 0), 0);
+    const kinds = [...new Set(rules.map((r) => r.kind).filter((k) => k !== undefined))];
+    checked.push(`rules: ${rules.length} with ${cases} case(s)${kinds.length > 0 ? `, kinds ${kinds.join(" / ")}` : ""}`);
+  }
+  checked.push(`scenarios: ${(model.ir.scenarios ?? []).length}`);
+  const not_checked = ["the implementation (pass --results to trace tests that ran)", "events of other usecases that share data with this one"];
+  if (model.hasStateMachine) not_checked.push("orders of more than two events");
+  not_checked.push("rule kinds the checker has no signal for (only never, when races are declared)");
+  return { checked, not_checked };
 }
 
 /** Region: a change to an existing region lists the region's existing states as an axis, read from the implementation */
@@ -599,6 +644,7 @@ export function runChecks(model: Model, options: CheckOptions = {}): Finding[] {
   findings.push(...checkAssumptions(model));
   findings.push(...checkInputs(model));
   findings.push(...checkRuleCases(model));
+  findings.push(...checkRuleKinds(model));
   findings.push(...checkRegion(model));
   if (model.hasStateMachine) {
     findings.push(...checkDeterminism(model));

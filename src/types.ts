@@ -74,9 +74,20 @@ export interface ScenarioDef {
   covers?: string | string[];
 }
 
+/**
+ * What a rule promises, beyond a decision table: something never happens, something always ends up
+ * happening, a bound, no two of something, an order, or who may do something (docs/usecase-ir.md "Rule kinds")
+ */
+export const RULE_KINDS = ["never", "eventually", "limit", "unique", "order", "permission"] as const;
+export type RuleKind = (typeof RULE_KINDS)[number];
+
 export interface RuleDef {
   id: string;
   name: string;
+  /** Optional: what kind of promise the rule makes. Requires property */
+  kind?: RuleKind;
+  /** One sentence that holds for every case: the promise the cases are examples of */
+  property?: string;
   cases: { input: unknown; expected: unknown; covers?: string | string[] }[];
 }
 
@@ -181,6 +192,8 @@ export interface UseCaseIR {
   inputs?: InputDef[];
   scenarios: ScenarioDef[];
   rules?: RuleDef[];
+  /** kind → why this usecase needs no rule of that kind (the rule-kinds counterpart of an input's na) */
+  rule_kinds_na?: Partial<Record<RuleKind, string>>;
   assumptions?: AssumptionDef[];
   region?: RegionDef;
   existing?: ExistingDef[];
