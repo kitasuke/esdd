@@ -247,7 +247,11 @@ changes or enforces, the IR items it leaves to another part are named (step 1), 
 doc is linked from the PRD. With a doc per part, **each IR item gets its rows in one doc**: the doc of
 the part that decides the outcome (the service that refuses, not the client that shows the refusal).
 The other docs name that doc for it instead of writing a row. Two docs with rows for one item count
-it twice in coverage, and when their constraints differ, nothing shows it as a disagreement.
+it twice in coverage, and when their constraints differ, nothing shows it as a disagreement. This is
+for parts stacked on each other (a service and the client in front of it). Parts that build the same
+behavior side by side (two mobile clients, a mobile and a web client) each keep their own rows, and
+coverage is counted per part: in one trial, sending a mobile client's items to the other left that
+client's doc with no row for what its own build has to hold.
 
 **A design written before the PRD.** A team often has a design of its own already, written before
 the PRD or before its last revision. The PRD owns behavior, so sort each difference by whether the

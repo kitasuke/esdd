@@ -34,7 +34,8 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
    IR folds into the user's event: propose the split as a question for the owner; do not reshape the
    IR here ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 1)
 2. With a doc per part, write an IR item's rows only in the doc of the part that decides its outcome;
-   the other docs name that doc. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
+   the other docs name that doc. Parts that build the same behavior side by side (two clients) each
+   keep their own rows. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
    what the user sees, and the IR reference. A constraint with no visible effect gets no row; list
    those below the table with the reason. When the design is read from the existing implementation,
    a consequence it supplies is a proposal until the owner states it: a question, or an assumption
