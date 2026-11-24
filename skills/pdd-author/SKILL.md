@@ -15,8 +15,9 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 
 ## Inputs
 
-- a design the team already wrote, if any: sort each difference from the PRD by what the IR item is
-  (an assumption, an open question, a stated behavior, or nothing)
+- a design the team already wrote, if any: sort each difference confirmed in its text by what the IR
+  item is (an assumption, an open question, a stated behavior, or nothing), per topic; an inferred
+  difference is an open point to check
   ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), "A design written before the PRD")
 
 - the PRD (or PRD frame) and the feature's IRs, approved or in review
@@ -27,7 +28,8 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 
 ## Steps
 
-1. Read the IRs and list each rule, input cell, outcome, race and impossible cell this design changes
+1. Compare the PRD's versions with the IRs'; when the PRD is newer, update the IRs first, or write
+   against the IRs' version, say so, and mark the rows the newer PRD will change. Read the IRs and list each rule, input cell, outcome, race and impossible cell this design changes
    or enforces. Name the IR items it leaves to others. An item nothing in the design backs is a
    design gap: fill it before review, do not ask the owner. A fill that reuses an existing type or
    API: check whether the client reads it as one item or a list. A decision this part makes that the
