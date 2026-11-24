@@ -254,11 +254,17 @@ coverage is counted per part: in one trial, sending a mobile client's items to t
 client's doc with no row for what its own build has to hold. An item can also carry two results
 that different parts decide (which addresses can be chosen, decided by a service, and whether the
 choice opens on the same screen, decided by the client): each part writes a row for its own result
-against the same item.
+against the same item. Results are separate when different parts decide them; the decision itself
+(whether an order can ship) and the behavior that follows from it (the screen that shows the refusal)
+are separate rows when different parts own them, so one item may be split over three parts.
 
 **A design written before the PRD.** A team often has a design of its own already, written before
 the PRD or before its last revision. The PRD owns behavior, so sort each difference by whether the
-PRD decides it, not by which document is newer. Read that from the IR item, not from the PRD's text:
+PRD decides it, not by which document is newer. Sort only differences confirmed in the design's text;
+one inferred from it (what the design probably does) is an open point for the implementation team,
+proposing to check and align. Read whether the PRD decides from the IR item, per topic rather than
+per cell (one cell can hold an open question on one topic and a stated behavior on another), not from
+the PRD's text:
 the IR is the PRD as converted, and a sentence that only points elsewhere ("same as section 2") or a
 place where two pages disagree is already an assumption or a question there. Take the first that
 applies:
@@ -267,12 +273,18 @@ applies:
    an answer round does when an answer contradicts an accepted assumption. The marker becomes the new
    question's, the assumption's declaration leaves the IR (left there, it reads as settled), and the
    assumption keeps its id in the question list and closes with the new question's answer. The new
-   question names both options
+   question names both options, and proposes the one with the stronger basis: what the PRD names,
+   then a dated decision, then an undated or older one
 2. the IR item is an open question: add the design's choice to that question's proposal and basis
-   instead of raising a second question. The owner still decides
+   instead of raising a second question. The owner still decides. When the design goes the other way
+   from the proposal, keep the proposal and record the contradiction in the basis
 3. the IR item states the behavior: the design changes. It is an open point for the implementation
    team, proposing to follow the PRD, and goes back to the owner only when it cannot
-4. no IR item covers it: it is new behavior (step 2)
+4. no IR item covers it: it is new behavior (step 2), its severity set like any other question's
+
+Treat the team's design as the source per owner: a part whose owner has no design of their own gets a
+full doc even when another team's design mentions it, and a design that cannot be read (no access)
+cannot be the source, so that part is written in full and the doc says why.
 
 When the team's own pages disagree with each other, take the newer statement and note the
 disagreement as an open point for the team. Newer means the date of the decision when the page dates
@@ -295,11 +307,21 @@ adds is one section and a few rules:
 | a note keeps at most 10 attachments | API | proposed: the attach button is hidden at 10 (O2) | none yet: `attachments×boundary`, `TBD(O2)` |
 
 A row whose consequence is not in any IR carries the proposal, marked `proposed:` with its open
-point, and "none yet" in the IR column with the place the answer will go. Below the table, list the
+point, and "none yet" in the IR column with the place the answer will go. When the answer's place
+can be added now (a rule case with the open question's marker), add it and name it in the IR column
+as an added case; "none yet" is for what has no place yet (another screen, a new state). Mark
+`proposed:` only on the author's own choices, not on rows copied from an existing design. The IR
+column lists the items exactly (no "…"): cells as `STATE×event` or `input×condition`, rule cases by
+their input, not their index. Coverage counts input cells, rule cases no scenario covers, and
+state × event cells, `impossible` ones by cell; cells that cannot occur only because the screen is
+not open are listed as a set below the table rather than as rows. Below the table, list the
 constraints that got no row and why ("the API refuses a caller who does not own the note; the
 screen lists only the user's own notes, so it cannot reach that"), so a reviewer does not ask again.
 
-1. **Start from the IRs.** Read the IRs (approved or in review) and the PRD. List each rule, input
+1. **Start from the IRs.** Compare the PRD pages' versions with those the IRs were converted from.
+   When the PRD is newer, update the IRs first (a review round). If that cannot happen now, write
+   against the IRs' version, say so in the doc, list the differences noticed in the newer PRD as
+   notes rather than questions, and mark the rows they will change. Read the IRs (approved or in review) and the PRD. List each rule, input
    cell, outcome, race and impossible cell that this design changes or enforces; each needs at
    least one row. Races and impossible cells are often what a lock or a refusal in the design is
    for. Name the IR items this design leaves to others (another service, another team's screen),
@@ -327,7 +349,7 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    meets and why the other differs, or the difference is an open point
 4. **Cover what changes outside the feature.** Values managed by hand or by an admin, migrations of
    existing items, deletions that cascade: a row each for what users see when they happen
-5. **Keep open points in one list.** Each with a proposal and who decides, in the doc rather than
+5. **Keep open points in one list.** One per unit of work rather than per row, each with a proposal and who decides, in the doc rather than
    only in comment threads, and each resolved thread's decision written into the body. Ids are
    unique across the design docs of one PRD: the owner's points continue the PRD's question ids, and
    the implementation team's continue from the last id the other design docs use, so one id names one
