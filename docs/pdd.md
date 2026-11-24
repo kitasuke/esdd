@@ -244,21 +244,28 @@ how the parts are owned and reviewed: one team that owns and reviews them all wr
 separate teams each write their own, in their own template. A part the feature does not change
 needs neither a doc nor a section. Either way, each part's rows are written against the IR items it
 changes or enforces, the IR items it leaves to another part are named (step 1), and every design
-doc is linked from the PRD.
+doc is linked from the PRD. With a doc per part, **each IR item gets its rows in one doc**: the doc of
+the part that decides the outcome (the service that refuses, not the client that shows the refusal).
+The other docs name that doc for it instead of writing a row. Two docs with rows for one item count
+it twice in coverage, and when their constraints differ, nothing shows it as a disagreement.
 
 **A design written before the PRD.** A team often has a design of its own already, written before
 the PRD or before its last revision. The PRD owns behavior, so sort each difference by whether the
-PRD decides it, not by which document is newer:
+PRD decides it, not by which document is newer. Read that from the IR item, not from the PRD's text:
+the IR is the PRD as converted, and a sentence that only points elsewhere ("same as section 2") or a
+place where two pages disagree is already an assumption or a question there. Take the first that
+applies:
 
-- the PRD decides the behavior and the design differs: the design changes. It is an open point for
-  the implementation team, proposing to follow the PRD, and goes back to the owner only when it
-  cannot
-- the PRD already asks about it: add the design's choice to that question's proposal and basis
-  instead of raising a second question. The owner still decides
-- the PRD is silent: it is new behavior (step 2)
-- the design contradicts an assumption in an IR: the assumption's basis is gone, so ask it again
-  under a new question id, the way an answer round does when an answer contradicts an accepted
-  assumption. The assumption keeps its id and closes with the new question's answer
+1. the IR item is an assumption: its basis is gone, so ask it again under a new question id, the way
+   an answer round does when an answer contradicts an accepted assumption. The marker becomes the new
+   question's, the assumption's declaration leaves the IR (left there, it reads as settled), and the
+   assumption keeps its id in the question list and closes with the new question's answer. The new
+   question names both options
+2. the IR item is an open question: add the design's choice to that question's proposal and basis
+   instead of raising a second question. The owner still decides
+3. the IR item states the behavior: the design changes. It is an open point for the implementation
+   team, proposing to follow the PRD, and goes back to the owner only when it cannot
+4. no IR item covers it: it is new behavior (step 2)
 
 In one trial, a team's design was two months older than the PRD and differed from it in eight places:
 five the PRD had decided, two it already asked about, and one an assumption.

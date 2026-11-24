@@ -15,8 +15,9 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 
 ## Inputs
 
-- a design the team already wrote, if any: sort each difference from the PRD by whether the PRD
-  decides it ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), "A design written before the PRD")
+- a design the team already wrote, if any: sort each difference from the PRD by what the IR item is
+  (an assumption, an open question, a stated behavior, or nothing)
+  ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), "A design written before the PRD")
 
 - the PRD (or PRD frame) and the feature's IRs, approved or in review
 - the design decisions the author has made so far: schema, API, limits, management of values
@@ -32,7 +33,8 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
    API: check whether the client reads it as one item or a list. A decision this part makes that the
    IR folds into the user's event: propose the split as a question for the owner; do not reshape the
    IR here ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 1)
-2. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
+2. With a doc per part, write an IR item's rows only in the doc of the part that decides its outcome;
+   the other docs name that doc. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
    what the user sees, and the IR reference. A constraint with no visible effect gets no row; list
    those below the table with the reason. When the design is read from the existing implementation,
    a consequence it supplies is a proposal until the owner states it: a question, or an assumption
