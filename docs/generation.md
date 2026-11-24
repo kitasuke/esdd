@@ -759,8 +759,19 @@ happened. Guard against it while writing and after running:
   callback that must emit a value before it completes; a log level; state no screen shows) gets a
   unit test of that difference, or stays with the reason written in the verification section.
   Delete it only when reading the base and the change shows that no path changes what is
-  returned, called or shown, and record that reason The verification section lists each broken branch and the
-  test that caught it
+  returned, called or shown, and record that reason. The verification section lists each broken branch and the
+  test that caught it. Run the mutations one after another in one throwaway working copy with
+  one development server: break, let the server reload, run the tests that name the branch on
+  one worker, restore. A working copy, an install and a server per mutation, side by side,
+  starve each other (in one trial, three to five in parallel all missed the server's start-up
+  timeout). Never commit a mutation; edit the working tree and restore it, so the copy's commit
+  hooks cannot change the result (a mutation committed and reverted in a copy without hooks once
+  made the first check void). A mutation of something the server reads only at start-up
+  (configuration, environment, middleware, the fake server's setup) restarts the server, and a
+  mutation that survived is rerun once after a restart before it counts. Before breaking anything,
+  run the tests the change added or changed, by name, three times with no retries: it rules out a
+  flaky test before a mutation is blamed on it, and stands in for a separate flakiness check.
+  Repeating whole files reruns tests the change did not touch
 - **Inverting an assertion is not always a control.** An absence check ("the notice is
   hidden") passes at once, before an action's response has rendered, so turning a presence
   check into an absence check can stay Green against a working implementation. Withhold the
