@@ -9,6 +9,7 @@
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --answers <ledger.yaml>
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --questions [--profile <profile.yaml>]
 //   node src/cli.ts --prd <frame.prd.yaml> [--profile <profile.yaml>] [--render]
+//   node src/cli.ts --routing <routing.yaml> [<routing.yaml> ...]
 //   any of the above with --config <config.ts> (the project configuration, src/config.ts)
 //
 // --bindings checks a locator/literal contract (docs/bindings.md).
@@ -34,6 +35,8 @@
 // --prd checks a PRD frame together with the IRs it links (docs/prd.md); with --render it prints the
 // PRD as Markdown instead, laid out by the profile (the default profile when --profile is omitted).
 // With --approved, the frame's status has to be approved (every warn is then an error).
+// --routing checks routing files (docs/routing.md): which platforms a change has work on, in what
+// order; platform names come from the configuration's routing field.
 //
 // Exit codes: 0 = no errors / 1 = errors (with --strict, warns too) / 2 = invalid input
 
@@ -51,6 +54,7 @@ import { checkApproved, escalatePending } from "./approval.ts";
 import { configure, type EsddConfig } from "./config.ts";
 import { parseIR } from "./parse.ts";
 import { checkPrd, checkProfile, type LinkedUseCase, mergeProfile, parsePrd, renderPrd, renderQuestions } from "./prd.ts";
+import { checkRouting } from "./routing.ts";
 import { parseSteps, runStepsChecks } from "./steps.ts";
 import { suggestPaths } from "./paths.ts";
 import {
@@ -91,6 +95,7 @@ interface Args {
   digest: boolean;
   questions: boolean;
   prd?: string;
+  routing: string[];
   profile?: string;
   answers?: string;
   render: boolean;
@@ -112,6 +117,7 @@ function parseArgs(argv: string[]): Args {
     results: [],
     traces: [],
     tags: [],
+    routing: [],
     suggest: false,
     json: false,
     strict: false,
@@ -165,6 +171,9 @@ function parseArgs(argv: string[]): Args {
       args.questions = true;
     } else if (a === "--prd") {
       args.prd = argv[++i];
+    } else if (a === "--routing") {
+      const p = argv[++i];
+      if (p) args.routing.push(p);
     } else if (a === "--answers") {
       args.answers = argv[++i];
     } else if (a === "--profile") {
@@ -319,6 +328,32 @@ function runPrd(args: Args, framePath: string): void {
   if (errors > 0 || (args.strict && warns > 0)) process.exit(1);
 }
 
+/** --routing: each routing file is checked on its own (docs/routing.md) */
+function runRouting(files: string[], json: boolean): void {
+  let failed = false;
+  const results: { file: string; ok: boolean; findings: Finding[] }[] = [];
+  for (const file of files) {
+    let findings: Finding[];
+    try {
+      findings = checkRouting(parseYaml(readOrExit(file)));
+    } catch (e) {
+      findings = [{ level: "error", check: "routing-shape", message: `not YAML: ${(e as Error).message.split("\n")[0]}` }];
+    }
+    if (findings.length > 0) failed = true;
+    results.push({ file, ok: findings.length === 0, findings });
+  }
+  if (json) {
+    console.log(JSON.stringify(results, null, 2));
+  } else {
+    for (const r of results) {
+      console.log(`\n=== ${r.file} ===`);
+      for (const f of r.findings) console.log(`  ERROR [${f.check}] ${f.message}`);
+      console.log(r.ok ? "  ✓ all checks passed" : `  → ERROR ${r.findings.length}`);
+    }
+  }
+  if (failed) process.exit(1);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.config) {
@@ -335,9 +370,13 @@ async function main(): Promise<void> {
     runPrd(args, args.prd);
     return;
   }
+  if (args.routing.length > 0) {
+    runRouting(args.routing, args.json);
+    return;
+  }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--tags <test file> ...] [--config <config.ts>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--routing <routing.yaml> ...] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--tags <test file> ...] [--config <config.ts>]",
     );
     process.exit(2);
   }

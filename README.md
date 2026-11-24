@@ -173,6 +173,9 @@ confidence. See [docs/generation.md](docs/generation.md#what-a-project-provides)
   false greens, visual evidence, and handling Red.
   [examples/order-cancel.generated/](examples/order-cancel.generated/) is a worked example, produced from
   the IR, its bindings, its step definitions and a pattern registry by the example generator in [examples/generator/](examples/generator/)
+- [docs/routing.md](docs/routing.md) — routing: which platforms (server, generated client code, each
+  client) a change has work on, in what order and on what evidence, before anything is generated;
+  `--routing` checks the routing file
 - [docs/runs.md](docs/runs.md) — operating generation runs: which steps wait for which, what runs
   locally and what in CI, and measuring the generator (marking generated changes, blind trials,
   a regression set)
@@ -214,6 +217,7 @@ A project narrows or extends the checker without forking it: pass a TypeScript m
 | `actors` | closes the actor vocabulary; an event with another actor is a structure error |
 | `inputConditions` | the default condition sets per input kind (`field` / `option`), in the team's words |
 | `pendingMarkers` | more markers that count as unanswered, besides `TBD` / `TODO` / `FIXME` / `UNRESOLVED` |
+| `routing` | platform names of a routing file: all platforms, the server and client ones, the verification one ([docs/routing.md](docs/routing.md#configuration)) |
 | `platforms` | bindings platforms besides `web`, by name ([docs/bindings.md](docs/bindings.md#extending-platform-profiles)) |
 | `designDocLabels` | the label prefixes that mark a `source.sources` entry as a design doc (default `design doc`), for the PRD check `prd-design-docs` |
 | `digest` | the approval digest's fixed words (`DigestLabels` in `src/digest.ts`), for approvers who read another language |
