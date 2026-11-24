@@ -29,9 +29,13 @@ draft change → its CI runs the full suite
   are left out of its brief and added in a round after the answer. The brief names, for this
   change's pages (including the page the user goes back to), what a test must wait for before
   it acts or asserts: each test defect sent back to the author costs another round of
-  freezing, checks and broken branches (in one trial, two rounds took about 25 minutes). When
-  the author is done, the
-  implementer takes the author's commit as it is, freezes it, and fixes the implementation
+  freezing, checks and broken branches (in one trial, two rounds took about 25 minutes). It also
+  says where to shim the fake and to keep one test on the fake's own shape
+  ([No false greens](generation.md#no-false-greens)), and, when the change decides which of two
+  values wins, which parameters the base fills in or normalizes when the page opens: the author
+  does not see the implementation, so it cannot avoid an address the fill-ins rebuild by itself.
+  It tells the author not to put tags in test names when the IR is not committed with the
+  change. When the author is done, the implementer takes the author's commit as it is, freezes it, and fixes the implementation
   until the suite is Green without editing it. A scenario that stays Red is handled as in
   [acceptance-first](generation.md#acceptance-first): a different reading of the spec is a question; a
   test defect (it passes without checking the state its name claims, or its locator cannot

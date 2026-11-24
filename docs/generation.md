@@ -242,6 +242,13 @@ the slots are one possible shape, not something the checker enforces.
 - **Sweep what the change alters**: after writing, walk the IR's `existing` list against the
   diff ([usecase-ir.md](usecase-ir.md#existing--the-contracts-a-change-touches)), so no name,
   comment, test title or count keeps its old meaning
+- **A branch for a shape the real backend never sends still guards it.** When an effect fills
+  in a value that depends on another value the screen added (a filter that needs a selected
+  scope), it returns early while that value is missing, and that early return is a branch the
+  change added, broken like the others. Do not leave it out because the backend returns nothing
+  in that state: fakes and generated mocks do return something, so the frozen suite fails, and
+  the same overwrite happens in production once the response changes (in one trial the
+  generator left the guard out for exactly that reason, and five frozen tests failed)
 - **No behavior the IR lacks**: no handler for an `impossible` cell, no user-visible state
   the IR does not name. A value the IR leaves open, such as an amount, goes on the
   question list rather than into a constant
@@ -772,6 +779,20 @@ happened. Guard against it while writing and after running:
   that appears only after its data loads (a cell in a row), not by its heading or address: a
   heading shows in the loading placeholder too (in one trial, a test checked the page it went
   back to by heading and address, and passed on the placeholder)
+- **Align the fake with the server only where a test needs it.** A shim that makes the fake's
+  response look like the server's (dropping or changing a field per test) goes on the tests that
+  need it, not on the whole suite. Keep one test that opens the screen on the fake's own shape,
+  where it differs from the server's, and checks that the added behavior still holds there. The
+  implementation has a branch for that shape; with every test shimmed, no test reaches it and
+  breaking it passes (in one trial the author shimmed all eight tests, and the branch that
+  guarded the unshimmed shape survived its mutation)
+- **Test which value wins from a start nothing else rewrites.** A test of precedence (the
+  address's value over the remembered one, the remembered one over the default) opens a state
+  where the fill-in under test runs and no other fill-in or normalization (of a date, a month, a
+  page) rebuilds the value it picked. A fully specified address fills nothing, so it never
+  reaches the decision, and one that another fill-in rebuilds ends at the same value whichever
+  side won: either way, breaking the precedence passes. Write one test per path that fills the
+  value (only the month missing; a month with no date to fill)
 - **A Green against a stand-in is not a Green against the real system.** A test that
   passed against a scaffold or a simulated backend has verified the test, not
   the product; report which target each layer ran against
