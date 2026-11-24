@@ -602,10 +602,13 @@ export function checkScope(model: Model): { checked: string[]; not_checked: stri
     const kinds = [...new Set(rules.map((r) => r.kind).filter((k) => k !== undefined))];
     checked.push(`rules: ${rules.length} with ${cases} case(s)${kinds.length > 0 ? `, kinds ${kinds.join(" / ")}` : ""}`);
   }
+  const server = model.ir.server ?? [];
+  if (server.length > 0) checked.push(`server: ${server.length} sent value(s)`);
   checked.push(`scenarios: ${(model.ir.scenarios ?? []).length}`);
   const not_checked = ["the implementation (pass --results to trace tests that ran)", "events of other usecases that share data with this one"];
   if (model.hasStateMachine) not_checked.push("orders of more than two events");
   not_checked.push("rule kinds the checker has no signal for (only never, when races are declared)");
+  if (server.length > 0) not_checked.push("whether every value the change sends has a server entry, and the server lines at the base (need the repository)");
   return { checked, not_checked };
 }
 
@@ -638,6 +641,24 @@ export function checkRegion(model: Model): Finding[] {
   return findings;
 }
 
+/** Server: each server-side check names an inputs cell, so checkInputs asks for its covers or na */
+export function checkServer(model: Model): Finding[] {
+  const conds = inputConditions(model);
+  return (model.ir.server ?? []).flatMap((e) =>
+    (e.checks ?? []).flatMap((c) => {
+      const [id, cond] = (c.cell ?? "").split("×").map((x) => x.trim());
+      if (id !== undefined && cond !== undefined && (conds.get(id) ?? []).includes(cond)) return [];
+      return [
+        {
+          level: "error" as const,
+          check: "server",
+          message: `server (${e.id}): cell ${c.cell} is not an inputs cell — declare input "${id}" with condition "${cond}", so the client's handling of what the server rejects is asked`,
+        },
+      ];
+    }),
+  );
+}
+
 export function runChecks(model: Model, options: CheckOptions = {}): Finding[] {
   const findings: Finding[] = [];
   findings.push(...checkPending(model));
@@ -646,6 +667,7 @@ export function runChecks(model: Model, options: CheckOptions = {}): Finding[] {
   findings.push(...checkRuleCases(model));
   findings.push(...checkRuleKinds(model));
   findings.push(...checkRegion(model));
+  findings.push(...checkServer(model));
   if (model.hasStateMachine) {
     findings.push(...checkDeterminism(model));
     findings.push(...checkExhaustiveness(model));

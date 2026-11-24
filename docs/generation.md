@@ -246,6 +246,9 @@ the slots are one possible shape, not something the checker enforces.
 - **Sweep what the change alters**: after writing, walk the IR's `existing` list against the
   diff ([usecase-ir.md](usecase-ir.md#existing--the-contracts-a-change-touches)), so no name,
   comment, test title or count keeps its old meaning
+- **Every value sent has a server entry**: each variable or input field the diff sends needs an
+  entry in the IR's `server` list ([usecase-ir.md](usecase-ir.md#server--the-checks-behind-what-a-change-sends));
+  the tooling reads the sends from the diff and fails the run on one with no entry
 - **A branch for a shape the real backend never sends still guards it.** When an effect fills
   in a value that depends on another value the screen added (a filter that needs a selected
   scope), it returns early while that value is missing, and that early return is a branch the
@@ -754,6 +757,10 @@ happened. Guard against it while writing and after running:
   message or a displayed value into a fake, check which field the implementation
   actually displays. A value in the wrong field fails a correct implementation, or
   passes a wrong one
+- **Type fakes against the generated API types.** A fake's data is checked against the generated
+  response types (a declared type or `satisfies`, never a cast), so a field the server does not
+  return fails the typecheck instead of a test passing on it. Fakes do not repeat the server's
+  input checks; the IR's `server` list carries them
 - **Count a Green only after a negative control.** Break the expectation or change the
   fake's response, and confirm the test fails once. Report Greens without one as
   "Green (no negative control yet)". A mutation that only adds a branch aimed at the test's

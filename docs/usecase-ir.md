@@ -318,8 +318,10 @@ server:
 - Each check's `cell` is an input × condition of `inputs`, so it needs `covers` or `na` like any
   other cell: the client either handles the value the server rejects, or says why it cannot arrive
 - Every variable or field the diff touches needs an entry; a send with no entry is a server fact
-  nobody read. Matching sends to entries and verifying `at` against the base revision need the
-  repository, so like `existing` they belong to the generation tooling
+  nobody read
+- The checker checks the shape (`structure`) and that each cell is a declared input condition
+  (`server`); matching the diff's sends to entries and verifying `at` against the base revision
+  need the repository, so like `existing` they belong to the generation tooling
 
 ## scenarios / rules
 

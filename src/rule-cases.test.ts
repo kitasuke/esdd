@@ -131,3 +131,52 @@ describe("existing (shape)", () => {
     ]);
   });
 });
+
+describe("checkServer", () => {
+  const SERVER = (cell: string, cases: string) =>
+    FORM(`inputs:
+  - { id: category, kind: field, conditions: [empty, blank] }
+rules:
+  - id: RULE-001
+    name: category filter
+    cases:
+      - { input: no category, expected: every product, covers: "category×empty" }
+${cases}
+server:
+  - id: SERVER-001
+    sends: Products.category
+    resolver: { at: "api/products/resolver.go:88", text: requireNonEmpty(category) }
+    checks:
+      - { kind: trim-non-empty, at: "api/products/params.go:68", text: strings.TrimSpace(raw), cell: "${cell}" }`);
+
+  it("accepts a check whose cell is a declared, covered inputs cell", () => {
+    const src = SERVER("category×blank", `      - { input: a blank category, expected: every product, covers: "category×blank" }`);
+    expect([...messagesOf(check(src), "server"), ...messagesOf(check(src), "inputs")]).toEqual([]);
+  });
+
+  it("leaves an uncovered cell to inputs and rejects a cell inputs does not declare", () => {
+    expect(messagesOf(check(SERVER("category×blank", "")), "inputs")).toEqual([
+      expect.stringContaining("category × blank: uncovered"),
+    ]);
+    expect(messagesOf(check(SERVER("category×malformed", "")), "server")).toEqual([
+      expect.stringContaining("cell category×malformed is not an inputs cell"),
+    ]);
+  });
+
+  it("reports each malformed field", () => {
+    const src = FORM(`server:
+  - id: S-1
+    sends: category
+    resolver: { at: resolver.go }
+    checks:
+      - { kind: trim, at: "a.go:1", text: x, cell: "a×b×c" }`);
+    expect(messagesOf(check(src), "structure")).toEqual([
+      expect.stringContaining("server[0]: id must be an ID starting with SERVER-"),
+      expect.stringContaining("server[0]: sends must be"),
+      expect.stringContaining("server[0].resolver: at must be <file>:<line>"),
+      expect.stringContaining("server[0].resolver: text is required"),
+      expect.stringContaining("server[0].checks[0]: kind must be one of"),
+      expect.stringContaining("server[0].checks[0]: cell must be <inputId>×<condition>"),
+    ]);
+  });
+});

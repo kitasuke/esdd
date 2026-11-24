@@ -108,6 +108,7 @@ other usecases, or orders of more than two events.
 | rules | every rule has two cases whose `expected` differ, and an ordering or paging rule (found by its words, or `kind: order`) has cases for both directions (rules whose cases still wait on a `TBD` are skipped) |
 | rule kinds | a rule's `kind` is known and comes with its `property` sentence; when races are declared, a rule of kind `never` or `rule_kinds_na.never` + reason is asked for (a warn) |
 | region | an IR that names an existing `region` lists its states as an input axis (two conditions or more) and has an `existing` ref of kind `state` |
+| server | each `server` check names a declared inputs cell, so `inputs` asks for its covers or na |
 | pending | tracks unanswered markers such as `TBD` / `TODO` as warns, one per question: markers with different ids in one place are counted apart, and an input's `na` reasons are read too |
 
 **bindings** (`docs/bindings.md`):
