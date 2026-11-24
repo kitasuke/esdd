@@ -171,7 +171,9 @@ question list.
 
 - **Name**: every test carries `<usecase>__<node>` ([trace.md](trace.md#tags--put-usecase__node-in-the-test-name)):
   one test per scenario (`SC-001`), one row per rule case (`RULE-001-c1`). Do not merge
-  scenarios to share setup; share it through fixtures instead
+  scenarios to share setup; share it through fixtures instead. When the IR is not committed
+  with the change, the tag goes in a tag map instead of the name
+  ([trace.md](trace.md#tags-for-an-ir-that-is-not-committed--a-tag-map---tag-map))
 - **Header**: every generated file starts with the IR path, the `source.version` it was
   approved at, the nodes it covers, and the no-invention line. A header whose version
   differs from the approved IR shows in review that the file is stale. The path must exist
