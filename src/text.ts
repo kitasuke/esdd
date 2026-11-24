@@ -46,3 +46,28 @@ export function pendingMarkerIds(text: string): string[] {
     .join("|");
   return [...text.matchAll(new RegExp(`(?:${markers})\\(([^):]+)`, "g"))].map((m) => m[1]!.trim());
 }
+
+/**
+ * Each marker that carries an id in a text, with its own words: in "TBD(Q1: what shows) TBD(Q2: a toast?)"
+ * the parts are TBD(Q1: what shows) and TBD(Q2: a toast?). Parentheses inside a marker's words are kept.
+ */
+export function pendingMarkerParts(text: string): { id: string; marker: string; text: string }[] {
+  const names = pendingMarkers()
+    .map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const parts: { id: string; marker: string; text: string }[] = [];
+  for (const m of text.matchAll(new RegExp(`(${names})\\(([^):]+)`, "g"))) {
+    // find the parenthesis that closes this marker, counting the ones opened inside its words
+    let depth = 0;
+    let end = text.length;
+    for (let i = m.index! + m[1]!.length; i < text.length; i++) {
+      if (text[i] === "(") depth++;
+      else if (text[i] === ")" && --depth === 0) {
+        end = i + 1;
+        break;
+      }
+    }
+    parts.push({ id: m[2]!.trim(), marker: m[1]!, text: text.slice(m.index!, end) });
+  }
+  return parts;
+}

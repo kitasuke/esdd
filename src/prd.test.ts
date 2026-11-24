@@ -191,6 +191,17 @@ describe("frame questions with id and severity", () => {
     expect(md.indexOf("(faster)")).toBeLessThan(md.indexOf("**R1** Is a reminder sent?"));
   });
 
+  it("lists two markers with different ids in one place as two questions, each with its own words", () => {
+    const m = model(IR.replace(`outcome: ['"Done" is shown']`, `outcome: ['"Done" is shown', "TBD(Q1: is a mail sent (and when)?) TBD(Q2: is a toast shown?)"]`));
+    const md = renderPrd(withQuestions('  - { id: R1, question: "Is a reminder sent?" }'), [{ file: "t", model: m }], []);
+    const open = md.slice(md.indexOf("## Open questions"));
+    const lines = open.split("\n").filter((l) => l.includes("TBD(Q"));
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("TBD(Q1: is a mail sent (and when)?)");
+    expect(lines[0]).not.toContain("Q2");
+    expect(lines[1]).toContain("TBD(Q2: is a toast shown?)");
+  });
+
   it("refuses an unknown severity", () => {
     const { findings } = parsePrd(FRAME.replace("sections:", 'questions:\n  - { question: "x", severity: high }\nsections:'));
     expect(findings.map((f) => f.message)).toEqual(["questions[0]: severity must be one of critical / warning / suggestion"]);

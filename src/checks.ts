@@ -4,7 +4,7 @@
 
 import { checkAssumptions } from "./assumptions.ts";
 import { config } from "./config.ts";
-import { findPendingMarker, outcomeTexts, RACE_WINNER_FIRST } from "./text.ts";
+import { findPendingMarker, outcomeTexts, pendingMarkerParts, RACE_WINNER_FIRST } from "./text.ts";
 
 export { findPendingMarker };
 import {
@@ -327,49 +327,45 @@ export interface CheckOptions {
 // "TBD" etc. in outcome / reason / rules.expected when placing an ASSUMPTION makes
 // them machine-visible. warn = a human must resolve them before approval.
 
-function pendingInOutcome(outcome: OutcomeItem[] | undefined): string | undefined {
-  for (const t of outcomeTexts(outcome)) {
-    const marker = findPendingMarker(t);
-    if (marker) return marker;
-  }
-  return undefined;
-}
-
-/** pending: are any unanswered spec-question markers (TBD/TODO/FIXME/UNRESOLVED) left? */
+/**
+ * pending: are any unanswered spec-question markers (TBD/TODO/FIXME/UNRESOLVED) left?
+ * One warning per question: two markers with different ids in one place are two questions, so a
+ * question added where another is already open still raises the count.
+ */
 export function checkPending(model: Model): Finding[] {
   const findings: Finding[] = [];
-  const push = (at: string, marker: string) => {
-    findings.push({
-      level: "warn",
-      check: "pending",
-      message: `${at}: an unanswered spec-question marker (${marker}) remains. Incorporate the spec owner's answer before approving`,
-    });
+  const pushAll = (at: string, texts: string[]) => {
+    const parts = texts.flatMap(pendingMarkerParts);
+    const ids = [...new Set(parts.map((p) => p.id))];
+    if (ids.length >= 2) {
+      for (const id of ids) {
+        const marker = `${parts.find((p) => p.id === id)!.marker}(${id})`;
+        findings.push({
+          level: "warn",
+          check: "pending",
+          message: `${at}: an unanswered spec-question marker (${marker}) remains. Incorporate the spec owner's answer before approving`,
+        });
+      }
+      return;
+    }
+    const marker = texts.map((t) => findPendingMarker(t)).find((m) => m !== undefined);
+    if (marker) {
+      findings.push({
+        level: "warn",
+        check: "pending",
+        message: `${at}: an unanswered spec-question marker (${marker}) remains. Incorporate the spec owner's answer before approving`,
+      });
+    }
   };
-  (model.ir.transitions ?? []).forEach((t, i) => {
-    const m = pendingInOutcome(t.outcome) ?? (t.reason ? findPendingMarker(t.reason) : undefined);
-    if (m) push(`transitions[${i}]`, m);
-  });
-  (model.ir.races ?? []).forEach((r, i) => {
-    const m = pendingInOutcome(r.outcome);
-    if (m) push(`races[${i}]`, m);
-  });
+  (model.ir.transitions ?? []).forEach((t, i) => pushAll(`transitions[${i}]`, [...outcomeTexts(t.outcome), t.reason ?? ""]));
+  (model.ir.races ?? []).forEach((r, i) => pushAll(`races[${i}]`, outcomeTexts(r.outcome)));
   (model.ir.rules ?? []).forEach((rule) => {
-    rule.cases.forEach((c, i) => {
-      const m = typeof c.expected === "string" ? findPendingMarker(c.expected) : undefined;
-      if (m) push(`rules[${rule.id}].cases[${i}]`, m);
-    });
+    rule.cases.forEach((c, i) => pushAll(`rules[${rule.id}].cases[${i}]`, typeof c.expected === "string" ? [c.expected] : []));
   });
   (model.ir.scenarios ?? []).forEach((sc) => {
     for (const key of ["given", "when", "then"] as const) {
-      for (const t of sc[key] ?? []) {
-        // a non-string is a structure error reported elsewhere; skip it here instead of throwing
-        if (typeof t !== "string") continue;
-        const m = findPendingMarker(t);
-        if (m) {
-          push(`scenarios[${sc.id}].${key}`, m);
-          break;
-        }
-      }
+      // a non-string is a structure error reported elsewhere; skip it here instead of throwing
+      pushAll(`scenarios[${sc.id}].${key}`, (sc[key] ?? []).filter((t): t is string => typeof t === "string"));
     }
   });
   return findings;

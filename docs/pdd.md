@@ -246,6 +246,23 @@ needs neither a doc nor a section. Either way, each part's rows are written agai
 changes or enforces, the IR items it leaves to another part are named (step 1), and every design
 doc is linked from the PRD.
 
+**A design written before the PRD.** A team often has a design of its own already, written before
+the PRD or before its last revision. The PRD owns behavior, so sort each difference by whether the
+PRD decides it, not by which document is newer:
+
+- the PRD decides the behavior and the design differs: the design changes. It is an open point for
+  the implementation team, proposing to follow the PRD, and goes back to the owner only when it
+  cannot
+- the PRD already asks about it: add the design's choice to that question's proposal and basis
+  instead of raising a second question. The owner still decides
+- the PRD is silent: it is new behavior (step 2)
+- the design contradicts an assumption in an IR: the assumption's basis is gone, so ask it again
+  under a new question id, the way an answer round does when an answer contradicts an accepted
+  assumption. The assumption keeps its id and closes with the new question's answer
+
+In one trial, a team's design was two months older than the PRD and differed from it in eight places:
+five the PRD had decided, two it already asked about, and one an assumption.
+
 The design doc stays a document in the team's own template; nothing renders it. What the method
 adds is one section and a few rules:
 
@@ -271,7 +288,12 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    the list response does not carry) is a gap in the design: the author fills it before review; it
    is not a question for the owner. When the fill reuses an existing type or API, check how the
    client reads it (one item or a list): a field added to a type the client can only read as a list
-   sends every row when one is needed. A precedent is a basis only if it is read the same way
+   sends every row when one is needed. A precedent is a basis only if it is read the same way.
+   Check also that a decision this part makes has its own event in the IR. When the IR folds the
+   answer into the user's event (`tap_checkout_ok`, `tap_checkout_refused`, both by the customer),
+   no row can name the cells this part backs. The split ([usecase-ir.md](usecase-ir.md), "A decision
+   another part makes is its own step") changes the IR's shape, so the design doc proposes it as a
+   question for the owner and does not make it; write the rows against the split IR
 2. **Write the consequence with each constraint.** For every limit, uniqueness, request meaning,
    order, error and permission in the design, add its row. When the design is read from the existing
    implementation, a consequence it supplies is still a proposal until the owner states it: a
@@ -287,7 +309,10 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
 4. **Cover what changes outside the feature.** Values managed by hand or by an admin, migrations of
    existing items, deletions that cascade: a row each for what users see when they happen
 5. **Keep open points in one list.** Each with a proposal and who decides, in the doc rather than
-   only in comment threads, and each resolved thread's decision written into the body
+   only in comment threads, and each resolved thread's decision written into the body. Ids are
+   unique across the design docs of one PRD: the owner's points continue the PRD's question ids, and
+   the implementation team's continue from the last id the other design docs use, so one id names one
+   point when there is a doc per part
 6. **Fold into the IRs and check.** Add the rows' consequences to the IRs, list the design doc in
    the `source.sources` of every IR it backs or adds to, with its edit time, and run the checker. An
    open point with an IR place goes there as a `TBD`; one with no IR place goes in the PRD frame's

@@ -104,7 +104,7 @@ phrased as a question for the author and the spec owner.
 | input axis matrix | every `inputs` field/option × condition cell takes a stance via `covers` or `na` + reason |
 | rules | every rule has two cases whose `expected` differ, and an ordering or paging rule has cases for both directions (rules whose cases still wait on a `TBD` are skipped) |
 | region | an IR that names an existing `region` lists its states as an input axis (two conditions or more) and has an `existing` ref of kind `state` |
-| pending | tracks unanswered markers such as `TBD` / `TODO` as warns |
+| pending | tracks unanswered markers such as `TBD` / `TODO` as warns, one per question: markers with different ids in one place are counted apart |
 
 **bindings** (`docs/bindings.md`):
 
