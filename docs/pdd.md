@@ -251,7 +251,10 @@ it twice in coverage, and when their constraints differ, nothing shows it as a d
 for parts stacked on each other (a service and the client in front of it). Parts that build the same
 behavior side by side (two mobile clients, a mobile and a web client) each keep their own rows, and
 coverage is counted per part: in one trial, sending a mobile client's items to the other left that
-client's doc with no row for what its own build has to hold.
+client's doc with no row for what its own build has to hold. An item can also carry two results
+that different parts decide (which addresses can be chosen, decided by a service, and whether the
+choice opens on the same screen, decided by the client): each part writes a row for its own result
+against the same item.
 
 **A design written before the PRD.** A team often has a design of its own already, written before
 the PRD or before its last revision. The PRD owns behavior, so sort each difference by whether the
@@ -270,6 +273,11 @@ applies:
 3. the IR item states the behavior: the design changes. It is an open point for the implementation
    team, proposing to follow the PRD, and goes back to the owner only when it cannot
 4. no IR item covers it: it is new behavior (step 2)
+
+When the team's own pages disagree with each other, take the newer statement and note the
+disagreement as an open point for the team. Newer means the date of the decision when the page dates
+it, and the page's edit time only when it does not: a page edited last can still carry the older
+decision.
 
 In one trial, a team's design was two months older than the PRD and differed from it in eight places:
 five the PRD had decided, two it already asked about, and one an assumption.
