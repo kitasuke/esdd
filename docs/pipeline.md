@@ -169,6 +169,25 @@ which ones are asked rather than assumed, and how far a proposal reaches.
   and other contents is not called "the same as X"; its label names the difference (in five
   trials in a row, the proposal put every action into the copied form, and the owner fixed the
   contents in a note)
+- **Find the differences with a comparison table, not by search.** Comments and search hits
+  find only what someone wrote about. Pair the target component with the components of the same
+  kind on the same screen (the other cards on the page, the rows of another list), and fill a
+  table region by region (header, body, footer) along the axes of the comparison: where actions
+  sit and their form (a button, a menu, a select), how dates and states are shown, the toggles.
+  Each row cites both sides' files and lines and says same or different, and no row is left
+  empty: a region without comments is where differences are missed. Two components that both
+  have a sub-part of one kind (a stepper, a badge) are not "same" until what that sub-part shows
+  is compared too (step names only, or dates as well, and where). A code comment that describes
+  how the component shows something ("not here; grouped there") becomes a row of its own. In a
+  replay of one ticket, a table without these rows found the menu difference in all three runs
+  and the stepper's dates in none; with them, both in all three
+- **The condition something shows under comes from the screen that already shows it.** For the
+  axis "in which rows or states is it shown", when an existing screen or list already shows the
+  same element (the same fact, the same way in), its condition, cited by file and line, is the
+  proposal. Words in the title or the body that describe a situation ("after X", "when Y") do not
+  count as the spec stating that axis; an option narrowed to them is offered under a name that
+  says so ("narrower than <screen>"). The spec's own reading becomes the proposal only when it
+  states the condition itself ("show it only when…", "never show it for…")
 - **Ask about the component's own surface, not only its differences.** Comparing with similar
   components finds only the forms those components have. Also list what the target component
   shows, region by region (header, body, footer), and ask about the crowded places — several
