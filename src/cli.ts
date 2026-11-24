@@ -4,7 +4,7 @@
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] [--definitions <definitions.yaml>]
 //                   [--bindings <bindings.yaml>] [--steps <steps.yaml>] [--suggest-paths] [--json] [--strict]
 //                   [--results <unit|backend|integration|e2e>=<junit.xml|dir|go-test.json|log> ...]
-//                   [--trace <trace.yaml>] [--scenarios <dir>] [--tags <test file> ...] [--approved]
+//                   [--trace <trace.yaml>] [--scenarios <dir>] [--tags <test file> ...] [--tag-map <map.tsv> ...] [--approved]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --digest [--profile <profile.yaml>]
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --answers <ledger.yaml>
 //   node src/cli.ts <ir.yaml> [<ir.yaml> ...] --questions [--profile <profile.yaml>]
@@ -23,6 +23,9 @@
 // scenario files and checks that every node Green through a direct test has a negative control.
 // --tags reads test source files (no results) and checks that every scenario and rule case is named
 // by `<usecase>__<node>` in at least one of them — tag coverage, before any test runs (docs/trace.md).
+// --tag-map does the same for tests that name nodes of an IR the change does not commit: the tags sit in
+// a map (tag, test file, test name) instead of the test names, and each row must name a declared test
+// in a file that carries no tag itself (docs/trace.md "Tags for an IR that is not committed").
 // --approved checks the IRs as approved IRs (docs/approval.md): the approval record and spec version
 // are required, the file name must match the usecase id, and pending markers become errors.
 // --digest runs no checks: it prints each IR as the approval digest, Markdown for the approver
@@ -59,6 +62,7 @@ import { parseSteps, runStepsChecks } from "./steps.ts";
 import { suggestPaths } from "./paths.ts";
 import {
   checkTagCoverage,
+  checkTagMap,
   collectScenarioControls,
   formatTraceTable,
   LAYERS,
@@ -66,6 +70,7 @@ import {
   parseGoTestJson,
   parseJUnit,
   parseOutcomeMarkers,
+  parseTagMap,
   parseTrace,
   runTrace,
   type ScenarioControls,
@@ -87,6 +92,7 @@ interface Args {
   scenarios?: string;
   traces: string[];
   tags: string[];
+  tagMaps: string[];
   definitions?: string;
   suggest: boolean;
   json: boolean;
@@ -118,6 +124,7 @@ function parseArgs(argv: string[]): Args {
     traces: [],
     tags: [],
     routing: [],
+    tagMaps: [],
     suggest: false,
     json: false,
     strict: false,
@@ -154,6 +161,9 @@ function parseArgs(argv: string[]): Args {
     } else if (a === "--tags") {
       const p = argv[++i];
       if (p) args.tags.push(p);
+    } else if (a === "--tag-map") {
+      const p = argv[++i];
+      if (p) args.tagMaps.push(p);
     } else if (a === "--trace") {
       const p = argv[++i];
       if (p) args.traces.push(p);
@@ -376,7 +386,7 @@ async function main(): Promise<void> {
   }
   if (args.files.length === 0 && args.bindings.length === 0 && args.steps.length === 0) {
     console.error(
-      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--routing <routing.yaml> ...] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--tags <test file> ...] [--config <config.ts>]",
+      "usage: node src/cli.ts <ir.yaml> [--definitions <path>] [--bindings <path>] [--steps <path>] [--suggest-paths] [--json] [--strict] [--approved] [--digest [--profile <path>]] [--answers <ledger.yaml>] [--questions [--profile <path>]] [--prd <frame> [--profile <path>] [--render]] [--routing <routing.yaml> ...] [--results <layer>=<path> ...] [--trace <path>] [--scenarios <dir>] [--tags <test file> ...] [--tag-map <map.tsv> ...] [--config <config.ts>]",
     );
     process.exit(2);
   }
@@ -462,9 +472,28 @@ async function main(): Promise<void> {
   }
   const testResults = args.results.length > 0 ? loadResults(args.results) : undefined;
   const testSources: TestSource[] = args.tags.map((path) => ({ path, text: readOrExit(path) }));
+  const tagMapFindings: Finding[] = [];
+  const tagMapUsecases = new Map<string, string>();
+  for (const map of args.tagMaps) {
+    const { rows, findings } = parseTagMap(map, readOrExit(map));
+    tagMapFindings.push(...findings);
+    const checked = checkTagMap(rows, (f) => {
+      try {
+        return readFileSync(resolveInput(f), "utf8");
+      } catch {
+        return undefined;
+      }
+    });
+    tagMapFindings.push(...checked.findings);
+    testSources.push(...checked.sources);
+    for (const row of rows) {
+      const usecase = row.tag.slice(0, row.tag.indexOf("__"));
+      if (!tagMapUsecases.has(usecase)) tagMapUsecases.set(usecase, `${row.map}:${row.line}`);
+    }
+  }
   const scenarioControls = args.scenarios ? loadScenarioControls(args.scenarios) : undefined;
   const traceDocs = new Map<string, TraceDoc>();
-  const traceFindings: Finding[] = [];
+  const traceFindings: Finding[] = [...tagMapFindings];
   for (const file of args.traces) {
     let source: string;
     try {
@@ -590,6 +619,17 @@ async function main(): Promise<void> {
     if (traceRows) {
       console.log(`\n${traceSummary(traceRows)}\n`);
       console.log(formatTraceTable(traceRows));
+    }
+  }
+
+  // A tag map row whose usecase is not among the inputs would count for nothing, so fail it
+  for (const [usecase, at] of tagMapUsecases) {
+    if (!models.has(usecase)) {
+      traceFindings.push({
+        level: "error",
+        check: "tag-map",
+        message: `${at}: names ${usecase}, but no IR passed has that usecase`,
+      });
     }
   }
 
