@@ -16,7 +16,7 @@
 import { parse as parseYaml } from "yaml";
 import { inputConditions } from "./checks.ts";
 import { findPendingMarker, raceWinnerText } from "./text.ts";
-import { cellKey, type Finding, type Model, type OutcomeItem } from "./types.ts";
+import { cellKey, type Finding, isServerRule, type Model, type OutcomeItem } from "./types.ts";
 
 // unit = pure functions. backend = the real server started against a real database, driven
 // through its API. integration = the frontend pointed at a fake server. e2e = the real environment
@@ -627,6 +627,7 @@ export function runTrace(
   const usecase = model.ir.usecase;
   const nodes = enumerateNodes(model);
   const byId = new Map(nodes.map((n) => [n.id, n]));
+  const serverRuleIds = new Set((model.ir.rules ?? []).filter(isServerRule).map((r) => r.id));
   const taggableIds = new Set(nodes.filter((n) => n.taggable).map((n) => n.id));
 
   if (doc && doc.trace !== usecase) {
@@ -884,6 +885,18 @@ export function runTrace(
           message: `${n.id} (${n.label}): untested. First check whether ${where} can create it deterministically, or whether an existing test already owns it (owned_by)`,
         });
       }
+    }
+
+    // A server-kept rule (never / eventually / unique / permission) holds only if the server enforces it.
+    // A fake-server integration test or E2E timing cannot confirm that, and there is no client pure function
+    if (n.kind === "rule_case" && serverRuleIds.has(n.id.replace(/-c\d+$/, "")) && tests.length > 0 && !tests.some((t) => t.layer === "backend")) {
+      findings.push({
+        level: "warn",
+        check: "trace-rule-kind",
+        message:
+          `${n.id} (${n.label}): only confirmed at ${[...new Set(tests.map((t) => t.layer))].join(" / ")}. ` +
+          "The rule's kind is a promise the server keeps, so move it down to a backend test against a real database (one row per case)",
+      });
     }
 
     if (n.critical && layers.e2e === undefined && reason === undefined) {

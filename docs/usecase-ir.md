@@ -377,14 +377,21 @@ rule_kinds_na:
   eventually: "no step waits on another actor"   # a kind this usecase needs no rule for, and why
 ```
 
-| kind | the promise |
-| --- | --- |
-| `never` | something must not happen (two holders of one thing, a state after an end) |
-| `eventually` | something must end up happening (a request is answered or expires) |
-| `limit` | a bound (at most, at least, until) |
-| `unique` | no two of something |
-| `order` | a sequence or a sort order; gets the both-directions check above |
-| `permission` | who may do something |
+| kind | the promise | its cases are tested at |
+| --- | --- | --- |
+| `never` | something must not happen (two holders of one thing, a state after an end) | backend |
+| `eventually` | something must end up happening (a request is answered or expires) | backend |
+| `limit` | a bound (at most, at least, until) | unit |
+| `unique` | no two of something | backend |
+| `order` | a sequence or a sort order; gets the both-directions check above | unit |
+| `permission` | who may do something | backend |
+
+`never`, `eventually`, `unique` and `permission` are promises only the server can keep (mutual
+exclusion, expiry, a constraint, access control), so their cases are backend tests against a real
+database and there is no client pure function for them; a rule without a kind, `limit` and `order`
+stay pure functions with unit tests ([generation.md](generation.md#test-layers--route-each-scenario-to-the-cheapest-layer-that-can-catch-it)).
+A limit or an order the server applies (a capped query, a sorted page) is also confirmed at backend,
+through the scenario that reads it.
 
 - The property is what the approver reads: the digest shows it under the rule, so the owner
   approves the sentence, not only the examples. A later step that turns the property into a
