@@ -149,7 +149,8 @@ one terminal state.
 
 Checker checks: exhaustiveness (every cell declared) / determinism (no duplicates) /
 terminals (no transition leaves a terminal state) / reachability / escapability / race
-declaration obligation / path validity / transition coverage. `--suggest-paths` proposes
+declaration obligation / path validity / transition coverage / rule kinds (a `never` rule, or
+the reason none is needed, once races are declared — [Rule kinds](#rule-kinds)). `--suggest-paths` proposes
 scenario paths that exercise uncovered transitions.
 
 ### Outcome items — plain or structured
@@ -356,6 +357,44 @@ rules:
   two records with the same time (an activity ends and the next one starts), needs a rule that
   orders them; otherwise the order falls to ids or keys, and the screen can show the later step
   above the earlier one. When the spec does not say, it is a question
+
+### Rule kinds
+
+Most rules are decisions: a case table that maps an input to what is shown. Some rules are
+promises that hold whatever happens, and a case table alone hides which. `kind` names the
+promise and `property` states it in one sentence; the cases stay examples of it:
+
+```yaml
+rules:
+  - id: RULE-002
+    name: a canceled order is never handed over
+    kind: never        # never / eventually / limit / unique / order / permission
+    property: "an order never ends both canceled and handed over"
+    cases:
+      - { input: "cancel commits before pack", expected: "the order is canceled; packing shows a \"Canceled\" notice" }
+      - { input: "hand_over commits before cancel", expected: "the cancellation is rejected and the returns flow is offered" }
+rule_kinds_na:
+  eventually: "no step waits on another actor"   # a kind this usecase needs no rule for, and why
+```
+
+| kind | the promise |
+| --- | --- |
+| `never` | something must not happen (two holders of one thing, a state after an end) |
+| `eventually` | something must end up happening (a request is answered or expires) |
+| `limit` | a bound (at most, at least, until) |
+| `unique` | no two of something |
+| `order` | a sequence or a sort order; gets the both-directions check above |
+| `permission` | who may do something |
+
+- The property is what the approver reads: the digest shows it under the rule, so the owner
+  approves the sentence, not only the examples. A later step that turns the property into a
+  check (a property-based test, a model checker) has to show its translation next to this
+  sentence for approval
+- The checker asks for a kind only where the IR shows it is at stake. Today that is one signal:
+  declared races mean two actors can act on the same thing at once, so a rule of kind `never`
+  or `rule_kinds_na.never` + reason is asked for (a warn, so it lands on the question list).
+  For the other kinds there is no signal, and the review asks for them in prose
+- `rule_kinds_na` is the rule-kinds counterpart of an input's `na`: a stance, with the reason
 
 ## Assumptions and the question list
 

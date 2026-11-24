@@ -50,7 +50,7 @@ import process from "node:process";
 import { parse as parseYaml } from "yaml";
 import { applyAnswers, describeApplied, parseLedger } from "./answers.ts";
 import { parseBindings, runBindingsChecks } from "./bindings.ts";
-import { coveredCells, inputConditions, runChecks } from "./checks.ts";
+import { checkScope, coveredCells, inputConditions, runChecks } from "./checks.ts";
 import { loadObservationNames } from "./definitions.ts";
 import { renderDigest } from "./digest.ts";
 import { checkApproved, escalatePending } from "./approval.ts";
@@ -567,6 +567,7 @@ async function main(): Promise<void> {
         ok: errors.length === 0,
         findings,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
+        scope: model ? checkScope(model) : undefined,
         trace: traceRows,
         tags: tagRows,
       });
@@ -605,6 +606,11 @@ async function main(): Promise<void> {
       console.log("  ✓ all checks passed");
     } else {
       console.log(`  → ERROR ${errors.length} / WARN ${warns.length}`);
+    }
+    if (model) {
+      const scope = checkScope(model);
+      console.log(`  checked: ${scope.checked.join("; ")}`);
+      console.log(`  not checked: ${scope.not_checked.join("; ")}`);
     }
     if (suggestions.length > 0) {
       console.log("  suggested paths for uncovered transitions:");

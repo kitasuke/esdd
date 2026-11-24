@@ -74,6 +74,10 @@ races:
     winner: hand_over
     outcome: ["a cancellation request after hand-over is committed is rejected, and the returns flow is offered"]
 
+# Races call for a rule of kind never (what must not come out of a collision), or the reason none is needed
+rule_kinds_na:
+  never: "each race names its winner and the one outcome it leaves, and the order is not shared with another usecase"
+
 scenarios:
   - id: SC-001
     name: an order progresses to delivered

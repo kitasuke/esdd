@@ -36,6 +36,8 @@ export interface DigestLabels {
   not_applicable: string;
   not_covered: string;
   rules: string;
+  /** Placeholders: {kind} {property} */
+  rule_property: string;
   scenarios: string;
   path: string;
   given: string;
@@ -69,6 +71,7 @@ export const DEFAULT_DIGEST_LABELS: DigestLabels = {
   not_applicable: "not applicable",
   not_covered: "not covered",
   rules: "Rules",
+  rule_property: "{kind}: {property}",
   scenarios: "Scenarios",
   path: "path",
   given: "given",
@@ -186,6 +189,9 @@ function rulesSection(model: Model): string[] {
   const out: string[] = [`## ${labels().rules}`, ""];
   for (const rule of rules) {
     out.push(`### ${rule.id} ${rule.name}`, "");
+    if (rule.property !== undefined) {
+      out.push(labels().rule_property.replace("{kind}", rule.kind ?? "").replace("{property}", rule.property).replace(/^: /, ""), "");
+    }
     rule.cases.forEach((c, i) => {
       out.push(`- cases[${i}] ${inline(c.input)}`, ...items(c.expected, "  "));
     });
