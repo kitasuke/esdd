@@ -72,6 +72,11 @@ requests the fake received, so both are deterministic. Because frontend and
 tests are generated together, the mapping to screen elements is closed inside the
 generation step (see [bindings.md](bindings.md) and [generation.md](generation.md)).
 
+Before generating either phase's code, decide which platforms the change has work on — the server,
+generated client code, each client — from the schema and the existing screens, not from the spec's
+words ([routing.md](routing.md)). A change whose screen needs a field the server does not have yet is
+routed server-first; the generator writes only what does not wait for it.
+
 ## Input modes — who answers the questions
 
 **The implementation may propose answers; only the spec owner decides them.** Filling

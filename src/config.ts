@@ -32,6 +32,21 @@ export interface EsddConfig {
   };
   /** Labels of the approval digest (--digest), for approvers who read another language */
   digest?: Partial<DigestLabels>;
+  /**
+   * Platform names of a routing file (--routing, docs/routing.md). Omitted fields keep the defaults:
+   * platforms backend / codegen / web / android / ios / e2e, server ["backend"], client ["web"],
+   * verification "e2e"
+   */
+  routing?: {
+    /** Every platform a work item may name */
+    platforms?: string[];
+    /** Platforms whose work the client work waits for (the API and its implementation) */
+    server?: string[];
+    /** Platforms the generator writes; the verdict is about these */
+    client?: string[];
+    /** The platform of the verification work that runs after server and client work are out */
+    verification?: string;
+  };
 }
 
 let current: EsddConfig = {};

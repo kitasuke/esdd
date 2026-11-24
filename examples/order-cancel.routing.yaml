@@ -1,0 +1,26 @@
+# Routing for the order-cancel example (docs/routing.md): which platforms have work, in what order, on what evidence
+source: { spec: examples/order-cancel.prd.yaml, version: null, base: <commit> }
+round: 1
+verdict: server-first
+requirements:
+  - id: R1
+    text: The customer cancels an order that has not been handed over
+    needs:
+      - { kind: mutation, target: "Mutation.cancelOrder", status: missing, evidence: "no cancelOrder in the schema (pattern: cancelOrder)" }
+      - { kind: field, target: "Order.status", status: exists, evidence: "schema/order.graphql:12" }
+  - id: R2
+    text: The order list shows the cancelled state
+    needs:
+      - { kind: enum, target: "OrderStatus.CANCELLED", status: missing, evidence: "OrderStatus has PLACED, PACKED, HANDED_OVER (schema/order.graphql:20)" }
+work:
+  - { id: W1, platform: backend, kind: contract, what: add cancelOrder and OrderStatus.CANCELLED to the schema, from: [R1, R2], evidence: "schema/order.graphql:12-24", depends_on: [], status: todo }
+  - { id: W2, platform: backend, kind: implementation, what: implement cancelOrder, refusing orders already handed over, from: [R1], evidence: "service/order.ts:40 (state transitions)", depends_on: [W1], status: todo }
+  - { id: W3, platform: codegen, kind: contract, what: add the cancelOrder operation and regenerate the client, from: [R1], evidence: "client/operations/order.graphql", depends_on: [W1], status: todo }
+  - { id: W4, platform: web, kind: implementation, what: the cancel action and the cancelled state on the order screen, from: [R1, R2], evidence: "web/orders/OrderScreen.tsx:30", depends_on: [W3], status: todo }
+  - { id: W5, platform: e2e, kind: verification, what: run the order E2E against the shared environment once W2 and W4 are deployed, from: [R1], evidence: "e2e/orders/cancel.spec.ts", depends_on: [W2, W4], status: todo }
+decided:
+  - { topic: who may cancel, decided_by: "examples/order-cancel.prd.yaml (only the customer who placed it)" }
+not_routed:
+  - { platform: android, evidence: "no order screen in the Android app (pattern: OrderScreen, orderStatus — 0 hits)" }
+questions: []
+feedback: []
