@@ -191,6 +191,30 @@ export interface ExistingDef {
   refs: ExistingRef[];
 }
 
+export type ServerCheckKind = "trim-non-empty" | "enum" | "format" | "other";
+
+/** One server-side check on a value the change sends */
+export interface ServerCheck {
+  kind: ServerCheckKind;
+  /** <file>:<line> at the base revision */
+  at: string;
+  text: string;
+  /** The inputs cell ("<inputId>×<condition>") this check decides */
+  cell: string;
+}
+
+/**
+ * A variable or input field the change sends, the handler that receives it and every check on the
+ * value (docs/usecase-ir.md "server"). Fakes do not repeat these checks, so the IR carries them
+ */
+export interface ServerDef {
+  id: string;
+  /** <operation>.<variable>[.<input field>] */
+  sends: string;
+  resolver: { at: string; text: string };
+  checks: ServerCheck[];
+}
+
 export interface UseCaseIR {
   usecase: string;
   name: string;
@@ -208,6 +232,7 @@ export interface UseCaseIR {
   assumptions?: AssumptionDef[];
   region?: RegionDef;
   existing?: ExistingDef[];
+  server?: ServerDef[];
 }
 
 // One cell of the transition matrix, after expanding array-form from/on declarations.

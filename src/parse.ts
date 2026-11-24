@@ -297,6 +297,30 @@ export function parseIR(source: string): ParseResult {
     });
   });
 
+  // server (shape only; checks.ts checkServer reads the cells)
+  const SERVER_ID = /^SERVER-[A-Z0-9-]+$/;
+  const SERVER_CHECK_KINDS = new Set(["trim-non-empty", "enum", "format", "other"]);
+  const AT = /^.+:[1-9][0-9]*$/;
+  if (ir.server !== undefined && !Array.isArray(ir.server)) err("server: must be a list");
+  (Array.isArray(ir.server) ? ir.server : []).forEach((e, i) => {
+    const at = `server[${i}]`;
+    if (!e?.id || !SERVER_ID.test(e.id)) err(`${at}: id must be an ID starting with SERVER-`);
+    if (typeof e?.sends !== "string" || !/^[A-Za-z_]\w*(\.\w+)+$/.test(e.sends)) err(`${at}: sends must be <operation>.<variable>[.<input field>]`);
+    if (typeof e?.resolver?.at !== "string" || !AT.test(e.resolver.at)) err(`${at}.resolver: at must be <file>:<line>`);
+    if (typeof e?.resolver?.text !== "string" || e.resolver.text.trim() === "") err(`${at}.resolver: text is required`);
+    if (!Array.isArray(e?.checks)) {
+      err(`${at}: checks must be a list ([] when the handler checks nothing)`);
+      return;
+    }
+    e.checks.forEach((c, j) => {
+      const cat = `${at}.checks[${j}]`;
+      if (!SERVER_CHECK_KINDS.has(c?.kind)) err(`${cat}: kind must be one of ${[...SERVER_CHECK_KINDS].join(" | ")}`);
+      if (typeof c?.at !== "string" || !AT.test(c.at)) err(`${cat}: at must be <file>:<line>`);
+      if (typeof c?.text !== "string" || c.text.trim() === "") err(`${cat}: text is required`);
+      if (typeof c?.cell !== "string" || !/^[^×]+×[^×]+$/.test(c.cell)) err(`${cat}: cell must be <inputId>×<condition>`);
+    });
+  });
+
   // inputs (input-axis declarations; the semantic cell-coverage check is checks.ts checkInputs)
   const INPUT_KINDS = new Set(["field", "option"]);
   const inputIds = new Set<string>();

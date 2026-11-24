@@ -294,6 +294,35 @@ existing:
 - The checker checks the shape (`structure`); verifying refs against the base revision and the
   diff needs the repository, so it belongs to the generation tooling
 
+### server — the checks behind what a change sends
+
+A client change that sends a value to an API (a URL parameter passed as a query variable, a form
+field in a mutation input) is answered by server code the client tests never run: fakes return
+canned data and do not repeat the server's input checks. A value the server rejects (an untrimmed
+blank, an unknown enum, a malformed id) then reaches production as an error screen. List, for each
+variable or input field the change sends, the handler that receives it and every check on that
+value, read from the server code at the base revision:
+
+```yaml
+server:
+  - id: SERVER-001
+    sends: Products.category          # <operation>.<variable>[.<input field>]
+    resolver: { at: api/products/resolver.go:88, text: requireNonEmpty(category) }
+    checks:                           # [] when the handler checks nothing
+      - kind: trim-non-empty          # trim-non-empty | enum | format | other
+        at: api/products/params.go:68
+        text: strings.TrimSpace(raw)
+        cell: category×blank          # the inputs cell this check decides
+```
+
+- Each check's `cell` is an input × condition of `inputs`, so it needs `covers` or `na` like any
+  other cell: the client either handles the value the server rejects, or says why it cannot arrive
+- Every variable or field the diff touches needs an entry; a send with no entry is a server fact
+  nobody read
+- The checker checks the shape (`structure`) and that each cell is a declared input condition
+  (`server`); matching the diff's sends to entries and verifying `at` against the base revision
+  need the repository, so like `existing` they belong to the generation tooling
+
 ## scenarios / rules
 
 ```yaml

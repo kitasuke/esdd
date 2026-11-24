@@ -117,6 +117,13 @@ draft change → its CI runs the full suite
   says which checks ran where. A trial that opens no change has no CI, so it runs the full
   suite once, at the end of its last stage — not after each fix, and not when it stops to
   wait for answers
+- **Break the address of each changed page.** Open every page the change touches once per URL
+  parameter it reads, with a blank value, an unknown value and a malformed one, against the
+  fakes. Fail on the error screen, an uncaught error, an API error in a response, or a blank
+  sent into a variable the change touches; the fakes do not reject a blank the way the server
+  does, so the sent value is the evidence. An unknown id or cursor passes, since only the server
+  can judge it. A page that cannot be opened this way (it needs an id in its path) says why in
+  the verification section
 - **Order the local checks so the slow one runs once.** Run the tests the change added or
   changed first, until they are Green; then the related-checks suite once, with the
   screenshots taken from the same build. After a fix, rerun only the failed files and the
