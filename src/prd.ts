@@ -20,7 +20,7 @@ import {
   unreachableStates,
 } from "./checks.ts";
 import { config } from "./config.ts";
-import { nonEmptyString, outcomeTexts, pendingMarkerIds, RACE_WINNER_FIRST } from "./text.ts";
+import { nonEmptyString, outcomeTexts, pendingMarkerIds, pendingMarkerParts, RACE_WINNER_FIRST } from "./text.ts";
 import { type Cell, type EventDef, type Finding, type Model, type OutcomeItem, type RaceDef, cellKey } from "./types.ts";
 
 const PRD_ID = /^PRD-[A-Z0-9-]+$/;
@@ -628,18 +628,24 @@ function pendingByQuestion(ucs: LinkedUseCase[]): PendingQuestion[] {
   for (const uc of ucs) {
     for (const x of irPending(uc.model)) {
       const place = { ir: uc.model.ir.name, where: x.where };
-      const ids = pendingMarkerIds(x.text);
-      const key = ids.join(",");
-      const known = key ? byIds.get(key) : undefined;
-      if (known) {
-        known.places.push(place);
-        // a second text under the same id is a part of the question (a sub-question), not a duplicate
-        if (!known.texts.includes(x.text)) known.texts.push(x.text);
-        continue;
+      // markers with different ids in one text are different questions: list each under its own id
+      const found = pendingMarkerIds(x.text);
+      const pieces = new Set(found).size >= 2
+        ? pendingMarkerParts(x.text).map((p) => ({ ids: [p.id], text: p.text }))
+        : [{ ids: found, text: x.text }];
+      for (const piece of pieces) {
+        const key = piece.ids.join(",");
+        const known = key ? byIds.get(key) : undefined;
+        if (known) {
+          if (!known.places.some((p) => p.ir === place.ir && p.where === place.where)) known.places.push(place);
+          // a second text under the same id is a part of the question (a sub-question), not a duplicate
+          if (!known.texts.includes(piece.text)) known.texts.push(piece.text);
+          continue;
+        }
+        const entry = { places: [place], ids: piece.ids, texts: [piece.text] };
+        if (key) byIds.set(key, entry);
+        out.push(entry);
       }
-      const entry = { places: [place], ids, texts: [x.text] };
-      if (key) byIds.set(key, entry);
-      out.push(entry);
     }
   }
   return out;
@@ -669,6 +675,11 @@ function irPending(model: Model): { where: string; text: string }[] {
     for (const c of rule.cases) add(`${rule.name}: ${cell(c.input)}`, typeof c.expected === "string" ? [c.expected] : []);
   }
   for (const sc of model.ir.scenarios) add(sc.name, sc.then ?? []);
+  for (const inp of model.ir.inputs ?? []) {
+    for (const [cond, reason] of Object.entries(inp.na ?? {})) {
+      if (typeof reason === "string") add(`${inputLabel(model, inp.id)}: ${conditionLabel(model, inp.id, cond)}`, [reason]);
+    }
+  }
   return out;
 }
 

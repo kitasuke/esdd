@@ -357,6 +357,55 @@ scenarios:
     expect(pending.map((f) => f.message.split(":")[0])).toEqual(["scenarios[SC-001].given", "scenarios[SC-001].when"]);
   });
 
+  it("two questions in one place give a pending warn each, so a question added next to an open one is counted", () => {
+    const src = `
+usecase: UC-TEST-007
+name: Unanswered question test
+source: { spec: "https://example.com" }
+scenarios:
+  - id: SC-001
+    name: form submission
+    given: [the form is open]
+    when: [submit]
+    then: [the completion screen is shown]
+rules:
+  - id: RULE-001
+    name: option behavior
+    cases:
+      - { input: { notify: true }, expected: "TBD(Q1: who is notified (the owner or all)) TBD(Q2: is a toast shown?)" }
+      - { input: { notify: false }, expected: "TBD(Q3: what shows) and TBD(Q3: for how long)" }
+`;
+    const pending = check(src).filter((f) => f.check === "pending").map((f) => f.message.split(" remains")[0]);
+    expect(pending).toEqual([
+      "rules[RULE-001].cases[0]: an unanswered spec-question marker (TBD(Q1))",
+      "rules[RULE-001].cases[0]: an unanswered spec-question marker (TBD(Q2))",
+      // one id twice is one question with two parts
+      "rules[RULE-001].cases[1]: an unanswered spec-question marker (TBD)",
+    ]);
+  });
+
+  it("a marker in an input's na reason produces a pending warn", () => {
+    const src = `
+usecase: UC-TEST-007
+name: Unanswered question test
+source: { spec: "https://example.com" }
+inputs:
+  - id: qty
+    kind: field
+    conditions: [increase, decrease]
+    na: { decrease: "the quantity is always 1 TBD(Q4: can it be lowered?)" }
+scenarios:
+  - id: SC-001
+    name: raise the quantity
+    covers: ["qty×increase"]
+    given: [one item in the cart]
+    when: [press plus]
+    then: [the quantity is 2]
+`;
+    const pending = check(src).filter((f) => f.check === "pending").map((f) => f.message.split(":")[0]);
+    expect(pending).toEqual(["inputs[qty].na.decrease"]);
+  });
+
   it("no markers means no pending findings", () => {
     const findings = check(readFileSync(PILOT, "utf8"));
     expect(findings.filter((f) => f.check === "pending")).toEqual([]);

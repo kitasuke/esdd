@@ -15,6 +15,10 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 
 ## Inputs
 
+- a design the team already wrote, if any: sort each difference from the PRD by what the IR item is
+  (an assumption, an open question, a stated behavior, or nothing)
+  ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), "A design written before the PRD")
+
 - the PRD (or PRD frame) and the feature's IRs, approved or in review
 - the design decisions the author has made so far: schema, API, limits, management of values
 - the team's design-doc template, if one exists
@@ -26,9 +30,12 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
 1. Read the IRs and list each rule, input cell, outcome, race and impossible cell this design changes
    or enforces. Name the IR items it leaves to others. An item nothing in the design backs is a
    design gap: fill it before review, do not ask the owner. A fill that reuses an existing type or
-   API: check whether the client reads it as one item or a list
-   ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 1)
-2. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
+   API: check whether the client reads it as one item or a list. A decision this part makes that the
+   IR folds into the user's event: propose the split as a question for the owner; do not reshape the
+   IR here ([docs/pdd.md](../../docs/pdd.md#writing-a-design-doc), step 1)
+2. With a doc per part, write an IR item's rows only in the doc of the part that decides its outcome;
+   the other docs name that doc. Parts that build the same behavior side by side (two clients) each
+   keep their own rows. For each constraint, write a row in the behavior section: the constraint, where it is enforced,
    what the user sees, and the IR reference. A constraint with no visible effect gets no row; list
    those below the table with the reason. When the design is read from the existing implementation,
    a consequence it supplies is a proposal until the owner states it: a question, or an assumption
@@ -43,7 +50,9 @@ the PRD's loop. Link the finished doc from the PRD (prd-author's step 5).
    or list it as an open point
 5. Add rows for what changes outside the feature: values managed by hand or by an admin,
    migrations of existing items, cascading deletes
-6. Keep open points in one list, each with a proposal and who decides
+6. Keep open points in one list, each with a proposal and who decides. Ids are unique across the
+   design docs of one PRD (continue the PRD's question ids for the owner's points, and the other docs'
+   ids for the implementation team's)
 7. Fold the rows into the IRs, list the design doc and its edit time in the `source.sources` of every
    IR it backs or adds to, and check:
 

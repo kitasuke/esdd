@@ -244,7 +244,43 @@ how the parts are owned and reviewed: one team that owns and reviews them all wr
 separate teams each write their own, in their own template. A part the feature does not change
 needs neither a doc nor a section. Either way, each part's rows are written against the IR items it
 changes or enforces, the IR items it leaves to another part are named (step 1), and every design
-doc is linked from the PRD.
+doc is linked from the PRD. With a doc per part, **each IR item gets its rows in one doc**: the doc of
+the part that decides the outcome (the service that refuses, not the client that shows the refusal).
+The other docs name that doc for it instead of writing a row. Two docs with rows for one item count
+it twice in coverage, and when their constraints differ, nothing shows it as a disagreement. This is
+for parts stacked on each other (a service and the client in front of it). Parts that build the same
+behavior side by side (two mobile clients, a mobile and a web client) each keep their own rows, and
+coverage is counted per part: in one trial, sending a mobile client's items to the other left that
+client's doc with no row for what its own build has to hold. An item can also carry two results
+that different parts decide (which addresses can be chosen, decided by a service, and whether the
+choice opens on the same screen, decided by the client): each part writes a row for its own result
+against the same item.
+
+**A design written before the PRD.** A team often has a design of its own already, written before
+the PRD or before its last revision. The PRD owns behavior, so sort each difference by whether the
+PRD decides it, not by which document is newer. Read that from the IR item, not from the PRD's text:
+the IR is the PRD as converted, and a sentence that only points elsewhere ("same as section 2") or a
+place where two pages disagree is already an assumption or a question there. Take the first that
+applies:
+
+1. the IR item is an assumption: its basis is gone, so ask it again under a new question id, the way
+   an answer round does when an answer contradicts an accepted assumption. The marker becomes the new
+   question's, the assumption's declaration leaves the IR (left there, it reads as settled), and the
+   assumption keeps its id in the question list and closes with the new question's answer. The new
+   question names both options
+2. the IR item is an open question: add the design's choice to that question's proposal and basis
+   instead of raising a second question. The owner still decides
+3. the IR item states the behavior: the design changes. It is an open point for the implementation
+   team, proposing to follow the PRD, and goes back to the owner only when it cannot
+4. no IR item covers it: it is new behavior (step 2)
+
+When the team's own pages disagree with each other, take the newer statement and note the
+disagreement as an open point for the team. Newer means the date of the decision when the page dates
+it, and the page's edit time only when it does not: a page edited last can still carry the older
+decision.
+
+In one trial, a team's design was two months older than the PRD and differed from it in eight places:
+five the PRD had decided, two it already asked about, and one an assumption.
 
 The design doc stays a document in the team's own template; nothing renders it. What the method
 adds is one section and a few rules:
@@ -271,7 +307,12 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
    the list response does not carry) is a gap in the design: the author fills it before review; it
    is not a question for the owner. When the fill reuses an existing type or API, check how the
    client reads it (one item or a list): a field added to a type the client can only read as a list
-   sends every row when one is needed. A precedent is a basis only if it is read the same way
+   sends every row when one is needed. A precedent is a basis only if it is read the same way.
+   Check also that a decision this part makes has its own event in the IR. When the IR folds the
+   answer into the user's event (`tap_checkout_ok`, `tap_checkout_refused`, both by the customer),
+   no row can name the cells this part backs. The split ([usecase-ir.md](usecase-ir.md), "A decision
+   another part makes is its own step") changes the IR's shape, so the design doc proposes it as a
+   question for the owner and does not make it; write the rows against the split IR
 2. **Write the consequence with each constraint.** For every limit, uniqueness, request meaning,
    order, error and permission in the design, add its row. When the design is read from the existing
    implementation, a consequence it supplies is still a proposal until the owner states it: a
@@ -287,7 +328,10 @@ screen lists only the user's own notes, so it cannot reach that"), so a reviewer
 4. **Cover what changes outside the feature.** Values managed by hand or by an admin, migrations of
    existing items, deletions that cascade: a row each for what users see when they happen
 5. **Keep open points in one list.** Each with a proposal and who decides, in the doc rather than
-   only in comment threads, and each resolved thread's decision written into the body
+   only in comment threads, and each resolved thread's decision written into the body. Ids are
+   unique across the design docs of one PRD: the owner's points continue the PRD's question ids, and
+   the implementation team's continue from the last id the other design docs use, so one id names one
+   point when there is a doc per part
 6. **Fold into the IRs and check.** Add the rows' consequences to the IRs, list the design doc in
    the `source.sources` of every IR it backs or adds to, with its edit time, and run the checker. An
    open point with an IR place goes there as a `TBD`; one with no IR place goes in the PRD frame's
