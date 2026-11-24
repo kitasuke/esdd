@@ -84,6 +84,22 @@ draft change → its CI runs the full suite
   and running the suite against the generated UI, in a throwaway working copy of the
   implementer's head with the E2E commits applied. A run against a shared environment waits
   until the change is deployed there. The E2E tests go in a change of their own
+- **Run E2E against the change's own UI first; hand off only what cannot run.** A suite that
+  needs the shared environment's backend but not its deployed UI runs locally: the change's UI,
+  served from its working copy, pointed at the shared backend. That runs before merge, and a
+  difference from the base shows as a failure of the change, not as drift against whatever is
+  deployed. Bound the setup it needs (a saved sign-in that is still valid, a free port the
+  shared backend accepts) to a couple of minutes, and do not ask a person to sign in for it: a
+  healthy sign-in setup finishes well inside that, so waiting longer only waits on someone who
+  was not asked. Tell the two kinds of failure apart by whether the test reached the changed
+  screen: a failure after it got there is a real failure, fixed or reported, and is not sent
+  anywhere else; a stop before it (a sign-in page, a rejected token, a port in use) means the
+  suite could not run here. Only then hand it to CI, and let a separate agent or session
+  dispatch it, wait for the result and write it into the change's verification section, while
+  the run goes on. CI runs the deployed UI, so a suite that needs the change's own UI cannot run
+  there before merge either: record it as a follow-up to run after the deploy, with the command.
+  Suites that write shared data (create, link, delete) are not run against a shared environment
+  at all, and stay pending
 - **Run related checks locally; leave the full suite to the change's CI.** While fixing, run
   the type checker, the unit tests and the tests related to the change. Choose related tests by
   what the change renders: the tests of the pages that render a changed file, and the tests
@@ -114,9 +130,18 @@ draft change → its CI runs the full suite
   check, the fast checks, the changed tests' screenshots and the broken branches those tests
   name, and say in the verification section "suite passed at <commit>; since then only
   <files> changed". A changed fake reruns the suite
-- **Run independent checks at the same time**: the related-checks suite, the broken-branch
-  runs (each in its own throwaway working copy), and checks that each build their own copy of
-  the base
+- **Run independent checks at the same time, as far as the machine has room.** The
+  related-checks suite, the broken-branch runs and checks that each build their own copy of the
+  base can run together, but only within the free cores: the core count minus the smaller of the
+  one- and five-minute load averages. The five-minute figure keeps a spike from the run's own last
+  check from forcing everything onto one worker; a sustained outside load raises both. Give each
+  check a worker count that fits, and run what does not fit after the suite instead of beside it.
+  Oversubscribing slows every check and makes servers miss their start-up timeouts (in one trial,
+  a check and three working copies on a machine already at a load of 11.6 on 16 cores drove the
+  load to 32). Write the plan and the figures it came from into the
+  step times, so runs can be compared. The broken-branch runs share one throwaway working copy
+  ([No false greens](generation.md#no-false-greens)), prepared in the background when the tests are
+  started, so the check step only checks out the head
 - **Don't wait idle for the author.** Between committing the implementation and receiving the
   author's suite, run what does not depend on that suite, fixing and committing what it finds:
   the fast checks (types, unit tests, lint, formatting, freshness of generated files), the
@@ -172,7 +197,19 @@ draft change → its CI runs the full suite
 - **Record each step's time.** Note the start and end of every step, one row per step
   including those that ran in parallel, and put a table of minutes in the change's
   description. Without it, a faster run cannot be told from a lucky one, and the slowest
-  step is a guess
+  step is a guess. Steps that only a trial runs (the full suite of a trial that opens no change,
+  the evaluation, sorting out their failures) are marked as trial steps and kept out of the time
+  the user waits for the draft change. The description is written from the checks that ran
+  before the draft and does not wait for trial steps; their results go in the trial's record, not
+  in the description (in one trial, waiting for the full suite stretched writing a description
+  from about one minute to seven)
+- **Split a large ticket into parts.** When the work spans two or more pages, or regions of a
+  page that do not read each other, and the IR's scenarios fall apart along the same line (no
+  scenario of one part opens another part's screen), run the steps from the IR to the checks once
+  per part, in order, with one IR per part. Write the parts, their order and dependencies down in
+  the run's working directory, and stack the changes: a later part reads what an earlier part
+  added and does not rewrite it. Say in one line why a ticket is not split. The time to the draft
+  counts every part
 
 ## Measuring the generator
 
@@ -218,6 +255,16 @@ to the answer:
 Measure a new rule on a ticket it was not written from: on its own ticket, its example is in
 the rule's text.
 
+Keep a rule's examples out of its text, so a trial can remove them. A rule cites its examples by
+id ("(example: EX-12)"), and the examples live in a file beside the rules, each with its id, the
+sources it came from (the ticket and the person's change), what it shows and what happened. Before
+a blind trial, drop every example whose source is the trial's ticket or change, together with its
+citations in the rule text; what is left cannot hand the generator the answer. A search of the
+copied rules for the ticket's id and for words the person decided stays as a backstop, and
+whatever it finds goes in the trial's report. Check the file mechanically: unique ids, a source on
+each example, every citation pointing at an example, and no ticket id in the rule text outside
+the examples.
+
 A generator does not give the same answers twice. In one replay of past questions, rerunning
 the same arm changed two of six answers. Treat a difference of two questions or fewer between
 two variants as noise, and run each variant at least twice before comparing.
@@ -228,4 +275,5 @@ A later rule can quietly undo an earlier fix. Keep a few past trials with their 
 person's first commit and their pass conditions fixed, and rerun them as ordinary blind trials
 after every few rule changes and before the rules are used on a real run. The set shows only
 that earlier passes still pass, not that a new rule works. It holds the answers, so it is
-never copied into a trial.
+never copied into a trial. Its trials keep the examples taken from their own tickets: those
+examples are part of the rules being checked.
