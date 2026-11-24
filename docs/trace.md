@@ -62,6 +62,10 @@ goes to E2E — E2E cannot create the timing of two operations deterministically
 | `race_outcome` | integration: the fake server returns the loser's error (the same one the backend test asserts) and the losing screen shows the IR's outcome | `unit` / `backend` / `integration` |
 
 A race confirmed only at other layers, or declared `untested`, is a `trace-race` warn.
+
+The cases of a server-kept rule (kind `never` / `eventually` / `unique` / `permission`,
+[usecase-ir.md](usecase-ir.md#rule-kinds)) follow the race winner: only a backend test proves the
+server keeps the promise. A case confirmed only at other layers is a `trace-rule-kind` warn.
 Existing backend tests often already cover "winner's state × loser's operation" — point at
 them with `owned_by` instead of writing new ones, and pass their results. When none
 does, add a row to the existing table-driven test instead of creating a parallel file.
@@ -289,6 +293,7 @@ question is asked of the source node. The trace table's NC column shows `verifie
 | trace-critical | warn | a `critical` scenario has no E2E result |
 | trace-nc | error | a node Green through a direct test has no negative control, or a record names a missing node (pending is a warn) |
 | trace-race | warn | a race winner confirmed outside unit / backend, a loser's view confirmed only at E2E, or an untested race |
+| trace-rule-kind | warn | a case of a server-kept rule (kind `never` / `eventually` / `unique` / `permission`) confirmed outside backend |
 
 When a node has both Green and Red, the verdict is Red (Green does not hide a failing
 layer). The text output ends with a trace table (node × layer × verdict) ready to paste

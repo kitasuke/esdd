@@ -7,7 +7,7 @@
 // population the IR declares — the same philosophy as literal_coverage.
 
 import { parse as parseYaml } from "yaml";
-import type { Finding, Model, OutcomeItem } from "./types.ts";
+import { type Finding, isServerRule, type Model, type OutcomeItem } from "./types.ts";
 
 export type StateStep = { fixture: string };
 export type GivenStep = { state: string; fixture?: undefined } | { fixture: string; state?: undefined };
@@ -137,6 +137,7 @@ function universe(model: Model) {
     events: new Set(model.events.keys()),
     outcomes: new Set(outcomes),
     rules: new Map((ir.rules ?? []).map((r) => [r.id, r.cases.length])),
+    serverRules: new Set((ir.rules ?? []).filter(isServerRule).map((r) => r.id)),
   };
 }
 
@@ -188,7 +189,10 @@ function checkCoverage(doc: StepsDoc, model: Model, findings: Finding[]): void {
 
   for (const [id, count] of u.rules) {
     const def = doc.rules?.[id];
-    if (!def) missing(`rule ${id} has no step definition`);
+    // A server-kept rule has no client pure function; its cases are backend tests
+    if (!def) {
+      if (!u.serverRules.has(id)) missing(`rule ${id} has no step definition`);
+    }
     else if (def.cases.length !== count) missing(`rules.${id}: the IR has ${count} cases, the step definitions ${def.cases.length}`);
   }
   for (const id of Object.keys(doc.rules ?? {})) if (!u.rules.has(id)) stale(`rules.${id}`, "the rule");

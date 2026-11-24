@@ -81,6 +81,17 @@ export interface ScenarioDef {
 export const RULE_KINDS = ["never", "eventually", "limit", "unique", "order", "permission"] as const;
 export type RuleKind = (typeof RULE_KINDS)[number];
 
+/**
+ * Kinds whose promise only the server can keep (mutual exclusion, expiry, a constraint, access control).
+ * Their cases are confirmed by backend tests against a real database, not by a client pure function
+ * (docs/generation.md "Test layers")
+ */
+export const SERVER_RULE_KINDS: readonly RuleKind[] = ["never", "eventually", "unique", "permission"];
+
+export function isServerRule(rule: { kind?: RuleKind | undefined }): boolean {
+  return rule.kind !== undefined && SERVER_RULE_KINDS.includes(rule.kind);
+}
+
 export interface RuleDef {
   id: string;
   name: string;

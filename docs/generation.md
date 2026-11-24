@@ -13,8 +13,8 @@ The routing is part of the method, not a per-project choice:
 
 | Layer | Source in the IR | Scope | Backend | Role |
 | --- | --- | --- | --- | --- |
-| **Unit** | `rules` case tables | every rule case | none (pure functions) | rules are extracted into pure functions; the function and its tests come from the same case table, so unit tests are **Green from birth** (a Red here is a generator bug) |
-| **Backend** | race winners, server-side decisions (filtering by permission or region, first-to-arrive), mechanism scenarios | what the server decides | **real database** | the state is built directly with fixtures, so windows an E2E test cannot reach become testable. Races go here and to integration as two nodes ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration)) |
+| **Unit** | `rules` case tables, except server-kept rules | every rule case of a rule without a kind, or of kind `limit` / `order` | none (pure functions) | rules are extracted into pure functions; the function and its tests come from the same case table, so unit tests are **Green from birth** (a Red here is a generator bug) |
+| **Backend** | race winners, server-side decisions (filtering by permission or region, first-to-arrive), mechanism scenarios, the cases of server-kept rules (kind `never` / `eventually` / `unique` / `permission`) | what the server decides | **real database** | the state is built directly with fixtures, so windows an E2E test cannot reach become testable. Races go here and to integration as two nodes ([trace.md](trace.md#a-race-is-two-nodes--the-winner-at-backend-the-losers-view-at-integration)). A server-kept rule's cases are rows of a table-driven backend test; they can be Red, since the server, not a function generated from the same table, keeps the promise ([usecase-ir.md](usecase-ir.md#rule-kinds)) |
 | **Integration** | **all** `scenarios` | full scenario set | **fake server** (deterministic) | the main body of coverage and the acceptance-first layer below. Givens are registered on the fake; side effects are verified by asserting the recorded API calls (and their absence, as a negative oracle) |
 | **E2E** | only scenarios marked `critical: true` | the few must-not-break paths | real environment | **drift detector**: it runs against the real system, so a Red means the spec and reality diverged — a human adjudicates which side is right |
 
@@ -133,7 +133,7 @@ events:   # event → a screen method, or a fixture for actor: system
 outcomes: # outcome text → assertion (+ negation, args), or why it cannot be asserted yet
   'the order status shows "Packed"': { expect: expectStatus, not: expectStatusNot, args: [status_packed] }
   "no cancellation fee is charged (RULE-001)": { unresolved: "nothing shows the fee charged" }
-rules:    # rule → the pure function and one entry per IR case, in IR order
+rules:    # rule → the pure function and one entry per IR case, in IR order (server-kept rules need none)
   RULE-001:
     function: { name: cancellationTerms, from: ./cancellation-terms.ts }
     cases: [{ args: [PLACED], returns: { kind: free, feeCents: 0 } }, …]
@@ -144,7 +144,7 @@ With the target IR passed alongside, the check covers the full population the IR
 | check | level | what it enforces |
 | --- | --- | --- |
 | steps-schema | error | the target id; known sections only; a state names its fixture; a given names a state or a fixture; an event a screen method or a fixture (exactly one); an outcome an assertion or a non-empty `unresolved` reason; a rule its function and a case list |
-| steps-coverage | error | every IR event, every scenario given, every outcome (states mode: transition and race outcomes; form mode: scenario `then` items) and every rule has a definition; the initial state and every race state have a fixture; a rule has exactly as many cases as the IR; a given's state exists. A definition naming something the IR does not have is also an error — editing an outcome's text in the IR shows up as one missing and one stale entry |
+| steps-coverage | error | every IR event, every scenario given, every outcome (states mode: transition and race outcomes; form mode: scenario `then` items) and every rule except a server-kept one has a definition; the initial state and every race state have a fixture; a rule has exactly as many cases as the IR; a given's state exists. A definition naming something the IR does not have is also an error — editing an outcome's text in the IR shows up as one missing and one stale entry |
 | steps-usecase | error | the target does not match the IR, or the IR is not among the inputs |
 | steps-unresolved | warn | an outcome that cannot be asserted yet — it is on the question list |
 | steps-given-state | warn | a given describes a state other than the initial one, while every path starts there |
@@ -153,7 +153,7 @@ With the target IR passed alongside, the check covers the full population the IR
 
 | IR element | Unit | Integration (every scenario) | E2E (`critical: true` only) |
 | --- | --- | --- | --- |
-| `rules[].cases` | one table-driven test per rule, one row per case in IR order | — (shows through scenario outcomes) | — |
+| `rules[].cases` | one table-driven test per rule, one row per case in IR order; a server-kept rule's table is a backend test instead | — (shows through scenario outcomes) | — |
 | `scenarios[].given` | — | the fake's state, set before the page opens | data created through the real system's seed or API |
 | `scenarios[].path` | — | one driver call per event, in path order, by the event's `actor` | the same, through the same driver |
 | the transition `to` of each step | — | the fake's response for the event's operation | — (the real system decides) |
@@ -238,7 +238,9 @@ the slots are one possible shape, not something the checker enforces.
   ([pattern registry](#pattern-registry-select--instantiate))
 - **Vocabulary from the bindings only**: element names, copy and API operations
 - **A rule is implemented once**: as the pure function its unit tests import. The
-  component calls that function and does not reimplement the rule. Since every decision is a rule
+  component calls that function and does not reimplement the rule. A server-kept rule
+  ([usecase-ir.md](usecase-ir.md#rule-kinds)) is implemented by the server alone; the client
+  shows the server's answer and holds no copy of the check. Since every decision is a rule
   ([usecase-ir.md](usecase-ir.md#scenarios--rules)), a component holds no branch that decides a
   value; a branch left there needs a recorded reason (rendering one of two parts, for example)
 - **Sweep what the change alters**: after writing, walk the IR's `existing` list against the

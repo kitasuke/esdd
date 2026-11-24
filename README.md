@@ -124,7 +124,7 @@ other usecases, or orders of more than two events.
 | Check | What it enforces |
 | --- | --- |
 | schema | each phrase maps to exactly one kind of call (a screen method, a fixture, an assertion) or to an `unresolved` reason |
-| coverage | **every IR event, given, outcome and rule case** resolves, and no definition names something the IR lacks |
+| coverage | **every IR event, given, outcome and rule case** resolves (except the cases of a server-kept rule, which are backend tests), and no definition names something the IR lacks |
 | unresolved / given-state | outcomes that cannot be asserted yet and givens that disagree with the path, as warns for the question list |
 
 ## Why literal_coverage

@@ -1,7 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse, stringify } from "yaml";
 import { checkScope, runChecks } from "./checks.ts";
 import { renderDigest } from "./digest.ts";
 import { parseIR } from "./parse.ts";
+import { parseSteps, runStepsChecks } from "./steps.ts";
+import { type Layer, runTrace, type TestCaseResult } from "./trace.ts";
 import type { Finding, Model } from "./types.ts";
 
 const RACY = `
@@ -115,5 +120,45 @@ describe("check scope", () => {
     expect(scope.not_checked).toEqual(
       expect.arrayContaining([expect.stringContaining("the implementation"), "orders of more than two events"]),
     );
+  });
+});
+
+describe("test layer of a rule's cases", () => {
+  const tc = (node: string, layer: Layer): TestCaseResult => ({ layer, source: "x.xml", classname: "", name: `UC-TEST-KIND__${node}`, status: "Green" });
+  const others = ["SC-001", "SC-002", "RACE-A-accept-cancel", "RACE-A-accept-cancel-outcome"].map((id) => tc(id, "backend"));
+  const ruleKindWarns = (source: string, layer: Layer) =>
+    runTrace(parsed(source).model, [...others, tc("RULE-001-c1", layer), tc("RULE-001-c2", layer)])
+      .findings.filter((f) => f.check === "trace-rule-kind")
+      .map((f) => f.message.split(" ")[0]);
+
+  it("a server-kept rule (kind never) confirmed only by unit or fake-server tests is asked to move to backend", () => {
+    expect(ruleKindWarns(RACY + NEVER_RULE, "unit")).toEqual(["RULE-001-c1", "RULE-001-c2"]);
+    expect(ruleKindWarns(RACY + NEVER_RULE, "integration")).toEqual(["RULE-001-c1", "RULE-001-c2"]);
+  });
+
+  it("a server-kept rule confirmed at backend passes", () => {
+    expect(ruleKindWarns(RACY + NEVER_RULE, "backend")).toEqual([]);
+  });
+
+  it("a rule without a kind, or of a client kind (limit / order), stays at unit", () => {
+    expect(ruleKindWarns(RACY + NEVER_RULE.replace(/ {4}kind: never\n/, ""), "unit")).toEqual([]);
+    expect(ruleKindWarns(RACY + NEVER_RULE.replace("kind: never", "kind: limit"), "unit")).toEqual([]);
+  });
+
+  it("step definitions do not need a pure function for a server-kept rule", () => {
+    const examples = join(import.meta.dirname, "../examples");
+    const read = (name: string) => readFileSync(join(examples, name), "utf8");
+    const steps = parse(read("order-cancel.steps.yaml"));
+    delete steps.rules["RULE-001"];
+    const missing = (ir: string) => {
+      const { doc } = parseSteps(stringify(steps));
+      return runStepsChecks(doc!, { model: parsed(ir).model })
+        .filter((f) => f.level === "error" && f.message.includes("RULE-001"))
+        .map((f) => f.message);
+    };
+    const ir = read("order-cancel.usecase.yaml");
+    expect(missing(ir)).toEqual(["rule RULE-001 has no step definition"]);
+    const serverKept = ir.replace("    name: cancellation fee\n", '    name: cancellation fee\n    kind: never\n    property: "a fee is never charged twice"\n');
+    expect(missing(serverKept)).toEqual([]);
   });
 });
