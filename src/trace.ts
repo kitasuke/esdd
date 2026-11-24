@@ -1038,3 +1038,113 @@ export function tagCoverageSummary(rows: TagCoverageRow[]): string {
   const count = (s: TagCoverageStatus) => rows.filter((r) => r.status === s).length;
   return `tag coverage: ${rows.length} scenarios and rule cases — named ${count("named")} / unnamed ${count("unnamed")} / pending ${count("pending")}`;
 }
+
+// ---- tag map (tests that name nodes of an IR the change does not commit) ----
+
+export interface TagMapRow {
+  /** The map file the row came from, and its line */
+  map: string;
+  line: number;
+  tag: string;
+  file: string;
+  title: string;
+}
+
+const TAG_SHAPE = /^[A-Za-z0-9][A-Za-z0-9-]*__[A-Za-z0-9][A-Za-z0-9-]*$/;
+
+/**
+ * A tag map is tab-separated: `<usecase>__<node>`, the test file, the test name. Blank lines and
+ * lines starting with `#` are skipped. One row names one node; a test naming several nodes takes
+ * several rows
+ */
+export function parseTagMap(map: string, text: string): { rows: TagMapRow[]; findings: Finding[] } {
+  const rows: TagMapRow[] = [];
+  const findings: Finding[] = [];
+  text.split("\n").forEach((raw, i) => {
+    const line = raw.replace(/\r$/, "");
+    if (line.trim() === "" || line.trimStart().startsWith("#")) return;
+    const cols = line.split("\t");
+    const [tag = "", file = "", title = ""] = cols;
+    if (cols.length !== 3 || file === "" || title === "") {
+      findings.push({
+        level: "error",
+        check: "tag-map",
+        message: `${map}:${i + 1}: needs 3 tab-separated columns: <usecase>__<node>, test file, test name`,
+      });
+      return;
+    }
+    if (!TAG_SHAPE.test(tag)) {
+      findings.push({ level: "error", check: "tag-map", message: `${map}:${i + 1}: ${tag} is not a <usecase>__<node> tag` });
+      return;
+    }
+    rows.push({ map, line: i + 1, tag, file, title });
+  });
+  return { rows, findings };
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Does a test file declare a test with this exact name? Counts only the first argument of a test
+ * call (`test(…)`, `it(…)`, `t.Run(…)`, a project's `<x>Test(…)`, with modifiers such as `.only`)
+ * and the strings of an `.each(…)` table. The same text in another variable or a comment does not
+ * name a test
+ */
+export function declaresTest(text: string, title: string): boolean {
+  const code = text
+    .split("\n")
+    .map((l) => (COMMENT_LINE.test(l) ? "" : l))
+    .join("\n");
+  const t = escapeRegExp(title);
+  const lit = `(?:"${t}"|'${t}'|\`${t}\`)`;
+  const call = new RegExp(`\\b(?:test|it|Run|\\w+Test)(?:\\.(?:only|skip|fixme|fail|slow|concurrent))*\\(\\s*${lit}`);
+  if (call.test(code)) return true;
+  const litRe = new RegExp(lit);
+  for (const m of code.matchAll(/\b(?:test|it|describe|\w+Test)(?:\.\w+)*\.each\(/g)) {
+    const start = m.index + m[0].length;
+    const end = code.indexOf(")(", start);
+    if (end !== -1 && litRe.test(code.slice(start, end))) return true;
+  }
+  return false;
+}
+
+/**
+ * Check each row against its test file, and turn the rows into sources tag coverage reads, so a
+ * mapped node counts as named by its test file. A row fails when the file does not exist, when no
+ * test in it has the row's name, or when the file itself carries the tag: the IR is not committed,
+ * so a tag in the code would name nothing once the change merges. `readFile` returns undefined for
+ * a missing file
+ */
+export function checkTagMap(
+  rows: TagMapRow[],
+  readFile: (file: string) => string | undefined,
+): { sources: TestSource[]; findings: Finding[] } {
+  const findings: Finding[] = [];
+  const sources: TestSource[] = [];
+  for (const row of rows) {
+    const at = `${row.map}:${row.line}`;
+    const text = readFile(row.file);
+    if (text === undefined) {
+      findings.push({ level: "error", check: "tag-map", message: `${at}: ${row.file} does not exist` });
+      continue;
+    }
+    const declared = declaresTest(text, row.title);
+    if (!declared) {
+      findings.push({
+        level: "error",
+        check: "tag-map",
+        message: `${at}: ${row.file} has no test named ${JSON.stringify(row.title)} (write the name exactly as the first argument of the test call, or as a string in an .each table row)`,
+      });
+    }
+    const tagged = text.split("\n").findIndex((l) => l.includes(row.tag));
+    if (tagged !== -1) {
+      findings.push({
+        level: "error",
+        check: "tag-map",
+        message: `${row.file}:${tagged + 1}: carries ${row.tag}; its IR is not committed, so keep the tag in the map and out of the code`,
+      });
+    }
+    if (declared) sources.push({ path: row.file, text: row.tag });
+  }
+  return { sources, findings };
+}

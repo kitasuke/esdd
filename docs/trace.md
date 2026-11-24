@@ -93,7 +93,9 @@ have been checked and another not). So every outcome item is its own node, confi
 
 **Every** generated test carries `<usecase>__<node>` in its name (title / method name /
 subtest name), with a double underscore. A test that confirms several nodes may carry
-several tags.
+several tags. This holds when the IR the tag names is committed with the change; a test that
+names nodes of an IR the change does not commit keeps a plain name and its tags go in a tag map
+([below](#tags-for-an-ir-that-is-not-committed--a-tag-map---tag-map)).
 
 | Tool | Example |
 | --- | --- |
@@ -145,6 +147,44 @@ case as unnamed.
   error: its expected result is not decided yet
 - The text output lists each scenario and rule case as `named` / `unnamed` / `pending`; with
   `--json`, each IR entry carries the same rows under `tags`
+
+## Tags for an IR that is not committed — a tag map (`--tag-map`)
+
+A tag is a pointer, and it has to point at something after the change merges. When a run keeps
+its IR as a working draft and does not commit it (a code generator that converts the spec, checks
+it, and commits only the code), a tag in a test name names an id the repository does not have. In
+blind evaluations of such changes, every evaluator listed the tags in test names as dangling ids to
+fix, and a usecase prefix was read as a wrong product name. The same rule applies to file headers
+([generation.md](generation.md#test-files)): never point at an uncommitted draft.
+
+So tags go in the test name only when the IR they name is committed with the change. Otherwise the
+tests keep plain, human-readable names, and the run writes the tags in a tag map beside the draft
+IR: one row per node, three tab-separated columns.
+
+```
+# <usecase>__<node>	test file	test name
+UC-ORDER-CANCEL-001__SC-002	src/orders/cancel.spec.ts	cancelling before packing shows the cancelled state
+UC-ORDER-CANCEL-001__RULE-001-c1	src/orders/terms.test.ts	cancellable while placed
+```
+
+```
+node src/cli.ts <ir.yaml> --tag-map <map.tsv> [--tag-map <map.tsv> ...]
+```
+
+- `--tag-map` feeds tag coverage like `--tags`: a mapped node counts as named by the row's test
+  file. It can be combined with `--tags` for files that do carry tags
+- Each row is checked against its test file, and fails as `tag-map` when the file does not exist,
+  when no test in it is declared with that exact name (the first argument of the test call, or a
+  string in an `.each` table row; the same text elsewhere does not count), or when the file itself
+  carries the row's tag. The second catches a map that names a test nobody wrote, the gap tag
+  coverage exists to close; the third catches a tag left in the code
+- A rule case named in an `.each` table is mapped by the row's name string. A test naming several
+  nodes takes several rows. Blank lines and lines starting with `#` are skipped
+- A row whose usecase is not among the IRs passed fails, since it would count for nothing
+- A frozen suite from a separate author ([runs.md](runs.md)) is not renamed: the author writes
+  plain names, and the implementer writes the map rows for the author's tests after taking its
+  commit. A broken-branch run that selects tests by name reads the names from the map
+- Rename a test, and its row changes with it; rerun `--tag-map` before the tests
 
 ## Results (JUnit XML)
 
@@ -240,6 +280,7 @@ question is asked of the source node. The trace table's NC column shows `verifie
 | trace-uncovered | error | a node no test (direct or derived) confirms and no `untested` declares |
 | trace-tag | error | a tag / marker naming a node missing from the IR; a marker naming a non-outcome node |
 | tag-coverage | error | (`--tags`) a scenario or rule case no test source names; pending ones are reported, not errors |
+| tag-map | error | (`--tag-map`) a row that is not three columns or not a tag, names a file that does not exist or a test the file does not declare, whose tag the file itself carries, or names a usecase no IR passed has |
 | trace-owned-by | error | `owned_by` naming a missing node, or a test not in the results |
 | trace-untested | error | `untested` naming a missing node or with an empty reason (warn if the node has a test) |
 | trace-usecase | error | trace.yaml's target differs from the IR, or its IR is not among the inputs |

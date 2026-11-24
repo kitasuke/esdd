@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 import { parseIR } from "./parse.ts";
 import {
   checkTagCoverage,
+  checkTagMap,
+  declaresTest,
   collectScenarioControls,
   enumerateNodes,
   extractTags,
   type Layer,
   parseGoTestJson,
   parseJUnit,
+  parseTagMap,
   parseOutcomeMarkers,
   parseTrace,
   runTrace,
@@ -768,5 +771,97 @@ scenarios:
     ).toEqual([
       "trace-tag page.spec.ts:2: UC-TEST-001__SC-02 names no node in the IR (a typo, or the node was removed from the IR)",
     ]);
+  });
+});
+
+describe("tag map", () => {
+  const model = parseIR(`
+usecase: UC-TEST-001
+name: Remembered filter
+source: { spec: "https://example.com" }
+rules:
+  - id: RULE-001
+    name: Remembered filter
+    cases:
+      - { input: pick a filter, expected: remembered }
+      - { input: sign out, expected: forgotten }
+scenarios:
+  - { id: SC-001, name: The picked filter stays, given: [signed in], when: [pick a filter], then: [the same filter is selected] }
+`).model!;
+  const PAGE = [
+    'import { test } from "@playwright/test";',
+    "// the picked filter stays",
+    'test("the picked filter stays after reload", async () => {});',
+  ].join("\n");
+  const UNIT = 'it.each([{ name: "remembers the pick" }, { name: "forgets on sign-out" }])("$name", () => {});';
+  const files: Record<string, string> = { "src/page.spec.ts": PAGE, "src/filter.test.ts": UNIT };
+  const read = (f: string) => files[f];
+  const map = [
+    "# UC-TEST-001",
+    "",
+    "UC-TEST-001__SC-001\tsrc/page.spec.ts\tthe picked filter stays after reload",
+    "UC-TEST-001__RULE-001-c1\tsrc/filter.test.ts\tremembers the pick",
+    "UC-TEST-001__RULE-001-c2\tsrc/filter.test.ts\tforgets on sign-out",
+  ].join("\n");
+
+  it("skips comments and blank lines, and reads three columns", () => {
+    const { rows, findings } = parseTagMap("m.tsv", map);
+    expect(findings).toEqual([]);
+    expect(rows.map((r) => `${r.line} ${r.tag} ${r.file} ${r.title}`)).toEqual([
+      "3 UC-TEST-001__SC-001 src/page.spec.ts the picked filter stays after reload",
+      "4 UC-TEST-001__RULE-001-c1 src/filter.test.ts remembers the pick",
+      "5 UC-TEST-001__RULE-001-c2 src/filter.test.ts forgets on sign-out",
+    ]);
+  });
+
+  it("errors on a row without three columns and on a cell that is not a tag", () => {
+    expect(parseTagMap("m.tsv", "UC-TEST-001__SC-001\tsrc/page.spec.ts\nSC-001\ta.ts\tname").findings.map((f) => f.message)).toEqual([
+      "m.tsv:1: needs 3 tab-separated columns: <usecase>__<node>, test file, test name",
+      "m.tsv:2: SC-001 is not a <usecase>__<node> tag",
+    ]);
+  });
+
+  it("counts mapped nodes as named by their test files", () => {
+    const { sources, findings } = checkTagMap(parseTagMap("m.tsv", map).rows, read);
+    expect(findings).toEqual([]);
+    const { rows, findings: coverage } = checkTagCoverage(model, sources);
+    expect(coverage).toEqual([]);
+    expect(rows.map((r) => `${r.id} ${r.status} ${r.files.join(",")}`)).toEqual([
+      "SC-001 named src/page.spec.ts",
+      "RULE-001-c1 named src/filter.test.ts",
+      "RULE-001-c2 named src/filter.test.ts",
+    ]);
+  });
+
+  it("errors on a missing file and on a name no test declares, and does not count those rows", () => {
+    const rows = parseTagMap(
+      "m.tsv",
+      [
+        "UC-TEST-001__SC-001\tsrc/page.spec.ts\tthe picked filter stays",
+        "UC-TEST-001__RULE-001-c1\tsrc/gone.test.ts\tremembers the pick",
+      ].join("\n"),
+    ).rows;
+    const { sources, findings } = checkTagMap(rows, read);
+    expect(findings.map((f) => f.message)).toEqual([
+      'm.tsv:1: src/page.spec.ts has no test named "the picked filter stays" (write the name exactly as the first argument of the test call, or as a string in an .each table row)',
+      "m.tsv:2: src/gone.test.ts does not exist",
+    ]);
+    expect(sources).toEqual([]);
+  });
+
+  it("errors when the test file itself carries the tag", () => {
+    const tagged = { "src/page.spec.ts": 'test("UC-TEST-001__SC-001 the picked filter stays after reload", async () => {});' };
+    const rows = parseTagMap("m.tsv", "UC-TEST-001__SC-001\tsrc/page.spec.ts\tUC-TEST-001__SC-001 the picked filter stays after reload").rows;
+    expect(checkTagMap(rows, (f) => tagged[f as keyof typeof tagged]).findings.map((f) => f.message)).toEqual([
+      "src/page.spec.ts:1: carries UC-TEST-001__SC-001; its IR is not committed, so keep the tag in the map and out of the code",
+    ]);
+  });
+
+  it("reads a name only as a test declaration, not as other text", () => {
+    expect(declaresTest('const label = "the picked filter stays";', "the picked filter stays")).toBe(false);
+    expect(declaresTest('// test("the picked filter stays")', "the picked filter stays")).toBe(false);
+    expect(declaresTest('test.only("the picked filter stays (1)", () => {})', "the picked filter stays (1)")).toBe(true);
+    expect(declaresTest('t.Run("keeps the pick", func(t *testing.T) {})', "keeps the pick")).toBe(true);
+    expect(declaresTest("describe.each([['keeps the pick']])('%s', () => {})", "keeps the pick")).toBe(true);
   });
 });
