@@ -368,6 +368,12 @@ export function checkPending(model: Model): Finding[] {
       pushAll(`scenarios[${sc.id}].${key}`, (sc[key] ?? []).filter((t): t is string => typeof t === "string"));
     }
   });
+  // an na reason can carry an open question too ("never occurs TBD(Q3: confirm with the API team)")
+  (model.ir.inputs ?? []).forEach((inp) => {
+    for (const [cond, reason] of Object.entries(inp.na ?? {})) {
+      if (typeof reason === "string") pushAll(`inputs[${inp.id}].na.${cond}`, [reason]);
+    }
+  });
   return findings;
 }
 

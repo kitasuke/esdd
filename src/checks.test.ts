@@ -384,6 +384,28 @@ rules:
     ]);
   });
 
+  it("a marker in an input's na reason produces a pending warn", () => {
+    const src = `
+usecase: UC-TEST-007
+name: Unanswered question test
+source: { spec: "https://example.com" }
+inputs:
+  - id: qty
+    kind: field
+    conditions: [increase, decrease]
+    na: { decrease: "the quantity is always 1 TBD(Q4: can it be lowered?)" }
+scenarios:
+  - id: SC-001
+    name: raise the quantity
+    covers: ["qty×increase"]
+    given: [one item in the cart]
+    when: [press plus]
+    then: [the quantity is 2]
+`;
+    const pending = check(src).filter((f) => f.check === "pending").map((f) => f.message.split(":")[0]);
+    expect(pending).toEqual(["inputs[qty].na.decrease"]);
+  });
+
   it("no markers means no pending findings", () => {
     const findings = check(readFileSync(PILOT, "utf8"));
     expect(findings.filter((f) => f.check === "pending")).toEqual([]);

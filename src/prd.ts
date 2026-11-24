@@ -675,6 +675,11 @@ function irPending(model: Model): { where: string; text: string }[] {
     for (const c of rule.cases) add(`${rule.name}: ${cell(c.input)}`, typeof c.expected === "string" ? [c.expected] : []);
   }
   for (const sc of model.ir.scenarios) add(sc.name, sc.then ?? []);
+  for (const inp of model.ir.inputs ?? []) {
+    for (const [cond, reason] of Object.entries(inp.na ?? {})) {
+      if (typeof reason === "string") add(`${inputLabel(model, inp.id)}: ${conditionLabel(model, inp.id, cond)}`, [reason]);
+    }
+  }
   return out;
 }
 
