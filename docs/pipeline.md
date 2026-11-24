@@ -247,6 +247,20 @@ which ones are asked rather than assumed, and how far a proposal reaches.
   that hand state to each other (a list and its detail, two tabs) into one pass, by that
   dependency rather than by page count. One question list for the spec, with ids that
   continue across passes, so a later pass does not re-ask an earlier one
+- **Read the spec pages the spec links to before asking.** A spec often points to another
+  team's page for a behavior it relies on (a search service's rules, the order of a shared
+  list). Before raising a question near such a link, read the linked page as a reference: if it
+  answers the question, do not ask; cite the page and heading as the basis, and make the proposal
+  agree with it. Ask nothing about the referenced page itself, and list it among the sources read.
+  Minutes, surveys and chat threads stay out even when linked: they record how a decision came
+  about, not the behavior. In one trial, some questions were already answered on a linked page,
+  and some proposals contradicted it
+- **Group the questions by the part of the screen they are about.** Within a screen, keep the
+  questions on one heading or element together, put the group with the most severe question first,
+  and number the questions in that order on the first round. Numbers that jump between topics
+  make an owner who answers one by one switch context at every question; ask a group in a row, and
+  name it before its first question. The most severe questions overall are named in the report's
+  summary instead. A later round's new question keeps its continuing id and joins its group
 - **Accept by default; ask only what must be asked** (below). Owners should spend their
   time on the decisions that need them, not on confirming the obvious one by one
 
@@ -349,9 +363,12 @@ note tier below, which decides how a question is handled.
   ask once and list the cells. Do not raise the same point twice in a report. Path
   errors caused by an undefined cell are derived findings; fold them into that cell's
   question
-- **Reference both sides.** Give each question the spec location (heading or diagram
-  name) and the IR reference (`STATE × event`, `input × condition`, rule or scenario
-  id). The IR reference is the key for matching answers on re-review
+- **Reference both sides.** Give each question the spec location and the IR reference
+  (`STATE × event`, `input × condition`, rule or scenario id). The IR reference is the key for
+  matching answers on re-review. When the spec spans pages, the location names the page and the
+  heading inside it, with a link to the page ("Order list › Filters"), not an abbreviation such as
+  "01 ②" that only the converter can resolve; a contradiction names both places. In one trial
+  the owner could not find the passages a question compared without searching for them
 - **Say who decides.** Tag each question with who can answer it: the spec owner, the
   implementation team, or another team (a backend, a recommendation service). Only the owner's
   questions go to the owner; the rest are answered where they belong and recorded in the same

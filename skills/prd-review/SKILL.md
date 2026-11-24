@@ -30,7 +30,8 @@ Collect these before converting. Ask for any that are missing:
    - Some found: run pdd-review once per design doc, inside this round. It is called from here, so
      it never takes its own "started directly" branch
 3. Convert the spec into IRs ([docs/usecase-ir.md](../../docs/usecase-ir.md)). A spec over several
-   screens: shared material first, one question list across passes
+   screens: shared material first, one question list across passes. Before asking near a link to
+   another team's spec page, read that page as a reference and ask only what it leaves open
    ([Running a review round](../../docs/pipeline.md#running-a-review-round))
 4. For each design doc, run pdd-review's steps against the same IRs
 5. Check, and get the open questions worded for the owner:
@@ -44,7 +45,9 @@ Collect these before converting. Ask for any that are missing:
    ([Questions and severity](../../docs/pipeline.md#questions-and-severity)). Each question gets one
    proposal and a tier ([Accept by default](../../docs/pipeline.md#accept-by-default)), and says who
    decides: the spec owner, the implementation team, or another team. Design-doc questions join the
-   same list with continuing ids. Map every error and pending marker to a question
+   same list with continuing ids. Map every error and pending marker to a question. Group the
+   questions by the part of the screen they are about, number them in that order, and give each
+   location as page and heading, both places for a contradiction
 7. Report once, where the run is tracked: the sources with their versions (for each design doc, also
    the time of its newest comment), the question list with a "who decides" column, the assumptions,
    and the mapping from findings to questions. For each design doc, add what pdd-review hands back

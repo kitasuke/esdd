@@ -171,6 +171,13 @@ misses a design doc misses the constraints only that doc states:
   links back, most of all when several teams each write one. Search the doc tool for pages that
   contain the PRD's link or id, and judge each by its title or document type: a page that only
   discusses the PRD (minutes, a ticket, a survey) is not a design doc
+- **The project's design area.** A project template often creates a placeholder design page per
+  part (one per API, one per client) under the same parent as the PRD, and a team often keeps its
+  own design pages in a tree of its own there; neither may link to the PRD. List the pages under
+  the PRD's parent and read the filled ones as design docs. A placeholder still in its template
+  form is not read; the report names it as unfilled, so everyone sees which parts have no design
+  yet. In one trial, eight placeholders and a team's design tree were all missed by the backlink
+  search, which found nothing
 - **Fields that relate documents**, when the doc tool keeps PRDs and design docs in one database
   with a parent/child relation. Find the field by what it relates, not by an exact name: names drift
   between the template and the live database
