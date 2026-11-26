@@ -228,6 +228,14 @@ which ones are asked rather than assumed, and how far a proposal reaches.
   changes with it. What the code cannot settle (data in an environment, someone's intent) is
   marked unverified, not stated as fact. The report says how many claims were checked and how
   many fixed. In one trial an option rested on something the similar existing screen did not do
+- **Check a proposal against the case that raised the question.** When a question comes from a
+  concrete case (a record, a frame, a failing example, a data point), apply the proposal to that
+  case with the data or code at hand before offering it, and write what was checked and the
+  result in the basis (e.g. "on the case behind the question: X → review; across the data: N rows
+  change"). If it cannot be checked, say so in the basis and do not mark the option as
+  recommended. If the check shows the proposal does not cover the case, change the proposal, not
+  the question. In one trial the owner accepted a proposal that, checked afterwards, changed
+  nothing — including the case that raised the question
 - **Displayed text the spec does not give is referenced, not written.** The outcome says
   what is visible (an error is shown, the list is empty, a toast appears) and points to
   where the text lives: "an error is shown (text: design file, element 3-a, error state)".
